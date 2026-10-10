@@ -2,6 +2,7 @@
 // Écran « Moteurs » : clé DeepL (jamais réaffichée), ton, quota ; adresse et modèle de l'IA locale.
 
 window.__modules = window.__modules || [];
+window.SubForge = window.SubForge || {}; // fonctions partagées entre écrans
 window.__modules.push((async () => {
   const { el, notifier, erreur } = window.UI;
   const $ = (id) => document.getElementById(id);
@@ -19,7 +20,7 @@ window.__modules.push((async () => {
       $('ollama-modele').append(el('option', { value: etat.ollama.modele, texte: etat.ollama.modele }));
     }
     $('ollama-modele').value = etat.ollama.modele || '';
-    await window.SubForge?.rafraichirOptions();
+    await window.SubForge.rafraichirOptions?.();
     return etat;
   }
 
@@ -84,7 +85,7 @@ window.__modules.push((async () => {
     try { await T.modifierReglages({ adresseOllama: $('ollama-adresse').value }); await chargerModeles(); } catch (e) { erreur(e); await rafraichir(); }
   });
   $('ollama-modele').addEventListener('change', async () => {
-    try { await T.modifierReglages({ modeleOllama: $('ollama-modele').value }); await window.SubForge?.rafraichirOptions(); } catch (e) { erreur(e); }
+    try { await T.modifierReglages({ modeleOllama: $('ollama-modele').value }); await window.SubForge.rafraichirOptions?.(); } catch (e) { erreur(e); }
   });
   $('btn-ollama-actualiser').addEventListener('click', () => chargerModeles());
   $('btn-ollama-tester').addEventListener('click', async () => {
@@ -98,7 +99,30 @@ window.__modules.push((async () => {
   });
   $('btn-ollama-site').addEventListener('click', () => window.forge.ouvrirLien('https://ollama.com/download'));
 
+  // --- Mémoire de traduction ---
+  async function majMemoire() {
+    try {
+      const m = await window.forge.memoire.etat();
+      $('memoire-active').checked = m.active;
+      const mo = (m.taille / 1024 / 1024).toLocaleString('fr-FR', { maximumFractionDigits: 1 });
+      $('memoire-etat').textContent = m.entrees ? `${nombre(m.entrees)} répliques en mémoire (${mo} Mo)` : 'Mémoire vide';
+      $('btn-memoire-vider').disabled = !m.entrees;
+    } catch (e) { erreur(e); $('memoire-etat').textContent = 'État de la mémoire illisible.'; }
+  }
+  $('memoire-active').addEventListener('change', async () => {
+    try { await T.modifierReglages({ memoire: $('memoire-active').checked }); } catch (e) { erreur(e); }
+    majMemoire();
+  });
+  $('btn-memoire-vider').addEventListener('click', async () => {
+    if (!window.confirm('Vider la mémoire de traduction ? Les répliques déjà traduites seront à nouveau envoyées au moteur.')) return;
+    try { await window.forge.memoire.vider(); notifier('Mémoire de traduction vidée.', 'succes'); } catch (e) { erreur(e); }
+    majMemoire();
+  });
+  window.SubForge.majMemoire = majMemoire;
+  document.querySelector('.nav-item[data-ecran="moteurs"]').addEventListener('click', majMemoire);
+
   await rafraichir();
+  await majMemoire();
   // Détection discrète au démarrage, sans bloquer l'affichage.
   chargerModeles({ silencieux: true });
 })());

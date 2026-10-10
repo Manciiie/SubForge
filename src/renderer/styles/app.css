@@ -221,3 +221,19 @@ input[type="color"] { width: 44px; height: 28px; border: 0; background: none; cu
 #deepl-barre-quota { margin-top: 6px; }
 .zone-depot.compacte { padding: 16px 20px; display: flex; align-items: center; justify-content: center; gap: 14px; flex-wrap: wrap; }
 .zone-depot.compacte .btn { margin-top: 0; }
+
+/* --- 1.1 : glossaire, mémoire --------------------------------------------- */
+.carte-fichier__message--alerte { background: color-mix(in srgb, var(--alerte) 16%, transparent); }
+.formulaire-glossaire { display: grid; grid-template-columns: 1fr 1fr 180px auto auto; gap: 14px; align-items: end; }
+.formulaire-glossaire input[type="text"] { width: 100%; color: var(--texte); }
+.option--case { align-items: center; }
+.formulaire-glossaire__actions { display: flex; gap: 8px; }
+#gl-recherche { width: 200px; }
+.table-glossaire { border: 1px solid var(--bordure); border-radius: var(--rayon-petit); max-height: 520px; overflow: auto; }
+.table-glossaire:empty { display: none; }
+.table-glossaire__ligne { display: grid; grid-template-columns: 1.2fr 1.2fr 160px 190px; gap: 12px; align-items: center; padding: 7px 12px; border-bottom: 1px solid var(--bordure); font-size: 13px; }
+.table-glossaire__ligne:last-child { border-bottom: 0; }
+.table-glossaire__ligne--entete { position: sticky; top: 0; background: var(--fond-panneau); font-weight: 600; color: var(--texte-discret); }
+.table-glossaire__terme { font-weight: 600; user-select: text; overflow-wrap: anywhere; }
+.table-glossaire__actions { display: flex; gap: 6px; justify-content: flex-end; }
+@media (max-width: 1100px) { .formulaire-glossaire { grid-template-columns: 1fr 1fr; } }

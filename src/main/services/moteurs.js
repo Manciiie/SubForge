@@ -33,7 +33,7 @@ async function lireJson(reponse) {
 
 // --- Échappement XML (DeepL avec tag_handling=xml) -------------------------------
 
-const RE_MARQUEUR = /<x\s+n="\d+"\s*\/>/g;
+const RE_MARQUEUR = /<[xg]\s+n="\d+"\s*\/>/g; // <x/> : balise de mise en forme, <g/> : terme du glossaire
 
 function versXml(texte) {
   let sortie = '';
@@ -186,7 +186,7 @@ function creerMoteurs({ fetch, lireCleDeepl, urlDeeplTest = null, journal = cons
       `You are a professional film subtitle translator. Translate each subtitle line ${de ? `from ${de} ` : ''}into ${vers}.`,
       'The input is JSON: "context" holds the previous lines (for reference only, do not translate them) and "lines" maps ids to the text to translate.',
       'Answer ONLY with a JSON object mapping every id from "lines" to its translation. Same ids, no extra keys, no comments.',
-      'Keep every marker like <x n="0"/> exactly as written, at the matching place in the sentence.',
+      'Keep every marker like <x n="0"/> or <g n="0"/> exactly as written, at the matching place in the sentence. A <g/> marker stands for a name or a fixed term: treat it as a noun.',
       'Write natural spoken dialogue, as short as the original. Keep names unchanged. Never merge or split lines. Never leave a line empty.',
     ].join('\n');
   }
@@ -225,7 +225,11 @@ function creerMoteurs({ fetch, lireCleDeepl, urlDeeplTest = null, journal = cons
     const objet = extraireObjet(d?.message?.content);
     return segments.map((s, i) => {
       const v = objet?.[String(i + 1)];
-      return typeof v === 'string' && v.trim() !== '' ? v : null;
+      if (typeof v !== 'string' || v.trim() === '') return null;
+      // Un marqueur oublié = un nom ou une mise en forme perdus : réponse refusée, la réplique est redemandée.
+      const attendus = (s.match(RE_MARQUEUR) || []).map((m) => m.replace(/\s+/g, ' ')).sort().join();
+      const recus = (v.match(RE_MARQUEUR) || []).map((m) => m.replace(/\s+/g, ' ')).sort().join();
+      return attendus === recus ? v : { brouillon: v };
     });
   }
 
@@ -233,6 +237,7 @@ function creerMoteurs({ fetch, lireCleDeepl, urlDeeplTest = null, journal = cons
   async function traduireOllama(segments, { adresse, modele, source, cible, contexte = [], signal }) {
     if (!modele) throw new ErreurMoteur('Aucun modèle d\'IA locale choisi : choisissez-en un dans l\'écran Moteurs.');
     const resultats = new Array(segments.length).fill(null);
+    const brouillons = new Map(); // réponses où un marqueur manquait : gardées en dernier recours
     async function traiter(indices, taille, essai = 0) {
       for (let k = 0; k < indices.length; k += taille) {
         if (signal?.aborted) throw erreurAnnulation();
@@ -246,11 +251,21 @@ function creerMoteurs({ fetch, lireCleDeepl, urlDeeplTest = null, journal = cons
           reponses = lot.map(() => null);
         }
         const manquants = [];
-        lot.forEach((i, j) => { if (reponses[j] !== null) resultats[i] = reponses[j]; else manquants.push(i); });
+        lot.forEach((i, j) => {
+          const r = reponses[j];
+          if (typeof r === 'string') resultats[i] = r;
+          else { if (r?.brouillon) brouillons.set(i, r.brouillon); manquants.push(i); }
+        });
         if (manquants.length) {
           if (taille > 1) await traiter(manquants, Math.max(1, Math.floor(taille / 3)));
           else if (essai < 2) await traiter(manquants, 1, essai + 1);
-          else throw new ErreurMoteur('L\'IA locale n\'arrive pas à traduire certaines répliques : essayez un autre modèle.');
+          else {
+            // Dernier recours : la réponse sans tous ses marqueurs (la réplique sera signalée « à vérifier »).
+            for (const i of manquants) {
+              if (!brouillons.has(i)) throw new ErreurMoteur('L\'IA locale n\'arrive pas à traduire certaines répliques : essayez un autre modèle.');
+              resultats[i] = brouillons.get(i);
+            }
+          }
         }
       }
     }

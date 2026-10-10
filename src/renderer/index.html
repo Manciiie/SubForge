@@ -22,6 +22,7 @@
   <div class="disposition">
     <nav class="navigation" aria-label="Navigation principale">
       <button class="nav-item actif" data-ecran="traduire">Traduire</button>
+      <button class="nav-item" data-ecran="glossaire">Glossaire</button>
       <button class="nav-item" data-ecran="moteurs">Moteurs</button>
       <div class="navigation__bas">
         <button class="nav-item" data-ecran="parametres">Paramètres</button>
@@ -97,6 +98,46 @@
         </div>
       </section>
 
+      <section class="ecran" id="ecran-glossaire">
+        <h1>Glossaire</h1>
+        <p class="sous-titre">Noms propres à ne jamais traduire, et termes à traduire toujours de la même façon. Valable pour DeepL comme pour l'IA locale.</p>
+        <p class="avertissement-moteur discret" id="glossaire-avertissement"></p>
+
+        <div class="carte">
+          <h2 id="glossaire-titre-form">Ajouter un terme</h2>
+          <div class="formulaire-glossaire">
+            <label class="option">Terme (dans la langue d'origine)
+              <input type="text" id="gl-terme" maxlength="120" placeholder="ex. Jon Snow" spellcheck="false">
+            </label>
+            <label class="option">Traduction
+              <input type="text" id="gl-traduction" maxlength="120" placeholder="vide = ne jamais traduire" spellcheck="false">
+            </label>
+            <label class="option">Langue cible
+              <select id="gl-cible"><option value="*">Toutes</option></select>
+            </label>
+            <label class="option option--case"><span>Respecter la casse</span>
+              <input type="checkbox" id="gl-casse">
+            </label>
+            <div class="formulaire-glossaire__actions">
+              <button class="btn btn--lien" id="gl-annuler" hidden>Annuler</button>
+              <button class="btn btn--principal" id="gl-enregistrer">Ajouter</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="carte">
+          <div class="file__entete">
+            <h2 id="gl-compte">Termes</h2>
+            <span class="espace"></span>
+            <input type="text" id="gl-recherche" placeholder="Rechercher…" spellcheck="false">
+            <button class="btn" id="gl-importer">Importer (.csv / .txt)</button>
+          </div>
+          <div class="table-glossaire" id="gl-table" role="table"></div>
+          <p class="discret" id="gl-vide">Aucun terme pour l'instant. Ajoutez les noms des personnages et des lieux de votre série : ils resteront identiques dans tous les épisodes.</p>
+          <p class="discret">Import : une ligne par terme, <span class="code">terme;traduction;langue</span> (traduction et langue facultatives).</p>
+        </div>
+      </section>
+
       <section class="ecran" id="ecran-moteurs">
         <h1>Moteurs de traduction</h1>
         <p class="sous-titre">DeepL donne la meilleure qualité ; l'IA locale fonctionne hors ligne, sur votre carte graphique.</p>
@@ -130,6 +171,18 @@
             </span>
           </div>
           <div class="barre-progression" id="deepl-barre-quota" hidden><span></span></div>
+        </div>
+
+        <div class="carte">
+          <h2>Mémoire de traduction</h2>
+          <p class="discret">Chaque réplique traduite est gardée sur ce PC : retraduire un fichier, ou une réplique déjà vue (génériques, « Oui. », « Merci. »), ne coûte plus rien à DeepL.</p>
+          <label class="ligne-param">Utiliser la mémoire de traduction
+            <input type="checkbox" id="memoire-active">
+          </label>
+          <div class="ligne-param">
+            <span id="memoire-etat" class="discret">—</span>
+            <button class="btn" id="btn-memoire-vider">Vider la mémoire</button>
+          </div>
         </div>
 
         <div class="carte">
@@ -234,6 +287,7 @@
   <script src="js/app.js"></script>
   <script src="js/traduire.js"></script>
   <script src="js/moteurs.js"></script>
+  <script src="js/glossaire.js"></script>
   <script src="js/maj.js"></script>
 </body>
 </html>

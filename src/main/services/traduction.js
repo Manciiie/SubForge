@@ -13,11 +13,16 @@ const formats = require('./formats');
 const video = require('./video');
 const langues = require('./langues');
 const { creerMoteurs, adresseOllamaValide, normaliserAdresse } = require('./moteurs');
+const { creerMemoire } = require('./memoire');
+const { creerGlossaire } = require('./glossaire');
+const { traduireDocument } = require('./pipeline');
 
 const SECRET_DEEPL = 'cle_deepl';
 const CODES = langues.codes();
 
 let moteurs = null;
+let memoire = null;
+let glossaire = null;
 let binaireFfmpeg = null;
 let tache = null;              // { controleur, expediteur }
 const resultats = new Map();   // id d'élément → { paires, sortie }
@@ -26,7 +31,7 @@ const sortiesProduites = new Set();
 function reglages() {
   const p = parametres.lire();
   return {
-    traduction: { source: 'auto', cible: 'fr', moteur: 'deepl', formatSortie: 'identique', dossierSortie: null, ...(p.traduction || {}) },
+    traduction: { source: 'auto', cible: 'fr', moteur: 'deepl', formatSortie: 'identique', dossierSortie: null, memoire: true, ...(p.traduction || {}) },
     deepl: { formalite: 'defaut', ...(p.deepl || {}) },
     ollama: { adresse: 'http://127.0.0.1:11434', modele: '', ...(p.ollama || {}) },
   };
@@ -80,25 +85,10 @@ async function traduireElement(el, options, signal) {
     formats.preparerConversionAss(doc);
     const original = doc.repliques.map((r) => formats.texteVisible(r.texte));
 
-    // Segments à traduire, réplique par réplique.
-    const preparations = doc.repliques.map((r) => (r.dessin ? null : formats.preparerReplique(r.texte, doc.format)));
-    const segments = [];
-    const positions = preparations.map((p) => {
-      if (!p) return null;
-      const debut = segments.length;
-      segments.push(...p.segments);
-      return debut;
-    });
-    if (segments.length === 0) throw new Error('Aucun texte à traduire dans ces sous-titres.');
-
-    rapporter('traduction', { fait: 0, total: segments.length, message: 'Traduction…' });
-    const traductions = await moteurs.traduireTout(segments, { ...options, signal }, (fait, total) => rapporter('traduction', { fait, total }));
-    if (signal.aborted) throw Object.assign(new Error('Traduction annulée.'), { name: 'AbortError' });
-
-    doc.repliques.forEach((r, i) => {
-      const p = preparations[i];
-      if (!p || p.segments.length === 0) return;
-      r.texte = p.recomposer(traductions.slice(positions[i], positions[i] + p.segments.length));
+    rapporter('traduction', { fait: 0, total: 0, message: 'Traduction…' });
+    const bilan = await traduireDocument(doc, {
+      moteurs, memoire, glossairePrepare: glossaire.pour(options.cible), options, signal,
+      surAvancement: (fait, total) => rapporter('traduction', { fait, total }),
     });
 
     rapporter('ecriture', { message: 'Enregistrement…' });
@@ -111,8 +101,8 @@ async function traduireElement(el, options, signal) {
 
     const paires = doc.repliques.slice(0, 400).map((r, i) => ({ debut: r.debut, original: original[i], traduit: formats.texteVisible(r.texte) }));
     resultats.set(el.id, { paires, sortie: cible, total: doc.repliques.length });
-    journal.info(`Traduit : ${path.basename(el.chemin)} → ${path.basename(cible)} (${segments.length} segments, ${options.moteur})`);
-    rapporter('termine', { sortie: cible, nomSortie: path.basename(cible), repliques: doc.repliques.length });
+    journal.info(`Traduit : ${path.basename(el.chemin)} → ${path.basename(cible)} (${bilan.segments} segments, ${bilan.envoyes} envoyés, ${bilan.repris} repris de la mémoire, ${options.moteur})`);
+    rapporter('termine', { sortie: cible, nomSortie: path.basename(cible), repliques: doc.repliques.length, bilan });
   } catch (e) {
     if (e.name === 'AbortError' || signal.aborted) {
       rapporter('annule', { message: 'Annulé.' });
@@ -133,6 +123,10 @@ function enregistrer({ racineApp }) {
   const urlTest = !app.isPackaged && process.env.SUBFORGE_DEEPL_URL_TEST ? process.env.SUBFORGE_DEEPL_URL_TEST : null;
   moteurs = creerMoteurs({ fetch: (u, o) => net.fetch(u, o), lireCleDeepl: () => parametres.lireSecret(SECRET_DEEPL), urlDeeplTest: urlTest, journal });
 
+  const donnees = app.getPath('userData');
+  memoire = creerMemoire({ fichier: path.join(donnees, 'memoire-traduction.jsonl'), journal });
+  glossaire = creerGlossaire({ fichier: path.join(donnees, 'glossaire.json'), journal });
+
   app.on('before-quit', () => { tache?.controleur.abort(); video.toutArreter(); });
 
   canal('traduction:langues', [], () => langues.LANGUES.map((l) => ({ code: l.code, nom: l.nom, deepl: Boolean(l.deeplCible) })));
@@ -151,10 +145,11 @@ function enregistrer({ racineApp }) {
       formalite: { type: 'enum', valeurs: ['defaut', 'formel', 'informel'], optionnel: true },
       adresseOllama: { type: 'string', max: 300, optionnel: true },
       modeleOllama: { type: 'string', max: 200, optionnel: true },
+      memoire: { type: 'boolean', optionnel: true },
     },
   }], (_e, o) => {
     const r = reglages();
-    for (const c of ['source', 'cible', 'moteur', 'formatSortie']) if (o[c] !== undefined) r.traduction[c] = o[c];
+    for (const c of ['source', 'cible', 'moteur', 'formatSortie', 'memoire']) if (o[c] !== undefined) r.traduction[c] = o[c];
     if (o.viderDossierSortie) r.traduction.dossierSortie = null;
     if (o.dossierSortie !== undefined && o.dossierSortie !== null) {
       if (!path.isAbsolute(o.dossierSortie) || !fs.existsSync(o.dossierSortie)) throw new ErreurSecurite('Dossier de sortie introuvable.');
@@ -200,6 +195,7 @@ function enregistrer({ racineApp }) {
       formatSortie: r.traduction.formatSortie,
       dossierSortie: r.traduction.dossierSortie && fs.existsSync(r.traduction.dossierSortie) ? r.traduction.dossierSortie : null,
       formalite: r.deepl.formalite,
+      memoire: r.traduction.memoire,
       adresse: r.ollama.adresse,
       modele: r.ollama.modele,
     };
@@ -236,6 +232,43 @@ function enregistrer({ racineApp }) {
     if (!sortiesProduites.has(chemin)) throw new ErreurSecurite('Fichier inconnu.');
     shell.showItemInFolder(chemin);
     return true;
+  });
+
+  // --- Mémoire de traduction ---
+  canal('memoire:etat', [], () => ({ active: reglages().traduction.memoire, ...memoire.etat() }));
+  canal('memoire:vider', [], () => {
+    if (tache) throw new Error('Impossible pendant une traduction : attendez la fin ou annulez.');
+    memoire.vider();
+    journal.info('Mémoire de traduction vidée.');
+    return memoire.etat();
+  });
+
+  // --- Glossaire ---
+  canal('glossaire:lister', [], () => glossaire.lister());
+  canal('glossaire:enregistrer', [{
+    type: 'objet',
+    champs: {
+      id: { type: 'string', max: 32, optionnel: true },
+      terme: { type: 'string', max: 200 },
+      traduction: { type: 'string', max: 200 },
+      cible: { type: 'enum', valeurs: ['*', ...CODES] },
+      casse: { type: 'boolean' },
+    },
+  }], (_e, entree) => glossaire.enregistrer(entree));
+  canal('glossaire:supprimer', [{ type: 'string', max: 32 }], (_e, id) => glossaire.supprimer(id));
+  canal('glossaire:importer', [], async (event) => {
+    const res = await dialog.showOpenDialog(BrowserWindow.fromWebContents(event.sender), {
+      title: 'Importer un glossaire (une ligne par terme : terme;traduction)',
+      properties: ['openFile'],
+      filters: [{ name: 'Texte ou CSV', extensions: ['csv', 'txt', 'tsv'] }],
+    });
+    if (res.canceled) return null;
+    const f = res.filePaths[0];
+    if (fs.statSync(f).size > 2 * 1024 * 1024) throw new Error('Fichier trop gros pour un glossaire (2 Mo au plus).');
+    const { texte } = formats.decoder(fs.readFileSync(f));
+    const bilan = glossaire.importer(texte, CODES);
+    journal.info(`Glossaire importé depuis ${path.basename(f)} : ${bilan.ajoutes} ajoutés, ${bilan.ignores} ignorés`);
+    return bilan;
   });
 
   // --- Moteurs ---

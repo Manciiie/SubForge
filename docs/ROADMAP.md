@@ -26,8 +26,8 @@
 |---|---|---|
 | v1.1-T100 | Rattrapage du squelette 5 → 7 (CODEMAP, cas limites, pas d'échec silencieux) | [x] |
 | v1.1-T101 | ffmpeg 7.1 (source PyPI imageio-ffmpeg, empreinte figée) | [x] |
-| v1.1-T102 | Mémoire de traduction | [ ] |
-| v1.1-T103 | Glossaire (écran Glossaire) | [ ] |
+| v1.1-T102 | Mémoire de traduction | [x] |
+| v1.1-T103 | Glossaire (écran Glossaire) | [x] |
 | v1.1-T104 | Saison entière : dossiers et sous-dossiers | [ ] |
 | v1.1-T105 | OCR des sous-titres Blu-ray (PGS) | [ ] |
 | v1.1-T106 | Recherche de sous-titres en ligne (OpenSubtitles) | [ ] |

@@ -6,43 +6,10 @@
 //   3. Vérifie les fichiers écrits sur le disque, l'aperçu, puis l'annulation (aucun fichier partiel).
 //   4. Si SUBFORGE_DEEPL_URL_TEST est défini (développement) : clé DeepL enregistrée puis masquée.
 
-const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
-
-const RACINE = path.resolve(__dirname, '..', '..');
-
-function fauxOllama() {
-  return new Promise((ok) => {
-    const s = http.createServer((req, res) => {
-      let corps = '';
-      req.on('data', (d) => { corps += d; });
-      req.on('end', () => {
-        if (req.url === '/api/tags') {
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ models: [{ name: 'faux-modele:1b', size: 1.2e9 }] }));
-          return;
-        }
-        const msg = JSON.parse(corps);
-        const lignes = JSON.parse(msg.messages[1].content).lines;
-        const sortie = {};
-        for (const [k, v] of Object.entries(lignes)) sortie[k] = `[fr] ${v}`;
-        const lent = Object.values(lignes).some((v) => v.includes('LENT'));
-        setTimeout(() => {
-          if (res.destroyed) return;
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ message: { role: 'assistant', content: JSON.stringify(sortie) } }));
-        }, lent ? 700 : 20);
-      });
-    });
-    s.listen(0, '127.0.0.1', () => ok(s));
-  });
-}
-
-function ffmpeg() {
-  return path.join(RACINE, 'vendor', process.platform === 'win32' ? 'win' : 'linux', process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg');
-}
+const { fauxOllama, ffmpeg } = require('./outils');
 
 module.exports = async (p) => {
   const serveur = await fauxOllama();

@@ -37,6 +37,12 @@ const CANAUX = [
   'moteurs:testerDeepl',
   'moteurs:modelesOllama',
   'moteurs:testerOllama',
+  'memoire:etat',
+  'memoire:vider',
+  'glossaire:lister',
+  'glossaire:enregistrer',
+  'glossaire:supprimer',
+  'glossaire:importer',
 ];
 
 // Événements envoyés par le processus principal vers l'interface (lecture seule).
@@ -84,6 +90,16 @@ contextBridge.exposeInMainWorld('forge', {
     apercu: (id) => appeler('traduction:apercu', id),
     montrer: (chemin) => appeler('traduction:montrer', chemin),
     surProgression: (rappel) => ecouter('traduction:progression', rappel),
+  },
+  memoire: {
+    etat: () => appeler('memoire:etat'),
+    vider: () => appeler('memoire:vider'),
+  },
+  glossaire: {
+    lister: () => appeler('glossaire:lister'),
+    enregistrer: (entree) => appeler('glossaire:enregistrer', entree),
+    supprimer: (id) => appeler('glossaire:supprimer', id),
+    importer: () => appeler('glossaire:importer'),
   },
   moteurs: {
     etat: () => appeler('moteurs:etat'),

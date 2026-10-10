@@ -3,6 +3,7 @@
 // Tout texte passe par textContent (UI.el) : les noms de fichiers et sous-titres ne sont jamais du HTML.
 
 window.__modules = window.__modules || [];
+window.SubForge = window.SubForge || {}; // fonctions partagées entre écrans
 window.__modules.push((async () => {
   const { el, notifier, erreur } = window.UI;
   const $ = (id) => document.getElementById(id);
@@ -72,7 +73,7 @@ window.__modules.push((async () => {
     }
     zone.textContent = texte;
   }
-  window.SubForge = { rafraichirOptions: async () => appliquerReglages(await T.reglages()) };
+  window.SubForge.rafraichirOptions = async () => appliquerReglages(await T.reglages());
   appliquerReglages(reglages);
 
   // --- Ajout de fichiers --------------------------------------------------------------
@@ -187,6 +188,16 @@ window.__modules.push((async () => {
       if (e.total) corps.push(el('span', { classe: 'discret', texte: `${e.fait || 0} / ${e.total} segments` }));
     }
     if (e.message && ['erreur', 'annule'].includes(e.etat)) corps.push(el('p', { classe: 'carte-fichier__message', texte: e.message }));
+    if (e.etat === 'termine' && e.bilan) {
+      const b = e.bilan;
+      const morceaux = [];
+      if (b.repris) morceaux.push(`${b.repris.toLocaleString('fr-FR')} réplique${b.repris > 1 ? 's' : ''} reprise${b.repris > 1 ? 's' : ''} de la mémoire`);
+      if (b.caracteresEconomises && reglages.traduction.moteur === 'deepl') morceaux.push(`${b.caracteresEconomises.toLocaleString('fr-FR')} caractères DeepL économisés`);
+      if (b.envoyes) morceaux.push(`${b.envoyes.toLocaleString('fr-FR')} envoyée${b.envoyes > 1 ? 's' : ''} au moteur`);
+      if (morceaux.length) corps.push(el('span', { classe: 'discret', texte: morceaux.join(' · ') }));
+      if (b.aVerifier) corps.push(el('p', { classe: 'carte-fichier__message carte-fichier__message--alerte', texte: `${b.aVerifier} réplique${b.aVerifier > 1 ? 's' : ''} à vérifier : le moteur a perdu un terme du glossaire.` }));
+      if (b.erreurMemoire) corps.push(el('p', { classe: 'carte-fichier__message carte-fichier__message--alerte', texte: `Mémoire de traduction non enregistrée (${b.erreurMemoire}) : la traduction, elle, est bien écrite.` }));
+    }
     if (e.etat === 'termine') {
       corps.push(el('div', { classe: 'carte-fichier__actions' }, [
         el('span', { classe: 'discret', texte: `→ ${e.nomSortie}` }),
@@ -262,6 +273,7 @@ window.__modules.push((async () => {
     if (ev.total !== undefined) e.total = ev.total;
     if (ev.message !== undefined) e.message = ev.message;
     if (ev.sortie) { e.sortie = ev.sortie; e.nomSortie = ev.nomSortie; }
+    if (ev.bilan) e.bilan = ev.bilan;
     dessiner(e);
   });
 
