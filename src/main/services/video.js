@@ -95,14 +95,19 @@ async function listerPistes(binaire, chemin, { signal } = {}) {
 }
 
 // Extrait la piste n° `indice` (parmi les sous-titres) dans un dossier temporaire privé.
+// Piste Blu-ray (PGS) : recopiée telle quelle en .sup, pour l'OCR.
+const estPgs = (piste) => piste.codec === 'hdmv_pgs_subtitle';
+
 async function extrairePiste(binaire, chemin, piste, { signal } = {}) {
-  if (!piste.format) throw new Error('Sous-titres en image (PGS/VobSub) : pas de texte à traduire.');
+  if (!piste.format && !estPgs(piste)) throw new Error('Sous-titres en image de DVD (VobSub) ou de TNT (DVB) : pas encore lisibles par SubForge.');
   const dossier = fs.mkdtempSync(path.join(os.tmpdir(), 'subforge-'));
-  const sortie = path.join(dossier, `piste.${piste.format}`);
+  const sortie = path.join(dossier, `piste.${estPgs(piste) ? 'sup' : piste.format}`);
+  const codec = estPgs(piste) || piste.format === 'ass' ? ['-c:s', 'copy'] : ['-c:s', 'srt'];
+  const format = estPgs(piste) ? ['-f', 'sup'] : [];
   try {
     const r = await executer(binaire, [
       '-hide_banner', '-nostdin', '-loglevel', 'error', '-y',
-      '-i', chemin, '-map', `0:s:${piste.indice}`, '-c:s', piste.format === 'ass' ? 'copy' : 'srt', sortie,
+      '-i', chemin, '-map', `0:s:${piste.indice}`, ...codec, ...format, sortie,
     ], { delai: 10 * 60000, signal });
     if (r.code !== 0 || !fs.existsSync(sortie) || fs.statSync(sortie).size === 0) {
       throw new Error(`Extraction de la piste impossible${r.erreurs ? ` : ${r.erreurs.trim().split(/\r?\n/).pop().slice(0, 200)}` : '.'}`);
@@ -119,4 +124,4 @@ function toutArreter() {
   processus.clear();
 }
 
-module.exports = { EXTENSIONS_VIDEO, cheminFfmpeg, estVideo, analyserFlux, listerPistes, extrairePiste, toutArreter, executer };
+module.exports = { estPgs, EXTENSIONS_VIDEO, cheminFfmpeg, estVideo, analyserFlux, listerPistes, extrairePiste, toutArreter, executer };

@@ -12,19 +12,27 @@
     "start": "electron .",
     "test": "node --test \"tests/**/*.test.js\"",
     "securite": "node scripts/scan-securite.js",
-    "build": "node scripts/preparer-ffmpeg.js win && node scripts/configurer-maj.js && electron-builder --win nsis --x64 --publish never",
-    "build:linux": "node scripts/preparer-ffmpeg.js linux && node scripts/configurer-maj.js && electron-builder --linux AppImage --publish never",
+    "build": "node scripts/preparer-ffmpeg.js win && node scripts/preparer-ocr.js && node scripts/configurer-maj.js && electron-builder --win nsis --x64 --publish never",
+    "build:linux": "node scripts/preparer-ffmpeg.js linux && node scripts/preparer-ocr.js && node scripts/configurer-maj.js && electron-builder --linux AppImage --publish never",
     "postinstall": "electron-builder install-app-deps",
     "publier": "node scripts/publier.js",
     "tester-maj": "node scripts/tester-maj.js",
-    "prestart": "node scripts/preparer-ffmpeg.js",
+    "prestart": "node scripts/preparer-ffmpeg.js && node scripts/preparer-ocr.js",
     "codemap": "python3 scripts/codemap.py ."
   },
   "dependencies": {
-    "electron-updater": "^6.8.0"
+    "electron-updater": "^6.8.0",
+    "tesseract.js": "^7.0.0"
   },
   "devDependencies": {
     "@electron/fuses": "^2.1.0",
+    "@tesseract.js-data/deu": "^1.0.0",
+    "@tesseract.js-data/eng": "^1.0.0",
+    "@tesseract.js-data/fra": "^1.0.0",
+    "@tesseract.js-data/ita": "^1.0.0",
+    "@tesseract.js-data/nld": "^1.0.0",
+    "@tesseract.js-data/por": "^1.0.0",
+    "@tesseract.js-data/spa": "^1.0.0",
     "electron": "^44.0.0",
     "electron-builder": "^26.0.0"
   },
@@ -40,7 +48,14 @@
       "src/**/*",
       "package.json",
       "CHANGELOG.md",
-      "!**/*.map"
+      "!**/*.map",
+      "!node_modules/tesseract.js-core/tesseract-core.js",
+      "!node_modules/tesseract.js-core/tesseract-core.wasm*",
+      "!node_modules/tesseract.js-core/tesseract-core-simd.js",
+      "!node_modules/tesseract.js-core/tesseract-core-simd.wasm*",
+      "!node_modules/tesseract.js-core/tesseract-core-relaxedsimd.js",
+      "!node_modules/tesseract.js-core/tesseract-core-relaxedsimd.wasm*",
+      "!node_modules/tesseract.js/dist/**"
     ],
     "asar": true,
     "afterPack": "scripts/fuses.js",
@@ -62,6 +77,13 @@
           "filter": [
             "ffmpeg.exe"
           ]
+        },
+        {
+          "from": "vendor/tessdata",
+          "to": "tessdata",
+          "filter": [
+            "*.traineddata.gz"
+          ]
         }
       ]
     },
@@ -76,6 +98,13 @@
           "to": "bin",
           "filter": [
             "ffmpeg"
+          ]
+        },
+        {
+          "from": "vendor/tessdata",
+          "to": "tessdata",
+          "filter": [
+            "*.traineddata.gz"
           ]
         }
       ]
@@ -100,6 +129,20 @@
         "private": true,
         "releaseType": "release"
       }
+    ],
+    "asarUnpack": [
+      "node_modules/tesseract.js/**",
+      "node_modules/tesseract.js-core/**",
+      "node_modules/regenerator-runtime/**",
+      "node_modules/is-url/**",
+      "node_modules/bmp-js/**",
+      "node_modules/zlibjs/**",
+      "node_modules/wasm-feature-detect/**",
+      "node_modules/node-fetch/**",
+      "node_modules/whatwg-url/**",
+      "node_modules/tr46/**",
+      "node_modules/webidl-conversions/**",
+      "node_modules/idb-keyval/**"
     ]
   }
 }

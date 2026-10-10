@@ -11,6 +11,7 @@
 | D-004 | ffmpeg livré dans `vendor/win` (paquet npm @ffmpeg-installer, empreinte figée, copié au build) ; pas de ffprobe | 2026-10-07 | ✅ |
 | D-005 | Deux moteurs : DeepL (API officielle) et Ollama (IA locale) ; pas de service « gratuit » non officiel | 2026-10-07 | ✅ |
 | D-007 | ffmpeg 7.1 depuis la wheel PyPI `imageio-ffmpeg 0.6.0` (SHA-256 figé), remplace le paquet npm 4.1 | 2026-10-10 | ✅ |
+| D-008 | OCR des sous-titres Blu-ray : décodeur PGS maison + tesseract.js 7 (WASM, Apache-2.0) dans des threads, données « best_int » de 7 langues livrées | 2026-10-10 | ✅ |
 | D-006 | Analyse/écriture des formats de sous-titres codées maison, sans dépendance | 2026-10-07 | ✅ |
 
 ---
@@ -65,6 +66,18 @@
 - **Décision** : PyPI `imageio-ffmpeg 0.6.0`, empreintes SHA-256 de PyPI figées dans
   `scripts/preparer-ffmpeg.js`, extraction du binaire sans dépendance.
 - **Conséquences** : +23 Mo dans l'installeur ; le script D-004 change de source, pas d'usage.
+
+## D-008 — OCR des sous-titres Blu-ray
+- **Contexte** : les Blu-ray ont des sous-titres en image (PGS) : pas de texte à traduire.
+- **Options** : OCR de Windows (sans téléchargement mais dépend des packs de langue installés,
+  intestable ici) ; Tesseract natif (binaire + DLL à livrer) ; tesseract.js (WASM, testable partout).
+- **Décision** : décodage PGS écrit maison (`pgs.js`, testé) ; OCR `tesseract.js` 7.0.0 dans ses
+  threads de travail (jamais dans l'interface) ; données `@tesseract.js-data/*` « best_int »
+  (anglais, français, espagnol, allemand, italien, portugais, néerlandais : 13 Mo) copiées par
+  `scripts/preparer-ocr.js` dans `resources/tessdata` ; `tesseract.js` et ses dépendances dépaquetés
+  d'app.asar (`asarUnpack`) pour que le thread de travail lise de vrais fichiers.
+- **Conséquences** : environ +35 Mo ; DVD (VobSub) et TNT (DVB) pas encore lus ; les langues non
+  livrées affichent « OCR non disponible ».
 
 ## D-006 — Formats sans dépendance
 - **Décision** : analyseurs SRT/ASS/VTT écrits dans `src/main/services/formats.js` (quelques

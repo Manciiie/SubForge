@@ -170,14 +170,14 @@ window.__modules.push((async () => {
     try {
       ajouter(await window.forge.fichiers.choisir({
         titre: 'Choisir des films ou des sous-titres', multiple: true,
-        extensions: 'srt,ass,ssa,vtt,mkv,mp4,m4v,avi,mov,webm,ts,m2ts,wmv',
+        extensions: 'srt,ass,ssa,vtt,sup,mkv,mp4,m4v,avi,mov,webm,ts,m2ts,wmv',
       }));
     } catch (e) { erreur(e); }
   });
 
   // --- Cartes -----------------------------------------------------------------------
   const LIBELLES = {
-    analyse: 'Analyse…', pret: 'Prêt', 'sans-piste': 'Pas de sous-titres', attente: 'En attente', extraction: 'Extraction de la piste…',
+    analyse: 'Analyse…', pret: 'Prêt', 'sans-piste': 'Pas de sous-titres', ocr: 'Lecture des images…', attente: 'En attente', extraction: 'Extraction de la piste…',
     traduction: 'Traduction…', ecriture: 'Enregistrement…', termine: 'Traduit', erreur: 'Erreur', annule: 'Annulé',
   };
 
@@ -228,20 +228,25 @@ window.__modules.push((async () => {
       corps.push(el('label', { classe: 'ligne-piste' }, ['Piste ', sel]));
     }
 
-    if (['traduction', 'extraction', 'ecriture'].includes(e.etat)) {
+    if (['traduction', 'extraction', 'ecriture', 'ocr'].includes(e.etat)) {
       const pct = e.total ? Math.round((100 * (e.fait || 0)) / e.total) : 0;
       const barre = el('div', { classe: 'barre-progression' }, [el('span')]);
       barre.firstChild.style.width = `${e.etat === 'ecriture' ? 100 : pct}%`;
       corps.push(barre);
-      if (e.total) corps.push(el('span', { classe: 'discret', texte: `${e.fait || 0} / ${e.total} segments` }));
+      if (e.total) corps.push(el('span', { classe: 'discret', texte: `${(e.fait || 0).toLocaleString('fr-FR')} / ${e.total.toLocaleString('fr-FR')} ${e.etat === 'ocr' ? 'images lues (OCR)' : 'répliques'}` }));
     }
     if (e.message && ['erreur', 'annule', 'sans-piste'].includes(e.etat)) corps.push(el('p', { classe: 'carte-fichier__message', texte: e.message }));
     if (e.etat === 'termine' && e.bilan) {
       const b = e.bilan;
+      if (b.ocr) {
+        const o = b.ocr;
+        corps.push(el('span', { classe: 'discret', texte: `OCR : ${o.lues.toLocaleString('fr-FR')} images lues sur ${o.images.toLocaleString('fr-FR')} → ${o.fichier}` }));
+        if (o.douteuses || o.illisibles) corps.push(el('p', { classe: 'carte-fichier__message carte-fichier__message--alerte', texte: [o.douteuses ? `${o.douteuses} réplique(s) lue(s) avec peu de certitude` : '', o.illisibles ? `${o.illisibles} image(s) illisible(s) ou vide(s)` : ''].filter(Boolean).join(' · ') + ` : relisez ${o.fichier} si besoin.` }));
+      }
       const morceaux = [];
       if (b.repris) morceaux.push(`${b.repris.toLocaleString('fr-FR')} réplique${b.repris > 1 ? 's' : ''} reprise${b.repris > 1 ? 's' : ''} de la mémoire`);
       if (b.caracteresEconomises && reglages.traduction.moteur === 'deepl') morceaux.push(`${b.caracteresEconomises.toLocaleString('fr-FR')} caractères DeepL économisés`);
-      if (b.envoyes) morceaux.push(`${b.envoyes.toLocaleString('fr-FR')} envoyée${b.envoyes > 1 ? 's' : ''} au moteur`);
+      if (b.envoyes) morceaux.push(`${b.envoyes.toLocaleString('fr-FR')} phrase${b.envoyes > 1 ? 's' : ''} envoyée${b.envoyes > 1 ? 's' : ''} au moteur`);
       if (morceaux.length) corps.push(el('span', { classe: 'discret', texte: morceaux.join(' · ') }));
       if (b.aVerifier) corps.push(el('p', { classe: 'carte-fichier__message carte-fichier__message--alerte', texte: `${b.aVerifier} réplique${b.aVerifier > 1 ? 's' : ''} à vérifier : le moteur a perdu un terme du glossaire.` }));
       if (b.erreurMemoire) corps.push(el('p', { classe: 'carte-fichier__message carte-fichier__message--alerte', texte: `Mémoire de traduction non enregistrée (${b.erreurMemoire}) : la traduction, elle, est bien écrite.` }));
@@ -265,7 +270,7 @@ window.__modules.push((async () => {
 
   // Fichiers à (re)traduire : prêts, en erreur ou annulés — jamais ceux déjà traduits.
   function aRetraduire(e) {
-    return ['pret', 'erreur', 'annule'].includes(e.etat) && (e.info?.type === 'soustitre' || (e.info?.type === 'video' && e.piste !== null));
+    return ['pret', 'erreur', 'annule'].includes(e.etat) && (['soustitre', 'sup'].includes(e.info?.type) || (e.info?.type === 'video' && e.piste !== null));
   }
 
   function majFile() {

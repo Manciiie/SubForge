@@ -17,12 +17,15 @@ const { creerMemoire } = require('./memoire');
 const { creerGlossaire } = require('./glossaire');
 const { traduireDocument } = require('./pipeline');
 const dossiers = require('./dossiers');
+const pgs = require('./pgs');
+const { creerOcr, versSrt: ocrVersSrt } = require('./ocr');
 
 const SECRET_DEEPL = 'cle_deepl';
 const CODES = langues.codes();
 
 let moteurs = null;
 let memoire = null;
+let ocr = null;
 let glossaire = null;
 let binaireFfmpeg = null;
 let tache = null;              // { controleur, expediteur }
@@ -45,6 +48,17 @@ function envoyer(evenement) {
 
 // --- Analyse des fichiers déposés ---------------------------------------------------
 
+function langueDuNom(chemin) {
+  const indice = /\.([a-z]{2,3}(?:-[A-Za-z]{2,4})?)\.(srt|ass|ssa|vtt|sup)$/i.exec(chemin);
+  return indice ? langues.depuisIso3(indice[1]) : null;
+}
+
+// Langue à lire par OCR quand la piste ne la précise pas : la langue source choisie, sinon l'anglais.
+function sourceOuAnglais() {
+  const s = reglages().traduction.source;
+  return s && s !== 'auto' ? s : 'en';
+}
+
 async function analyserUn(chemin) {
   const base = { chemin, nom: path.basename(chemin) };
   try {
@@ -52,15 +66,25 @@ async function analyserUn(chemin) {
     if (!stat.isFile()) throw new Error('Ce n\'est pas un fichier.');
     if (formats.formatDepuisChemin(chemin)) {
       const doc = formats.lireFichier(chemin);
-      const indice = /\.([a-z]{2,3}(?:-[A-Za-z]{2,4})?)\.(srt|ass|ssa|vtt)$/i.exec(chemin);
-      const l = indice ? langues.depuisIso3(indice[1]) : null;
+      const l = langueDuNom(chemin);
       return { ...base, type: 'soustitre', format: doc.format, encodage: doc.encodage, repliques: doc.repliques.length, langue: l?.code || null, nomLangue: l?.nom || null };
+    }
+    if (path.extname(chemin).toLowerCase() === '.sup') {
+      if (stat.size > pgs.TAILLE_MAX) throw new Error('Fichier .sup trop gros (plus de 200 Mo).');
+      const repliques = pgs.compter(fs.readFileSync(chemin));
+      if (!repliques) throw new Error('Aucune réplique dans ce fichier .sup.');
+      const l = langueDuNom(chemin);
+      const langueOcr = l?.code || sourceOuAnglais();
+      if (!ocr.disponible(langueOcr)) throw new Error(`Lecture des sous-titres en image non disponible pour ${langues.langue(langueOcr)?.nom || langueOcr}.`);
+      return { ...base, type: 'sup', repliques, langue: l?.code || null, nomLangue: l?.nom || null };
     }
     if (video.estVideo(chemin)) {
       const pistes = await video.listerPistes(binaireFfmpeg, chemin);
+      // Piste Blu-ray (image) : utilisable si l'OCR connaît sa langue.
+      for (const p of pistes) p.ocr = video.estPgs(p) && ocr.disponible(p.langue || sourceOuAnglais());
       return { ...base, type: 'video', taille: stat.size, pistes };
     }
-    throw new Error('Type de fichier non pris en charge : sous-titres (SRT, ASS, SSA, VTT) ou vidéo (MKV, MP4, AVI…).');
+    throw new Error('Type de fichier non pris en charge : sous-titres (SRT, ASS, SSA, VTT, SUP) ou vidéo (MKV, MP4, AVI…).');
   } catch (e) {
     return { ...base, type: 'erreur', erreur: e.message };
   }
@@ -73,6 +97,8 @@ async function traduireElement(el, options, signal) {
   let extraction = null;
   try {
     let fichier = el.chemin;
+    let sup = path.extname(el.chemin).toLowerCase() === '.sup' ? el.chemin : null;
+    let langueOcr = sup ? langueDuNom(el.chemin)?.code : null;
     if (video.estVideo(el.chemin)) {
       rapporter('extraction', { message: 'Extraction de la piste…' });
       const pistes = await video.listerPistes(binaireFfmpeg, el.chemin, { signal });
@@ -80,9 +106,38 @@ async function traduireElement(el, options, signal) {
       if (!piste) throw new Error('Piste de sous-titres introuvable dans cette vidéo.');
       extraction = await video.extrairePiste(binaireFfmpeg, el.chemin, piste, { signal });
       fichier = extraction.fichier;
+      if (video.estPgs(piste)) { sup = fichier; langueOcr = piste.langue; }
     }
 
-    const doc = formats.lireFichier(fichier);
+    let doc;
+    let bilanOcr = null;
+    if (sup) {
+      // Blu-ray : images → texte (OCR), enregistré à côté du film, puis traduit comme un sous-titre normal.
+      langueOcr = langueOcr || sourceOuAnglais();
+      const lu = pgs.lireSup(fs.readFileSync(sup));
+      if (!lu.repliques.length) throw new Error('Aucune image lisible dans ces sous-titres Blu-ray.');
+      rapporter('ocr', { fait: 0, total: lu.repliques.length, message: 'Lecture des images (OCR)…' });
+      const textes = await ocr.lire(lu.repliques.map((r) => r.image), {
+        langue: langueOcr, signal, surAvancement: (fait, total) => rapporter('ocr', { fait, total }),
+      });
+      doc = ocrVersSrt(lu.repliques, textes);
+      if (!doc.repliques.length) throw new Error('Aucun texte n\'a pu être lu dans ces images.');
+      const dossierOcr = options.dossierSortie || path.dirname(el.chemin);
+      const fichierOcr = formats.nomSortie(el.chemin, langues.suffixe(langueOcr), '.srt', dossierOcr);
+      formats.ecrireFichier(fichierOcr, doc);
+      sortiesProduites.add(fichierOcr);
+      bilanOcr = {
+        images: lu.repliques.length,
+        lues: doc.repliques.length,
+        douteuses: textes.filter((x) => x.texte && x.confiance < 60).length,
+        illisibles: lu.abimes + (lu.repliques.length - doc.repliques.length),
+        fichier: path.basename(fichierOcr),
+      };
+      journal.info(`[ocr] ${path.basename(el.chemin)} : ${bilanOcr.lues}/${bilanOcr.images} images lues → ${bilanOcr.fichier}`);
+      if (options.source === 'auto') options = { ...options, source: langueOcr };
+    } else {
+      doc = formats.lireFichier(fichier);
+    }
     formats.preparerConversionAss(doc);
     const original = doc.repliques.map((r) => formats.texteVisible(r.texte));
 
@@ -103,7 +158,7 @@ async function traduireElement(el, options, signal) {
     const paires = doc.repliques.slice(0, 400).map((r, i) => ({ debut: r.debut, original: original[i], traduit: formats.texteVisible(r.texte) }));
     resultats.set(el.id, { paires, sortie: cible, total: doc.repliques.length });
     journal.info(`Traduit : ${path.basename(el.chemin)} → ${path.basename(cible)} (${bilan.segments} segments, ${bilan.envoyes} envoyés, ${bilan.repris} repris de la mémoire, ${options.moteur})`);
-    rapporter('termine', { sortie: cible, nomSortie: path.basename(cible), repliques: doc.repliques.length, bilan });
+    rapporter('termine', { sortie: cible, nomSortie: path.basename(cible), repliques: doc.repliques.length, bilan: { ...bilan, ocr: bilanOcr } });
   } catch (e) {
     if (e.name === 'AbortError' || signal.aborted) {
       rapporter('annule', { message: 'Annulé.' });
@@ -127,6 +182,12 @@ function enregistrer({ racineApp }) {
   const donnees = app.getPath('userData');
   memoire = creerMemoire({ fichier: path.join(donnees, 'memoire-traduction.jsonl'), journal });
   glossaire = creerGlossaire({ fichier: path.join(donnees, 'glossaire.json'), journal });
+  // OCR : données de langue hors de app.asar, travailleur Tesseract dans app.asar.unpacked (fichiers réels).
+  const dossierLangues = app.isPackaged ? path.join(process.resourcesPath, 'tessdata') : path.join(racineApp, 'vendor', 'tessdata');
+  const cheminTravailleur = app.isPackaged
+    ? require.resolve('tesseract.js/src/worker-script/node/index.js').replace(/app\.asar([\\/])/, 'app.asar.unpacked$1')
+    : null;
+  ocr = creerOcr({ dossierLangues, cheminTravailleur, journal });
 
   app.on('before-quit', () => { tache?.controleur.abort(); video.toutArreter(); });
 

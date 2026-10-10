@@ -1,0 +1,32 @@
+[
+  {
+    "debut": 1000,
+    "fin": 3500,
+    "lignes": [
+      "Where are you going tonight?"
+    ]
+  },
+  {
+    "debut": 4000,
+    "fin": 7000,
+    "lignes": [
+      "I told you, I'm meeting",
+      "the others at the harbour."
+    ]
+  },
+  {
+    "debut": 7500,
+    "fin": 9500,
+    "lignes": [
+      "- Are you coming with us?",
+      "- Not tonight."
+    ]
+  },
+  {
+    "debut": 10000,
+    "fin": 12000,
+    "lignes": [
+      "Winter is coming, my friend."
+    ]
+  }
+]
