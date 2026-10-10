@@ -24,6 +24,12 @@ fichier on ne sait où. Je veux : glisser le film ou le sous-titre, choisir la l
 | Pistes vidéo | Lister et extraire les pistes texte d'un MKV/MP4/AVI/MOV/WebM (ffmpeg livré) | 1.0.0 | `tasks/v1.0-T002.md` |
 | Moteurs | DeepL (clé API) et IA locale hors ligne (Ollama) ; écran « Moteurs » | 1.0.0 | `tasks/v1.0-T003.md` |
 | Traduction | Écran principal : dépôt, choix des langues, file d'attente, progression, Annuler, aperçu | 1.0.0 | `tasks/v1.0-T004.md` |
+| ffmpeg 7.1 | Formats vidéo récents, extraction des pistes Blu-ray | 1.1.0 | `tasks/v1.1-T101.md` |
+| Mémoire | Répliques déjà traduites reprises, DeepL jamais repayé | 1.1.0 | `tasks/v1.1-T102.md` |
+| Glossaire | Noms gardés, termes toujours traduits pareil (écran Glossaire) | 1.1.0 | `tasks/v1.1-T103.md` |
+| Saison | Dossier entier, sous-dossiers, déjà traduits ignorés | 1.1.0 | `tasks/v1.1-T104.md` |
+| OCR Blu-ray | Pistes PGS / `.sup` lues hors ligne puis traduites | 1.1.0 | `tasks/v1.1-T105.md` |
+| En ligne | Sous-titres trouvés sur OpenSubtitles quand le film n'en a pas | 1.1.0 | `tasks/v1.1-T106.md` |
 
 ### Comportements attendus
 - Je glisse `Film.en.srt` → choisi « Anglais → Français », DeepL → `Film.fr.srt` apparaît à côté,
@@ -41,7 +47,7 @@ fichier on ne sait où. Je veux : glisser le film ou le sous-titre, choisir la l
 
 ## 4. Hors périmètre
 - Modifier ou ré-encoder la vidéo, incruster les sous-titres (v1.0).
-- Reconnaissance de texte (OCR) des sous-titres en image PGS/VobSub.
+- OCR des sous-titres en image de DVD (VobSub) et de TNT (DVB) — PGS (Blu-ray) depuis la 1.1.
 - Transcription de l'audio (c'est VoxForge).
 - Synchronisation / décalage des minutages.
 
@@ -50,7 +56,8 @@ fichier on ne sait où. Je veux : glisser le film ou le sous-titre, choisir la l
   (seul ffmpeg les lit, en flux). Écriture atomique (fichier temporaire puis renommage).
 - **Actions sur le système** : lance `ffmpeg`/`ffprobe` livrés avec l'app (`spawn` sans shell,
   délai max, tués à l'annulation et à la fermeture). Aucune suppression de fichier utilisateur.
-- **Réseau** : DeepL (`api-free.deepl.com` / `api.deepl.com`, HTTPS, clé dans le coffre DPAPI,
+- **Réseau** : OpenSubtitles (`api.opensubtitles.com`, HTTPS, clé d'API + compte facultatif au
+  coffre ; l'empreinte du fichier et le titre lu dans son nom sont envoyés) ; DeepL (`api-free.deepl.com` / `api.deepl.com`, HTTPS, clé dans le coffre DPAPI,
   jamais renvoyée à l'interface) ; Ollama local (`http://127.0.0.1:11434` par défaut, HTTP accepté
   uniquement en local/réseau privé). Le texte des sous-titres part chez DeepL : l'écran le dit.
 - **Performance** : démarrage < 2 s, interface jamais figée, un film (~1 500 répliques) traduit

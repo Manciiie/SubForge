@@ -38,14 +38,18 @@
 ## Proposé pour la suite (pas encore validé)
 Reprendre ici la liste numérotée envoyée avec la dernière livraison.
 1. Remettre la piste traduite dans une copie du film (MKV avec la nouvelle piste, sans ré-encoder)
-2. Éditeur de répliques : corriger une traduction à la main avant d'enregistrer
-(3 à 8 : pris dans la 1.1.0)
+2. Éditeur de répliques : corriger une traduction (ou un texte lu par OCR) à la main avant d'enregistrer
+3. OCR des sous-titres de DVD (VobSub) et de TNT (DVB)
+4. Glossaire par série : un glossaire différent selon le dossier
+5. Vérifier la longueur des lignes traduites (lisibilité : 42 caractères par ligne, vitesse de lecture)
+6. Recherche en ligne automatique pour toute une saison (épisodes sans sous-titres)
 
 ---
 
 ## Historique
 | Version | Date | Contenu |
 |---|---|---|
-| 1.0.0 | 2026-10-07 | SRT/ASS/VTT, pistes MKV/MP4, DeepL + Ollama, file, Annuler, aperçu |
+| 1.0.0 | 2026-10-07 | SRT/ASS/VTT, pistes MKV/MP4, DeepL + Ollama, file, Annuler, aperçu (jamais livrée) |
+| 1.1.0 | 2026-10-10 | Glossaire, mémoire, saison, OCR Blu-ray, OpenSubtitles, ffmpeg 7.1 |
 
 **Statuts** : `[ ]` à faire · `[~]` en cours · `[x]` fait · `[-]` abandonné · `[!]` bloqué

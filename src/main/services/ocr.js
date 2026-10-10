@@ -70,8 +70,9 @@ function creerOcr({ dossierLangues, cheminTravailleur = null, journal = console,
       if (signal?.aborted) throw erreurAnnulation();
       return resultats;
     } catch (e) {
-      if (signal?.aborted || arrete) throw erreurAnnulation();
-      throw e;
+      if (signal?.aborted) throw erreurAnnulation();
+      journal.erreur('[ocr] échec :', e);
+      throw new Error(`Lecture des images (OCR) impossible : ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       signal?.removeEventListener('abort', arreter);
       arreter();

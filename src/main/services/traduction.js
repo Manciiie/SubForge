@@ -169,8 +169,10 @@ async function traduireElement(el, options, signal) {
     if (e.name === 'AbortError' || signal.aborted) {
       rapporter('annule', { message: 'Annulé.' });
     } else {
-      journal.avertissement(`Échec pour ${path.basename(el.chemin)} :`, e.message);
-      rapporter('erreur', { message: e.message });
+      // Certaines bibliothèques (Tesseract) rejettent avec une simple chaîne : message toujours renseigné.
+      const message = (e instanceof Error ? e.message : String(e ?? '')) || 'Erreur inconnue (voir le journal).';
+      journal.erreur(`[traduction] échec pour ${path.basename(el.chemin)} :`, e);
+      rapporter('erreur', { message });
     }
   } finally {
     extraction?.nettoyer();

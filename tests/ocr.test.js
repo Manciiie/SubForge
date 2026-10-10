@@ -103,3 +103,12 @@ test('OCR : langue sans données → message clair ; annulation → arrêt', { t
   setTimeout(() => c.abort(), 1500);
   await assert.rejects(ocr.lire(images, { langue: 'en', signal: c.signal }), /annulée/);
 });
+
+test('empaquetage : moteur OCR entier livré et dépaqueté (sinon « Cannot find module tesseract-core-… »)', () => {
+  const b = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8')).build;
+  assert.ok(!b.files.some((f) => f.includes('tesseract.js-core')), 'aucune variante du moteur OCR exclue');
+  for (const m of ['tesseract.js', 'tesseract.js-core', 'regenerator-runtime', 'is-url', 'bmp-js', 'zlibjs', 'wasm-feature-detect']) {
+    assert.ok(b.asarUnpack.includes(`node_modules/${m}/**`), `${m} dépaqueté`);
+  }
+  assert.ok(b.win.extraResources.some((r) => r.to === 'tessdata'), 'données de langue livrées sous Windows');
+});

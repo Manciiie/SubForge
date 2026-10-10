@@ -1,7 +1,7 @@
 {
   "name": "subforge",
   "productName": "SubForge",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Traducteur de sous-titres de films",
   "author": "Moi",
   "license": "UNLICENSED",
@@ -49,12 +49,6 @@
       "package.json",
       "CHANGELOG.md",
       "!**/*.map",
-      "!node_modules/tesseract.js-core/tesseract-core.js",
-      "!node_modules/tesseract.js-core/tesseract-core.wasm*",
-      "!node_modules/tesseract.js-core/tesseract-core-simd.js",
-      "!node_modules/tesseract.js-core/tesseract-core-simd.wasm*",
-      "!node_modules/tesseract.js-core/tesseract-core-relaxedsimd.js",
-      "!node_modules/tesseract.js-core/tesseract-core-relaxedsimd.wasm*",
       "!node_modules/tesseract.js/dist/**"
     ],
     "asar": true,

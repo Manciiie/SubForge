@@ -27,7 +27,9 @@ src/renderer/
   index.html       structure + navigation latérale
   js/app.js        navigation, paramètres, à propos
   js/traduire.js   écran Traduire (file, options, progression, aperçu)
-  js/moteurs.js    écran Moteurs (DeepL, Ollama)
+  js/moteurs.js    écran Moteurs (DeepL, Ollama, mémoire)
+  js/glossaire.js  écran Glossaire
+  js/enligne.js    réglages OpenSubtitles + fenêtre « Chercher en ligne »
   js/ui.js         UI.el et composants
   styles/          theme.css (accent, sombre/clair), app.css
 tests/securite/    tests de sécurité et cohérence IPC
@@ -46,6 +48,13 @@ docs/              mémoire du projet (non embarquée dans l'exe)
 | Langues | `services/langues.js` | `traduction:langues` | — | — |
 | Pistes vidéo | `services/video.js` | (via `traduction:analyser` / `lancer`) | carte du fichier | `spawn` sans shell, binaire absolu, délai, kill à l'annulation/fermeture |
 | Moteurs | `services/moteurs.js` (pur, `fetch` injecté) | `moteurs:etat`, `moteurs:enregistrerCleDeepl`, `moteurs:supprimerCleDeepl`, `moteurs:testerDeepl`, `moteurs:modelesOllama`, `moteurs:testerOllama` | Moteurs | clé au coffre jamais renvoyée, HTTP local seulement, réponses bornées |
+| Traitement d'un document | `services/pipeline.js` (pur) | — | — | glossaire → dédoublonnage → mémoire → moteur → restitution |
+| Mémoire | `services/memoire.js` (pur) | `memoire:etat`, `memoire:vider` | Moteurs | JSONL, ajout en fin, compactage atomique, plafond 300 000 |
+| Glossaire | `services/glossaire.js` (pur) | `glossaire:lister`, `glossaire:enregistrer`, `glossaire:supprimer`, `glossaire:importer` | Glossaire | `< > { }` refusés, fichier abîmé mis de côté |
+| Saison | `services/dossiers.js` (pur) | `traduction:explorer` | Traduire | liens / jonctions non suivis, 1 000 fichiers, profondeur 6 |
+| Blu-ray (PGS) | `services/pgs.js` (pur) | (via `traduction:lancer`) | carte du fichier | 200 Mo max, images ≤ 4096 px, segments abîmés comptés |
+| OCR | `services/ocr.js` (tesseract.js, threads) | (via `traduction:lancer`) | carte du fichier | données livrées, aucun téléchargement, annulation |
+| En ligne | `services/enligne.js` (pur, `fetch` injecté) | `enligne:etat`, `enligne:enregistrer`, `enligne:tester`, `enligne:chercher`, `enligne:telecharger` | Moteurs + fenêtre | secrets au coffre, lien vérifié, contenu vérifié, URL de test ignorée en version installée |
 | Traduction | `services/traduction.js` | `traduction:reglages`, `traduction:modifierReglages`, `traduction:choisirDossierSortie`, `traduction:analyser`, `traduction:lancer`, `traduction:annuler`, `traduction:apercu`, `traduction:montrer` ; événement `traduction:progression` | Traduire | `montrer` limité aux fichiers produits, URL DeepL de test ignorée en version installée |
 
 ## 4. Flux de l'action principale
@@ -69,4 +78,5 @@ docs/              mémoire du projet (non embarquée dans l'exe)
 ## 6. Binaires externes
 | Binaire | Rôle | Appel | Source |
 |---|---|---|---|
-| `ffmpeg.exe` 4.1 | lister / extraire les pistes de sous-titres | `spawn` sans shell, chemin `resources/bin/` | npm `@ffmpeg-installer/win32-x64@4.1.0`, SHA-512 figé (`scripts/preparer-ffmpeg.js`) |
+| `ffmpeg.exe` 7.1 | lister / extraire les pistes (texte, et PGS en `.sup`) | `spawn` sans shell, chemin `resources/bin/` | wheel PyPI `imageio-ffmpeg 0.6.0`, SHA-256 figé (`scripts/preparer-ffmpeg.js`, D-007) |
+| tesseract.js 7 (WASM) | OCR des sous-titres Blu-ray | threads de travail Node, dépaqueté d'app.asar | npm + données `resources/tessdata` (`scripts/preparer-ocr.js`, D-008) |

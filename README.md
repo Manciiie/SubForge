@@ -14,9 +14,17 @@ Traducteur de sous-titres de films
 2. **Traduire** : glissez des fichiers `.srt`, `.ass`, `.ssa`, `.vtt` ou des films `.mkv`, `.mp4`…
    Pour un film, choisissez la piste de sous-titres (les pistes en image PGS/VobSub ne sont pas
    traduisibles). Choisissez les langues et le moteur, puis **Traduire tout**.
+   **Saison entière** : glissez le dossier de la série (ou « Choisir un dossier ») : les épisodes déjà
+   traduits sont ignorés. **Blu-ray** : les sous-titres en image (PGS, `.sup`) sont lus par OCR.
+   **Pas de sous-titres ?** « Chercher en ligne » sur la carte du film (clé OpenSubtitles gratuite
+   dans Moteurs).
 3. Le fichier traduit est enregistré à côté du film : `Film.fr.srt` (jamais d'écrasement :
    `Film.fr (2).srt` si besoin). VLC, MPC, Plex ou Kodi le trouvent tout seuls. La vidéo n'est
    jamais modifiée.
+
+**Glossaire** : les noms de personnages et de lieux à ne jamais traduire, ou les termes à traduire
+toujours de la même façon. **Mémoire de traduction** (Moteurs) : une réplique déjà traduite n'est
+jamais renvoyée à DeepL.
 
 Les paramètres (thème, couleur d'accent, accélération matérielle) sont dans **Paramètres**.
 En cas de problème : **Paramètres → Ouvrir le dossier des journaux** (`%APPDATA%\SubForge\logs`).
