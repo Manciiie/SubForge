@@ -3,7 +3,7 @@
 > Généré par `codemap.py` v3 : **ne pas modifier à la main**. Régénérer après chaque modification du code.
 > Format : `nom` suivi du numéro de ligne → lire seulement les lignes utiles (Read avec offset).
 
-**40 fichiers · 4982 lignes** · 39 js · 1 html
+**40 fichiers · 5030 lignes** · 39 js · 1 html
 
 ## Liens entre fichiers
 
@@ -57,8 +57,9 @@
 - méthodes : `attendre(sel, ms = 5000)` 94, `clic(sel)` 102, `saisir(sel, texte)` 103, `choisir(sel, valeur)` 108, `ecran(nom)` 110, `capture(nom)` 111, `verifier(condition, message)` 117
 - paquets : `child_process`, `http`, `fs`, `os`, `path`
 
-### scripts/preparer-ffmpeg.js — outil · 52 l.
-- paquets : `child_process`, `crypto`, `fs`, `os`, `path`
+### scripts/preparer-ffmpeg.js — outil · 90 l.
+- fonctions : `extraireDuZip(zip, nomEntree)` 36
+- paquets : `child_process`, `crypto`, `fs`, `os`, `path`, `zlib`
 
 ### scripts/publier.js — outil · 138 l.
 - fonctions : `arreter(message)` 28, `api(args, options = {})` 33
@@ -231,6 +232,6 @@
 - importe : `../../src/main/journal`, `../../src/main/parametres`
 - paquets : `node:test`, `node:assert/strict`, `fs`, `os`, `path`
 
-### tests/video.test.js — tests · 85 l.
+### tests/video.test.js — tests · 95 l.
 - importe : `../src/main/services/video`
 - paquets : `node:test`, `node:assert/strict`, `fs`, `os`, `path`, `x.mkv`

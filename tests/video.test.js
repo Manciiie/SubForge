@@ -37,6 +37,16 @@ test('analyse de la sortie de ffmpeg : langues, codecs, forcés, image non tradu
   assert.ok(p[3].malentendants);
 });
 
+test('sortie de ffmpeg 7 : noms de codecs entre parenthèses, identifiants de flux', () => {
+  const texte = `  Stream #0:2[0x1200](eng): Subtitle: subrip (srt) (default) (forced)
+      title           : Forced
+  Stream #0:3(fre): Subtitle: hdmv_pgs_subtitle (pgssub), 1920x1080
+  Stream #0:4(spa): Subtitle: ass (ssa) (hearing impaired)`;
+  const p = video.analyserFlux(texte);
+  assert.deepEqual(p.map((x) => [x.codec, x.format, x.langue]), [['subrip', 'srt', 'en'], ['hdmv_pgs_subtitle', null, 'fr'], ['ass', 'ass', 'es']]);
+  assert.ok(p[0].forces && p[2].malentendants);
+});
+
 test('vrai MKV au nom piégé : pistes listées, extraction SRT et ASS, aucune commande injectée', { skip: !disponible && 'ffmpeg absent (node scripts/preparer-ffmpeg.js)' }, async () => {
   const d = fs.mkdtempSync(path.join(os.tmpdir(), 'subforge-video-'));
   const temoin = path.join(d, 'PIRATE');

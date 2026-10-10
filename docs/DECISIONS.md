@@ -10,6 +10,7 @@
 | D-003 | Mises à jour automatiques : electron-updater, dépôt privé `Manciiie/SubForge-releases`, jeton en lecture seule | 2026-10-07 | ✅ |
 | D-004 | ffmpeg livré dans `vendor/win` (paquet npm @ffmpeg-installer, empreinte figée, copié au build) ; pas de ffprobe | 2026-10-07 | ✅ |
 | D-005 | Deux moteurs : DeepL (API officielle) et Ollama (IA locale) ; pas de service « gratuit » non officiel | 2026-10-07 | ✅ |
+| D-007 | ffmpeg 7.1 depuis la wheel PyPI `imageio-ffmpeg 0.6.0` (SHA-256 figé), remplace le paquet npm 4.1 | 2026-10-10 | ✅ |
 | D-006 | Analyse/écriture des formats de sous-titres codées maison, sans dépendance | 2026-10-07 | ✅ |
 
 ---
@@ -53,6 +54,17 @@
   « Google gratuit » non officiel : fragile et contraire aux conditions d'utilisation.
 - **Conséquences** : DeepL exige une clé ; Ollama doit être installé et un modèle téléchargé
   (`ollama pull …`), l'écran Moteurs l'explique.
+
+## D-007 — ffmpeg 7.1
+- **Contexte** : ffmpeg 4.1 (2018) ne lit pas certains conteneurs récents ; la 1.1 décode aussi les
+  sous-titres Blu-ray (PGS) et a besoin du multiplexeur `sup`.
+- **Options** : npm (aucun paquet fiable avec un ffmpeg 7 complet : soit téléchargement depuis
+  GitHub au moment de l'installation, bloqué dans l'environnement de build, soit version minimale
+  sans sous-titres, soit auteur inconnu publié depuis 2 jours) ; GitHub (bloqué) ; PyPI
+  `imageio-ffmpeg` (projet imageio, très utilisé, embarque ffmpeg 7.1 GPL statique pour Windows).
+- **Décision** : PyPI `imageio-ffmpeg 0.6.0`, empreintes SHA-256 de PyPI figées dans
+  `scripts/preparer-ffmpeg.js`, extraction du binaire sans dépendance.
+- **Conséquences** : +23 Mo dans l'installeur ; le script D-004 change de source, pas d'usage.
 
 ## D-006 — Formats sans dépendance
 - **Décision** : analyseurs SRT/ASS/VTT écrits dans `src/main/services/formats.js` (quelques
