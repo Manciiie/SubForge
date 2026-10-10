@@ -54,7 +54,7 @@ docs/              mémoire du projet (non embarquée dans l'exe)
 | Saison | `services/dossiers.js` (pur) | `traduction:explorer` | Traduire | liens / jonctions non suivis, 1 000 fichiers, profondeur 6 |
 | Blu-ray (PGS) | `services/pgs.js` (pur) | (via `traduction:lancer`) | carte du fichier | 200 Mo max, images ≤ 4096 px, segments abîmés comptés |
 | OCR | `services/ocr.js` (tesseract.js, threads) | (via `traduction:lancer`) | carte du fichier | données livrées, aucun téléchargement, annulation |
-| En ligne | `services/enligne.js` (pur, `fetch` injecté) | `enligne:etat`, `enligne:enregistrer`, `enligne:tester`, `enligne:chercher`, `enligne:telecharger` | Moteurs + fenêtre | secrets au coffre, lien vérifié, contenu vérifié, URL de test ignorée en version installée |
+| En ligne | `services/enligne.js` (pur, `fetch` injecté) | `enligne:etat`, `enligne:enregistrer`, `enligne:tester`, `enligne:chercher`, `enligne:telecharger`, `enligne:automatique` | Moteurs + fenêtre | secrets au coffre, lien vérifié, contenu vérifié, URL de test ignorée en version installée |
 | Traduction | `services/traduction.js` | `traduction:reglages`, `traduction:modifierReglages`, `traduction:choisirDossierSortie`, `traduction:analyser`, `traduction:lancer`, `traduction:annuler`, `traduction:apercu`, `traduction:montrer` ; événement `traduction:progression` | Traduire | `montrer` limité aux fichiers produits, URL DeepL de test ignorée en version installée |
 
 ## 4. Flux de l'action principale

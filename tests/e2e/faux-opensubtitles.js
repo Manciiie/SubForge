@@ -12,11 +12,26 @@ const s = http.createServer((req, res) => {
   req.on('end', () => {
     const u = new URL(req.url, 'http://x');
     const json = (code, o) => { res.writeHead(code, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(o)); };
-    if (u.pathname.startsWith('/fichier/')) { res.writeHead(200); res.end(SRT); return; }
+    if (u.pathname.startsWith('/fichier/')) {
+      const id = u.pathname.split('/').pop();
+      res.writeHead(200);
+      res.end(id.startsWith('8') ? `1\r\n00:00:01,000 --> 00:00:02,000\r\nEpisode subtitle ${id}\r\n` : SRT);
+      return;
+    }
     if (req.headers['api-key'] !== 'abcdefghijklmnopqrstuvwxyz012345') return json(401, { message: 'Invalid API key' });
     if (u.pathname === '/api/v1/infos/formats') return json(200, { data: {} });
     if (u.pathname === '/api/v1/subtitles') {
       if (u.searchParams.get('languages') !== 'en') return json(200, { data: [] });
+      // Séries : épisodes 1 et 3 trouvés (même saison / épisode), épisode 2 : seulement un autre épisode (incertain).
+      if (u.searchParams.has('episode_number')) {
+        const s = Number(u.searchParams.get('season_number'));
+        const e = Number(u.searchParams.get('episode_number'));
+        const ep = e === 2 ? 9 : e;
+        return json(200, { data: [
+          { attributes: { language: 'en', release: `Serie.S0${s}E0${ep}.WEB`, download_count: 400, files: [{ file_id: 8000 + ep, file_name: `ep${ep}.srt` }], feature_details: { title: `Episode ${ep}`, parent_title: 'Serie', season_number: s, episode_number: ep } } },
+          { attributes: { language: 'en', release: 'auto', download_count: 9999, machine_translated: true, files: [{ file_id: 8100 + e, file_name: 'auto.srt' }], feature_details: { season_number: s, episode_number: e } } },
+        ] });
+      }
       return json(200, { data: [
         { attributes: { language: 'en', release: 'Vacances.2019.1080p.BluRay', download_count: 1200, moviehash_match: true, files: [{ file_id: 7001, file_name: 'Vacances.2019.srt' }], feature_details: { title: 'Vacances', year: 2019 } } },
         { attributes: { language: 'en', release: 'Vacances.2019.WEB', download_count: 300, files: [{ file_id: 7002, file_name: 'b.srt' }] } },

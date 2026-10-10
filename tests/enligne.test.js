@@ -8,7 +8,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
-const { creerEnLigne, empreinte, lireNom } = require('../src/main/services/enligne');
+const { creerEnLigne, choisirAutomatiquement, empreinte, lireNom } = require('../src/main/services/enligne');
 
 const silencieux = { avertissement() {}, erreur() {}, info() {} };
 const SRT = '1\r\n00:00:01,000 --> 00:00:02,000\r\nHello there\r\n';
@@ -163,4 +163,41 @@ test('hors ligne : message clair ; aucun résultat : liste vide renvoyée (l\'é
   const en2 = creerEnLigne({ fetch, lireSecrets: () => ({ cle: 'CLE-TEST' }), urlTest: `http://127.0.0.1:${s.address().port}/api/v1`, journal: silencieux });
   assert.deepEqual((await en2.chercher(film('Heat.1995.mkv'), { langue: 'fr' })).resultats, []);
   s.closeAllConnections(); s.close();
+});
+
+test('choix automatique : empreinte, épisode, film ; jamais une traduction automatique', () => {
+  const r = (o) => ({ fileId: 1, exact: false, traductionAuto: false, plusieursCd: false, titre: '', annee: null, saison: null, episode: null, ...o });
+  // Empreinte identique : choisie même si un autre a plus de téléchargements.
+  assert.equal(choisirAutomatiquement({ titre: 'x' }, [r({ fileId: 1 }), r({ fileId: 2, exact: true })]).resultat.fileId, 2);
+  // Traduction automatique jamais choisie, même exacte.
+  assert.equal(choisirAutomatiquement({ titre: 'x' }, [r({ exact: true, traductionAuto: true })]), null);
+  // Série : même saison + épisode obligatoires.
+  const s = { titre: 'The Office', saison: 2, episode: 5 };
+  assert.equal(choisirAutomatiquement(s, [r({ fileId: 3, saison: 2, episode: 4 }), r({ fileId: 4, saison: 2, episode: 5 })]).resultat.fileId, 4);
+  assert.equal(choisirAutomatiquement(s, [r({ saison: 2, episode: 6 }), r({ saison: null })]), null);
+  // Film : même titre (accents, casse, article ignorés), année compatible.
+  assert.equal(choisirAutomatiquement({ titre: 'Le Fabuleux Destin d\'Amélie', annee: 2001 }, [r({ fileId: 5, titre: 'Fabuleux destin d\'Amelie', annee: 2001 })]).resultat.fileId, 5);
+  assert.equal(choisirAutomatiquement({ titre: 'Heat', annee: 1995 }, [r({ titre: 'Heat', annee: 2013 })]), null);
+  assert.equal(choisirAutomatiquement({ titre: 'Heat', annee: 1995 }, [r({ titre: 'Heat 2' })]), null);
+  assert.equal(choisirAutomatiquement({ titre: 'Heat' }, [r({ titre: 'Heat', plusieursCd: true })]), null);
+});
+
+test('mode automatique : téléchargé si sûr, incertain sinon, quota signalé', async () => {
+  const s = await serveur();
+  const url = `http://127.0.0.1:${s.address().port}/api/v1`;
+  const en = creerEnLigne({ fetch, lireSecrets: () => ({ cle: 'CLE-TEST' }), urlTest: url, journal: silencieux });
+  // Le faux serveur renvoie un résultat exact (fileId 22) : téléchargé.
+  const ok = await en.automatique(film('The.Office.S02E05.720p.mkv'), { langue: 'en', ecrire });
+  assert.equal(ok.statut, 'telecharge');
+  assert.match(ok.raison, /empreinte/);
+  assert.ok(fs.existsSync(ok.fichier));
+  s.closeAllConnections(); s.close();
+  const v = await serveur({ vide: true });
+  const en2 = creerEnLigne({ fetch, lireSecrets: () => ({ cle: 'CLE-TEST' }), urlTest: `http://127.0.0.1:${v.address().port}/api/v1`, journal: silencieux });
+  assert.deepEqual(await en2.automatique(film('Heat.1995.mkv'), { langue: 'en', ecrire }), { statut: 'incertain', raison: 'aucun résultat dans cette langue' });
+  v.closeAllConnections(); v.close();
+  const q = await serveur({ quota: true });
+  const en3 = creerEnLigne({ fetch, lireSecrets: () => ({ cle: 'CLE-TEST' }), urlTest: `http://127.0.0.1:${q.address().port}/api/v1`, journal: silencieux });
+  await assert.rejects(en3.automatique(film('The.Office.S02E05.mkv'), { langue: 'en', ecrire }), (e) => e.quota === true);
+  q.closeAllConnections(); q.close();
 });

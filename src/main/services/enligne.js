@@ -61,6 +61,26 @@ function lireNom(chemin) {
   return r;
 }
 
+const normaliser = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  .replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, ' ').replace(/^(the|le|la|les) /, '').trim();
+
+// Choix sans intervention : empreinte identique, ou même saison + épisode, ou même titre (+ année) pour un film.
+// Jamais une traduction automatique ni un sous-titre en plusieurs CD. Sinon : null (à choisir à la main).
+function choisirAutomatiquement(recherche, resultats) {
+  const candidats = resultats.filter((r) => !r.traductionAuto && !r.plusieursCd);
+  const exact = candidats.find((r) => r.exact);
+  if (exact) return { resultat: exact, raison: 'empreinte identique au fichier' };
+  if (recherche.saison !== undefined) {
+    const ep = candidats.find((r) => r.saison === recherche.saison && r.episode === recherche.episode);
+    return ep ? { resultat: ep, raison: `saison ${recherche.saison}, épisode ${recherche.episode}` } : null;
+  }
+  const titre = normaliser(recherche.titre);
+  if (!titre) return null;
+  const film = candidats.find((r) => r.saison === null && (normaliser(r.titre) === titre)
+    && (!recherche.annee || !r.annee || r.annee === recherche.annee));
+  return film ? { resultat: film, raison: `même titre${film.annee ? ` (${film.annee})` : ''}` } : null;
+}
+
 function creerEnLigne({ fetch, lireSecrets, utilisateur = () => '', version = '1.0.0', urlTest = null, journal = console }) {
   let jeton = null; // { valeur, base, expire, quota }
 
@@ -102,7 +122,7 @@ function creerEnLigne({ fetch, lireSecrets, utilisateur = () => '', version = '1
     if (r.ok && d) return d;
     const detail = String(d?.message || d?.errors?.[0] || '').slice(0, 200);
     if (r.status === 401 || r.status === 403) throw new ErreurEnLigne(`OpenSubtitles refuse la clé d'API ou le compte${detail ? ` (${detail})` : ''} : vérifiez-les dans l'écran Moteurs.`);
-    if (r.status === 406) throw new ErreurEnLigne(`Quota de téléchargements du jour atteint${d?.reset_time ? ` (de nouveau possible dans ${d.reset_time})` : ''}. Un compte OpenSubtitles gratuit en donne davantage.`);
+    if (r.status === 406) throw Object.assign(new ErreurEnLigne(`Quota de téléchargements du jour atteint${d?.reset_time ? ` (de nouveau possible dans ${d.reset_time})` : ''}. Un compte OpenSubtitles gratuit en donne davantage.`), { quota: true });
     if (r.status === 429) throw new ErreurEnLigne('Trop de demandes à OpenSubtitles : patientez quelques secondes puis réessayez.');
     if (r.status >= 500) throw new ErreurEnLigne('OpenSubtitles a un problème en ce moment : réessayez plus tard.');
     if (!d) throw new ErreurEnLigne('Réponse illisible d\'OpenSubtitles.');
@@ -160,6 +180,9 @@ function creerEnLigne({ fetch, lireSecrets, utilisateur = () => '', version = '1
         traductionAuto: a.machine_translated === true || a.ai_translated === true,
         titre: String(a.feature_details?.title || a.feature_details?.movie_name || '').slice(0, 200),
         annee: Number(a.feature_details?.year) || null,
+        serie: String(a.feature_details?.parent_title || '').slice(0, 200),
+        saison: Number.isInteger(a.feature_details?.season_number) ? a.feature_details.season_number : null,
+        episode: Number.isInteger(a.feature_details?.episode_number) ? a.feature_details.episode_number : null,
         plusieursCd: (a.files?.length || 0) > 1,
       });
     }
@@ -195,9 +218,20 @@ function creerEnLigne({ fetch, lireSecrets, utilisateur = () => '', version = '1
     return { fichier, restants: Number.isFinite(d.remaining) ? d.remaining : null, reinitialisation: d.reset_time || null };
   }
 
+  // Saison entière : recherche puis téléchargement seulement si le choix est sûr (voir choisirAutomatiquement).
+  async function automatique(cheminFilm, { langue, ecrire, signal } = {}) {
+    const { recherche, resultats } = await chercher(cheminFilm, { langue, signal });
+    const choix = choisirAutomatiquement(recherche, resultats);
+    if (!choix) {
+      return { statut: 'incertain', raison: resultats.length ? `${resultats.length} résultat(s), aucun sûr : choisissez à la main` : 'aucun résultat dans cette langue' };
+    }
+    const t = await telecharger(cheminFilm, choix.resultat.fileId, { langue, ecrire, signal });
+    return { statut: 'telecharge', raison: choix.raison, ...t };
+  }
+
   function deconnecter() { jeton = null; }
 
-  return { tester, chercher, telecharger, deconnecter, lireNom };
+  return { tester, chercher, telecharger, automatique, deconnecter, lireNom };
 }
 
-module.exports = { creerEnLigne, empreinte, lireNom, CODES_OS, ErreurEnLigne };
+module.exports = { creerEnLigne, choisirAutomatiquement, empreinte, lireNom, CODES_OS, ErreurEnLigne };

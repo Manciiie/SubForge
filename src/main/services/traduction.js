@@ -404,6 +404,21 @@ function enregistrer({ racineApp }) {
     return r;
   });
 
+  // Le fichier reçu doit être un vrai sous-titre lisible ; il est réécrit en UTF-8, sans jamais rien écraser.
+  const ecrireTelecharge = (film, contenu, ext, l) => {
+    const format = formats.formatDepuisChemin(`x${ext}`);
+    let doc;
+    try {
+      doc = formats.analyser(formats.decoder(contenu).texte, format);
+    } catch (e) {
+      throw new Error(`Le fichier reçu n'est pas un sous-titre lisible (${e.message}).`);
+    }
+    const cible = formats.nomSortie(film, langues.suffixe(l), ext, path.dirname(film));
+    formats.ecrireFichier(cible, doc);
+    sortiesProduites.add(cible);
+    return cible;
+  };
+
   canal('enligne:telecharger', [{ type: 'chemin', max: 4096 }, { type: 'number', min: 1, max: 1e12 }, { type: 'enum', valeurs: Object.keys(CODES_OS) }], async (_e, chemin, fileId, langue) => {
     videoExistante(chemin);
     if (telechargementsEnCours.has(fileId)) throw new Error('Téléchargement déjà en cours.');
@@ -411,25 +426,26 @@ function enregistrer({ racineApp }) {
     try {
       const r = await enLigne.telecharger(chemin, fileId, {
         langue,
-        // Le fichier reçu doit être un vrai sous-titre lisible ; il est réécrit en UTF-8, sans jamais rien écraser.
-        ecrire: (film, contenu, ext, l) => {
-          const format = formats.formatDepuisChemin(`x${ext}`);
-          let doc;
-          try {
-            doc = formats.analyser(formats.decoder(contenu).texte, format);
-          } catch (e) {
-            throw new Error(`Le fichier reçu n'est pas un sous-titre lisible (${e.message}).`);
-          }
-          const cible = formats.nomSortie(film, langues.suffixe(l), ext, path.dirname(film));
-          formats.ecrireFichier(cible, doc);
-          sortiesProduites.add(cible);
-          return cible;
-        },
+        ecrire: ecrireTelecharge,
       });
       journal.info(`[en ligne] téléchargé : ${path.basename(r.fichier)} (${r.restants ?? '?'} restants aujourd'hui)`);
       return r;
     } finally {
       telechargementsEnCours.delete(fileId);
+    }
+  });
+
+  // Saison entière : une vidéo à la fois (l'interface enchaîne et peut arrêter entre deux).
+  canal('enligne:automatique', [{ type: 'chemin', max: 4096 }, { type: 'enum', valeurs: Object.keys(CODES_OS) }], async (_e, chemin, langue) => {
+    videoExistante(chemin);
+    try {
+      const r = await enLigne.automatique(chemin, { langue, ecrire: ecrireTelecharge });
+      journal.info(`[en ligne auto] ${path.basename(chemin)} : ${r.statut} (${r.raison})`);
+      return r;
+    } catch (e) {
+      if (e.quota) return { statut: 'quota', raison: e.message };
+      journal.avertissement(`[en ligne auto] ${path.basename(chemin)} :`, e.message);
+      return { statut: 'erreur', raison: e.message };
     }
   });
 

@@ -18,6 +18,10 @@
   n'ont aucun sous-titre) ; recherche sur OpenSubtitles par empreinte du fichier puis titre /
   saison / épisode ; le sous-titre choisi est enregistré à côté du film puis ajouté à la file.
   Clé d'API gratuite et compte facultatif dans Moteurs.
+- Recherche en ligne automatique pour toute une saison : un bouton « Chercher en ligne (N sans
+  sous-titres) » télécharge seul les sous-titres sûrs (empreinte identique, même saison et même
+  épisode, ou même titre pour un film), jamais une traduction automatique ; les cas douteux restent
+  à choisir à la main ; arrêt possible, arrêt propre si le quota du jour est atteint, bilan final.
 - ffmpeg 7.1 (au lieu de 4.1) : formats vidéo récents et inhabituels mieux lus.
 
 ### Améliorations

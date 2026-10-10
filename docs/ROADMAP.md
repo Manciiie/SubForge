@@ -31,6 +31,7 @@
 | v1.1-T104 | Saison entière : dossiers et sous-dossiers | [x] |
 | v1.1-T105 | OCR des sous-titres Blu-ray (PGS) | [x] |
 | v1.1-T106 | Recherche de sous-titres en ligne (OpenSubtitles) | [x] |
+| v1.1-T107 | Recherche en ligne automatique pour toute une saison | [x] |
 | v1.1-T199 | Vérifications complètes + livraison | [ ] |
 
 ---
@@ -42,7 +43,7 @@ Reprendre ici la liste numérotée envoyée avec la dernière livraison.
 3. OCR des sous-titres de DVD (VobSub) et de TNT (DVB)
 4. Glossaire par série : un glossaire différent selon le dossier
 5. Vérifier la longueur des lignes traduites (lisibilité : 42 caractères par ligne, vitesse de lecture)
-6. Recherche en ligne automatique pour toute une saison (épisodes sans sous-titres)
+
 
 ---
 
@@ -50,6 +51,6 @@ Reprendre ici la liste numérotée envoyée avec la dernière livraison.
 | Version | Date | Contenu |
 |---|---|---|
 | 1.0.0 | 2026-10-07 | SRT/ASS/VTT, pistes MKV/MP4, DeepL + Ollama, file, Annuler, aperçu (jamais livrée) |
-| 1.1.0 | 2026-10-10 | Glossaire, mémoire, saison, OCR Blu-ray, OpenSubtitles, ffmpeg 7.1 |
+| 1.1.0 | 2026-10-10 | Glossaire, mémoire, saison, OCR Blu-ray, OpenSubtitles (film + saison auto), ffmpeg 7.1 |
 
 **Statuts** : `[ ]` à faire · `[~]` en cours · `[x]` fait · `[-]` abandonné · `[!]` bloqué

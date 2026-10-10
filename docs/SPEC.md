@@ -30,6 +30,7 @@ fichier on ne sait où. Je veux : glisser le film ou le sous-titre, choisir la l
 | Saison | Dossier entier, sous-dossiers, déjà traduits ignorés | 1.1.0 | `tasks/v1.1-T104.md` |
 | OCR Blu-ray | Pistes PGS / `.sup` lues hors ligne puis traduites | 1.1.0 | `tasks/v1.1-T105.md` |
 | En ligne | Sous-titres trouvés sur OpenSubtitles quand le film n'en a pas | 1.1.0 | `tasks/v1.1-T106.md` |
+| En ligne (saison) | Recherche + téléchargement automatiques et sûrs pour toutes les vidéos sans sous-titres | 1.1.0 | `tasks/v1.1-T107.md` |
 
 ### Comportements attendus
 - Je glisse `Film.en.srt` → choisi « Anglais → Français », DeepL → `Film.fr.srt` apparaît à côté,

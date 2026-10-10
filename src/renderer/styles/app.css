@@ -202,7 +202,7 @@ input[type="color"] { width: 44px; height: 28px; border: 0; background: none; cu
 
 .pastille { flex-shrink: 0; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--fond-survol); color: var(--texte-discret); }
 .pastille--pret { color: var(--texte); }
-.pastille--traduction, .pastille--extraction, .pastille--ecriture, .pastille--analyse { background: color-mix(in srgb, var(--accent) 20%, transparent); color: var(--texte); }
+.pastille--traduction, .pastille--extraction, .pastille--ecriture, .pastille--analyse, .pastille--recherche, .pastille--ocr { background: color-mix(in srgb, var(--accent) 20%, transparent); color: var(--texte); }
 .pastille--termine { background: color-mix(in srgb, var(--succes) 22%, transparent); color: var(--texte); }
 .pastille--erreur { background: color-mix(in srgb, var(--danger) 22%, transparent); color: var(--texte); }
 
@@ -254,3 +254,4 @@ input[type="color"] { width: 44px; height: 28px; border: 0; background: none; cu
 .badge { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 600; background: var(--fond-survol); color: var(--texte-discret); margin-right: 6px; }
 .badge--exact { background: color-mix(in srgb, var(--succes) 22%, transparent); color: var(--texte); }
 .badge--auto { background: color-mix(in srgb, var(--alerte) 20%, transparent); color: var(--texte); }
+.carte-fichier[data-etat="sans-piste"] .carte-fichier__message { background: color-mix(in srgb, var(--alerte) 16%, transparent); }

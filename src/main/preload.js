@@ -49,6 +49,7 @@ const CANAUX = [
   'enligne:tester',
   'enligne:chercher',
   'enligne:telecharger',
+  'enligne:automatique',
 ];
 
 // Événements envoyés par le processus principal vers l'interface (lecture seule).
@@ -114,6 +115,7 @@ contextBridge.exposeInMainWorld('forge', {
     tester: () => appeler('enligne:tester'),
     chercher: (chemin, langue) => appeler('enligne:chercher', chemin, langue),
     telecharger: (chemin, fileId, langue) => appeler('enligne:telecharger', chemin, fileId, langue),
+    automatique: (chemin, langue) => appeler('enligne:automatique', chemin, langue),
   },
   moteurs: {
     etat: () => appeler('moteurs:etat'),

@@ -12,6 +12,8 @@ window.__modules.push((async () => {
   const elements = new Map(); // id → { id, chemin, nom, info, piste, etat, carte }
   let compteur = 0;
   let enCours = false;
+  let rechercheAuto = false;   // recherche en ligne pour toute la saison en cours
+  let arretRecherche = false;
   let langues = [];
 
   // --- Options ---------------------------------------------------------------------
@@ -177,7 +179,7 @@ window.__modules.push((async () => {
 
   // --- Cartes -----------------------------------------------------------------------
   const LIBELLES = {
-    analyse: 'Analyse…', pret: 'Prêt', 'sans-piste': 'Pas de sous-titres', ocr: 'Lecture des images…', attente: 'En attente', extraction: 'Extraction de la piste…',
+    analyse: 'Analyse…', recherche: 'Recherche en ligne…', pret: 'Prêt', 'sans-piste': 'Pas de sous-titres', ocr: 'Lecture des images…', attente: 'En attente', extraction: 'Extraction de la piste…',
     traduction: 'Traduction…', ecriture: 'Enregistrement…', termine: 'Traduit', erreur: 'Erreur', annule: 'Annulé',
   };
 
@@ -258,7 +260,7 @@ window.__modules.push((async () => {
         el('button', { classe: 'btn btn--petit', texte: 'Aperçu', onclick: () => afficherApercu(e) }),
         el('button', { classe: 'btn btn--petit', texte: 'Ouvrir le dossier', onclick: () => T.montrer(e.sortie).catch(erreur) }),
       ]));
-    } else if (!enCours) {
+    } else if (!enCours && !rechercheAuto) {
       const actions = [el('span', { classe: 'espace' })];
       if (e.info?.type === 'video') {
         actions.push(el('button', {
@@ -299,10 +301,78 @@ window.__modules.push((async () => {
     $('file-titre').textContent = `${elements.size} fichier${elements.size > 1 ? 's' : ''}`;
     $('btn-traduire').disabled = enCours || prets.length === 0 || [...elements.values()].some((e) => e.etat === 'analyse');
     $('btn-traduire').hidden = enCours;
+    const sansPiste = [...elements.values()].filter((e) => e.etat === 'sans-piste').length;
+    const auto = $('btn-enligne-auto');
+    auto.hidden = enCours || (!rechercheAuto && sansPiste === 0);
+    auto.textContent = rechercheAuto ? 'Arrêter la recherche' : `Chercher en ligne (${sansPiste} sans sous-titres)`;
+    auto.classList.toggle('btn--principal', !rechercheAuto && sansPiste > 0 && sansPiste === elements.size);
+    if (rechercheAuto) { $('btn-traduire').disabled = true; $('btn-vider').hidden = true; }
     $('btn-annuler').hidden = !enCours;
     $('btn-vider').hidden = enCours;
     for (const s of [selSource, selCible, selMoteur, selFormat, $('btn-dossier'), $('btn-dossier-defaut')]) s.disabled = enCours;
   }
+
+  // Saison entière : sous-titres cherchés et téléchargés automatiquement pour chaque vidéo qui n'en a pas.
+  $('btn-enligne-auto').addEventListener('click', async () => {
+    if (rechercheAuto) { arretRecherche = true; $('btn-enligne-auto').disabled = true; return; }
+    const etat = await window.forge.enLigne.etat();
+    if (!etat.cle) {
+      notifier('Ajoutez d\'abord une clé d\'API OpenSubtitles (gratuite) dans l\'écran Moteurs.', 'alerte', 7000);
+      window.UI.afficherEcran('moteurs');
+      return;
+    }
+    const cibles = [...elements.values()].filter((e) => e.etat === 'sans-piste');
+    if (!cibles.length) return;
+    const langue = selSource.value !== 'auto' && etat.langues.includes(selSource.value) ? selSource.value : 'en';
+    rechercheAuto = true;
+    arretRecherche = false;
+    const bilan = { telecharges: 0, incertains: 0, erreurs: 0, quota: null };
+    elements.forEach(dessiner); // boutons des cartes masqués pendant la recherche
+    majFile();
+    try {
+      for (let i = 0; i < cibles.length; i++) {
+        if (arretRecherche || bilan.quota) break;
+        const e = cibles[i];
+        if (!elements.has(e.id)) continue; // retirée entre-temps
+        e.etat = 'recherche';
+        e.message = null;
+        dessiner(e);
+        $('file-titre').textContent = `Recherche en ligne : ${i + 1} / ${cibles.length}`;
+        let r;
+        try {
+          r = await window.forge.enLigne.automatique(e.chemin, langue);
+        } catch (err) {
+          r = { statut: 'erreur', raison: err.message.replace(/^Error invoking remote method '[^']+': (\w+Error: )?/, '') };
+        }
+        if (r.statut === 'telecharge') {
+          bilan.telecharges += 1;
+          elements.delete(e.id);
+          e.carte?.remove();
+          await ajouter([r.fichier]);
+        } else {
+          e.etat = 'sans-piste';
+          e.message = r.statut === 'incertain' ? `Recherche en ligne : ${r.raison}.` : r.raison;
+          if (r.statut === 'incertain') bilan.incertains += 1;
+          else if (r.statut === 'quota') bilan.quota = r.raison;
+          else bilan.erreurs += 1;
+          dessiner(e);
+        }
+        if (i < cibles.length - 1) await new Promise((ok) => setTimeout(ok, 400)); // rythme de l'API
+      }
+    } finally {
+      rechercheAuto = false;
+      $('btn-enligne-auto').disabled = false;
+      elements.forEach(dessiner);
+      majFile();
+    }
+    const restants = cibles.length - bilan.telecharges - bilan.incertains - bilan.erreurs;
+    const morceaux = [`${bilan.telecharges} sous-titre(s) téléchargé(s) sur ${cibles.length}`];
+    if (bilan.incertains) morceaux.push(`${bilan.incertains} à choisir à la main`);
+    if (bilan.erreurs) morceaux.push(`${bilan.erreurs} erreur(s)`);
+    if (bilan.quota) morceaux.push(`arrêt : quota du jour atteint (${restants} non cherchée(s))`);
+    else if (arretRecherche && restants) morceaux.push(`arrêtée par vous (${restants} non cherchée(s))`);
+    notifier(morceaux.join(' · '), bilan.telecharges === cibles.length ? 'succes' : 'alerte', 10000);
+  });
 
   $('btn-vider').addEventListener('click', () => { elements.clear(); liste.replaceChildren(); $('apercu').hidden = true; majFile(); });
 

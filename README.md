@@ -17,7 +17,8 @@ Traducteur de sous-titres de films
    **Saison entière** : glissez le dossier de la série (ou « Choisir un dossier ») : les épisodes déjà
    traduits sont ignorés. **Blu-ray** : les sous-titres en image (PGS, `.sup`) sont lus par OCR.
    **Pas de sous-titres ?** « Chercher en ligne » sur la carte du film (clé OpenSubtitles gratuite
-   dans Moteurs).
+   dans Moteurs). Pour une saison entière : « Chercher en ligne (N sans sous-titres) » en haut de la
+   liste télécharge tout seul les sous-titres sûrs.
 3. Le fichier traduit est enregistré à côté du film : `Film.fr.srt` (jamais d'écrasement :
    `Film.fr (2).srt` si besoin). VLC, MPC, Plex ou Kodi le trouvent tout seuls. La vidéo n'est
    jamais modifiée.
