@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="fr" data-theme="sombre">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SubForge</title>
+  <link rel="stylesheet" href="styles/theme.css">
+  <link rel="stylesheet" href="styles/app.css">
+</head>
+<body>
+  <header class="barre-titre">
+    <div class="barre-titre__nom"><span class="logo" aria-hidden="true"></span>SubForge</div>
+    <div class="barre-titre__actions">
+      <button class="btn-fenetre" data-action="reduire" title="Réduire" aria-label="Réduire">&#x2013;</button>
+      <button class="btn-fenetre" data-action="agrandir" title="Agrandir" aria-label="Agrandir">&#x25A1;</button>
+      <button class="btn-fenetre btn-fenetre--fermer" data-action="fermer" title="Fermer" aria-label="Fermer">&#x2715;</button>
+    </div>
+  </header>
+
+  <div class="disposition">
+    <nav class="navigation" aria-label="Navigation principale">
+      <button class="nav-item actif" data-ecran="traduire">Traduire</button>
+      <button class="nav-item" data-ecran="moteurs">Moteurs</button>
+      <div class="navigation__bas">
+        <button class="nav-item" data-ecran="parametres">Paramètres</button>
+        <button class="nav-item" data-ecran="a-propos">À propos</button>
+      </div>
+    </nav>
+
+    <main class="contenu">
+      <section class="ecran actif" id="ecran-traduire">
+        <div class="entete-ecran">
+          <div>
+            <h1>Traduire des sous-titres</h1>
+            <p class="sous-titre">Fichiers SRT, ASS, VTT, ou directement un film MKV / MP4 : seule la piste de sous-titres est traduite.</p>
+          </div>
+        </div>
+
+        <div class="barre-options carte">
+          <label class="option">De
+            <select id="opt-source"></select>
+          </label>
+          <span class="fleche" aria-hidden="true">→</span>
+          <label class="option">Vers
+            <select id="opt-cible"></select>
+          </label>
+          <label class="option">Moteur
+            <select id="opt-moteur">
+              <option value="deepl">DeepL</option>
+              <option value="ollama">IA locale (Ollama)</option>
+            </select>
+          </label>
+          <label class="option">Format
+            <select id="opt-format">
+              <option value="identique">Identique à l'original</option>
+              <option value="srt">Toujours SRT</option>
+            </select>
+          </label>
+          <div class="option option--large">
+            <span>Enregistrer</span>
+            <div class="ligne-dossier">
+              <span id="opt-dossier" class="dossier" title="">À côté du film</span>
+              <button class="btn btn--petit" id="btn-dossier">Changer…</button>
+              <button class="btn btn--petit btn--lien" id="btn-dossier-defaut" hidden>À côté du film</button>
+            </div>
+          </div>
+        </div>
+        <p class="avertissement-moteur discret" id="avertissement-moteur"></p>
+
+        <div class="zone-depot" id="zone-depot" tabindex="0">
+          <p><strong>Glissez ici vos films ou fichiers de sous-titres</strong></p>
+          <p class="discret">.srt · .ass · .ssa · .vtt · .mkv · .mp4 · .avi · .mov · .webm</p>
+          <button class="btn btn--principal" id="btn-choisir">Choisir des fichiers</button>
+        </div>
+
+        <div class="file" id="file" hidden>
+          <div class="file__entete">
+            <h2 id="file-titre">Fichiers</h2>
+            <span class="espace"></span>
+            <button class="btn btn--lien" id="btn-vider">Tout retirer</button>
+            <button class="btn btn--danger" id="btn-annuler" hidden>Annuler</button>
+            <button class="btn btn--principal" id="btn-traduire">Traduire tout</button>
+          </div>
+          <ul class="cartes-fichiers" id="liste-fichiers"></ul>
+        </div>
+
+        <div class="carte apercu" id="apercu" hidden>
+          <div class="file__entete">
+            <h2 id="apercu-titre">Aperçu</h2>
+            <span class="espace"></span>
+            <button class="btn btn--lien" id="btn-fermer-apercu">Fermer</button>
+          </div>
+          <div class="apercu__table" id="apercu-table" role="table"></div>
+          <p class="discret" id="apercu-note"></p>
+        </div>
+      </section>
+
+      <section class="ecran" id="ecran-moteurs">
+        <h1>Moteurs de traduction</h1>
+        <p class="sous-titre">DeepL donne la meilleure qualité ; l'IA locale fonctionne hors ligne, sur votre carte graphique.</p>
+
+        <div class="carte">
+          <h2>DeepL</h2>
+          <p class="discret">Le texte des sous-titres est envoyé à DeepL pour être traduit. Clé gratuite : 500 000 caractères par mois (environ 10 à 15 films), à créer sur deepl.com → « API ».</p>
+          <div class="ligne-param" id="deepl-cle-presente" hidden>
+            <span>Clé enregistrée <span class="code">••••••••</span> <span class="discret">(chiffrée par Windows)</span></span>
+            <span class="actions">
+              <button class="btn" id="btn-deepl-remplacer">Remplacer</button>
+              <button class="btn" id="btn-deepl-supprimer">Supprimer</button>
+            </span>
+          </div>
+          <div class="ligne-param" id="deepl-cle-saisie">
+            <input type="password" id="deepl-cle" placeholder="Collez votre clé d'API DeepL" autocomplete="off" spellcheck="false">
+            <button class="btn btn--principal" id="btn-deepl-enregistrer">Enregistrer</button>
+          </div>
+          <label class="ligne-param">Ton
+            <select id="deepl-formalite">
+              <option value="defaut">Par défaut</option>
+              <option value="formel">Vouvoiement / formel</option>
+              <option value="informel">Tutoiement / familier</option>
+            </select>
+          </label>
+          <div class="ligne-param">
+            <span id="deepl-quota" class="discret">Quota : —</span>
+            <span class="actions">
+              <button class="btn btn--lien" id="btn-deepl-site">Créer une clé gratuite</button>
+              <button class="btn" id="btn-deepl-tester">Tester et voir le quota</button>
+            </span>
+          </div>
+          <div class="barre-progression" id="deepl-barre-quota" hidden><span></span></div>
+        </div>
+
+        <div class="carte">
+          <h2>IA locale (Ollama)</h2>
+          <p class="discret">Aucune donnée ne quitte le PC. Installez Ollama, puis un modèle avec par exemple <span class="code">ollama pull qwen2.5:7b</span> (bon compromis pour une carte de 8 Go). Plus lent que DeepL.</p>
+          <label class="ligne-param">Adresse
+            <input type="text" id="ollama-adresse" spellcheck="false">
+          </label>
+          <div class="ligne-param">
+            <span>Modèle</span>
+            <span class="actions">
+              <select id="ollama-modele"><option value="">— Aucun —</option></select>
+              <button class="btn" id="btn-ollama-actualiser">Actualiser la liste</button>
+            </span>
+          </div>
+          <div class="ligne-param">
+            <span id="ollama-statut" class="discret"></span>
+            <span class="actions">
+              <button class="btn btn--lien" id="btn-ollama-site">Télécharger Ollama</button>
+              <button class="btn" id="btn-ollama-tester">Tester</button>
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <section class="ecran" id="ecran-parametres">
+        <h1>Paramètres</h1>
+        <div class="carte">
+          <h2>Apparence</h2>
+          <label class="ligne-param">Thème
+            <select id="param-theme">
+              <option value="sombre">Sombre</option>
+              <option value="clair">Clair</option>
+              <option value="systeme">Comme Windows</option>
+            </select>
+          </label>
+          <label class="ligne-param">Couleur d'accent
+            <input type="color" id="param-accent">
+          </label>
+        </div>
+        <div class="carte">
+          <h2>Performances</h2>
+          <label class="ligne-param">Accélération matérielle
+            <input type="checkbox" id="param-acceleration">
+          </label>
+          <p class="discret">À désactiver si la fenêtre reste noire ou ne s'affiche pas. Redémarrage nécessaire.</p>
+        </div>
+        <div class="carte">
+          <h2>Mises à jour</h2>
+          <label class="ligne-param">Rechercher les mises à jour au démarrage
+            <input type="checkbox" id="param-maj-demarrage">
+          </label>
+          <div class="ligne-param">
+            <span id="maj-statut" class="discret"></span>
+            <button class="btn" id="btn-maj-verifier">Rechercher maintenant</button>
+          </div>
+        </div>
+        <div class="carte">
+          <h2>Dépannage</h2>
+          <button class="btn" id="btn-journaux">Ouvrir le dossier des journaux</button>
+          <button class="btn btn--principal" id="btn-rapport">Signaler un problème</button>
+          <p class="discret">Copie un rapport (version, système, derniers événements, sans aucun secret) à coller dans la conversation avec Claude, avec une phrase sur ce qui s'est passé.</p>
+        </div>
+      </section>
+
+      <section class="ecran" id="ecran-a-propos">
+        <h1>À propos</h1>
+        <div class="carte">
+          <p><strong id="apropos-nom"></strong> — version <span id="apropos-version"></span></p>
+        </div>
+        <div class="carte">
+          <h2>Journal des modifications</h2>
+          <div id="apropos-changelog" class="changelog"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="notifications" id="notifications" aria-live="polite"></div>
+
+  <div class="voile" id="maj-fenetre" hidden>
+    <div class="boite" role="dialog" aria-modal="true" aria-labelledby="maj-titre">
+      <h2 id="maj-titre">Mise à jour disponible</h2>
+      <p id="maj-resume" class="discret"></p>
+      <div id="maj-notes" class="maj-notes"></div>
+      <div id="maj-progression" class="maj-progression" hidden>
+        <div class="barre-progression"><span id="maj-barre"></span></div>
+        <p id="maj-progression-texte" class="discret"></p>
+      </div>
+      <p id="maj-erreur" class="maj-erreur" hidden></p>
+      <div class="boite__actions">
+        <button class="btn btn--lien" id="maj-ignorer">Ignorer cette version</button>
+        <span class="espace"></span>
+        <button class="btn" id="maj-plus-tard">Plus tard</button>
+        <button class="btn btn--principal" id="maj-telecharger">Télécharger et installer</button>
+        <button class="btn btn--principal" id="maj-installer" hidden>Redémarrer maintenant</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/ui.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/traduire.js"></script>
+  <script src="js/moteurs.js"></script>
+  <script src="js/maj.js"></script>
+</body>
+</html>

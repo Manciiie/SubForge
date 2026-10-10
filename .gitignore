@@ -1,0 +1,8 @@
+node_modules/
+dist/
+livraison/
+*.log
+.electronegativity.csv
+captures*/
+dev-app-update.yml
+vendor/

@@ -1,0 +1,38 @@
+/* Variables de thème. --accent est remplacé par la couleur choisie dans les paramètres. */
+:root {
+  --accent: #2bb8a6;
+  --accent-texte: #ffffff;
+  --rayon: 10px;
+  --rayon-petit: 6px;
+  --police: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  --police-mono: "Cascadia Code", Consolas, monospace;
+  --transition: 140ms ease;
+}
+
+[data-theme="sombre"] {
+  --fond: #14151b;
+  --fond-panneau: #1b1c24;
+  --fond-carte: #22232d;
+  --fond-survol: #2b2c38;
+  --bordure: #30323f;
+  --texte: #e8e9f0;
+  --texte-discret: #9a9cb0;
+  --succes: #3ecf8e;
+  --alerte: #f5b041;
+  --danger: #f2555a;
+  --ombre: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+[data-theme="clair"] {
+  --fond: #f5f6fa;
+  --fond-panneau: #ffffff;
+  --fond-carte: #ffffff;
+  --fond-survol: #eceef5;
+  --bordure: #dfe1ea;
+  --texte: #1b1c24;
+  --texte-discret: #61647a;
+  --succes: #1e9e64;
+  --alerte: #c47f0c;
+  --danger: #d6383d;
+  --ombre: 0 6px 18px rgba(20, 22, 40, 0.08);
+}

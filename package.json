@@ -1,0 +1,105 @@
+{
+  "name": "subforge",
+  "productName": "SubForge",
+  "version": "1.0.0",
+  "description": "Traducteur de sous-titres de films",
+  "author": "Moi",
+  "license": "UNLICENSED",
+  "private": true,
+  "main": "src/main/main.js",
+  "forgeSquelette": 7,
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test \"tests/**/*.test.js\"",
+    "securite": "node scripts/scan-securite.js",
+    "build": "node scripts/preparer-ffmpeg.js win && node scripts/configurer-maj.js && electron-builder --win nsis --x64 --publish never",
+    "build:linux": "node scripts/preparer-ffmpeg.js linux && node scripts/configurer-maj.js && electron-builder --linux AppImage --publish never",
+    "postinstall": "electron-builder install-app-deps",
+    "publier": "node scripts/publier.js",
+    "tester-maj": "node scripts/tester-maj.js",
+    "prestart": "node scripts/preparer-ffmpeg.js",
+    "codemap": "python3 scripts/codemap.py ."
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.0"
+  },
+  "devDependencies": {
+    "@electron/fuses": "^2.1.0",
+    "electron": "^44.0.0",
+    "electron-builder": "^26.0.0"
+  },
+  "build": {
+    "appId": "fr.perso.subforge",
+    "productName": "SubForge",
+    "copyright": "© 2026 Moi",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "src/**/*",
+      "package.json",
+      "CHANGELOG.md",
+      "!**/*.map"
+    ],
+    "asar": true,
+    "afterPack": "scripts/fuses.js",
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico",
+      "signAndEditExecutable": false,
+      "extraResources": [
+        {
+          "from": "vendor/win",
+          "to": "bin",
+          "filter": [
+            "ffmpeg.exe"
+          ]
+        }
+      ]
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Utility",
+      "extraResources": [
+        {
+          "from": "vendor/linux",
+          "to": "bin",
+          "filter": [
+            "ffmpeg"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "SubForge",
+      "installerLanguages": [
+        "fr_FR"
+      ],
+      "language": "1036",
+      "artifactName": "SubForge-Setup-${version}.${ext}"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Manciiie",
+        "repo": "SubForge-releases",
+        "private": true,
+        "releaseType": "release"
+      }
+    ]
+  }
+}
