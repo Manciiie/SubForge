@@ -19,13 +19,18 @@ const { traduireDocument } = require('./pipeline');
 const dossiers = require('./dossiers');
 const pgs = require('./pgs');
 const { creerOcr, versSrt: ocrVersSrt } = require('./ocr');
+const { creerEnLigne, CODES_OS } = require('./enligne');
 
 const SECRET_DEEPL = 'cle_deepl';
+const SECRET_OS_CLE = 'cle_opensubtitles';
+const SECRET_OS_MDP = 'mdp_opensubtitles';
 const CODES = langues.codes();
 
 let moteurs = null;
 let memoire = null;
 let ocr = null;
+let enLigne = null;
+const telechargementsEnCours = new Set();
 let glossaire = null;
 let binaireFfmpeg = null;
 let tache = null;              // { controleur, expediteur }
@@ -38,6 +43,7 @@ function reglages() {
     traduction: { source: 'auto', cible: 'fr', moteur: 'deepl', formatSortie: 'identique', dossierSortie: null, memoire: true, ...(p.traduction || {}) },
     deepl: { formalite: 'defaut', ...(p.deepl || {}) },
     ollama: { adresse: 'http://127.0.0.1:11434', modele: '', ...(p.ollama || {}) },
+    enligne: { utilisateur: '', ...(p.enligne || {}) },
   };
 }
 
@@ -188,6 +194,16 @@ function enregistrer({ racineApp }) {
     ? require.resolve('tesseract.js/src/worker-script/node/index.js').replace(/app\.asar([\\/])/, 'app.asar.unpacked$1')
     : null;
   ocr = creerOcr({ dossierLangues, cheminTravailleur, journal });
+  // Adresse OpenSubtitles de test (faux serveur) : jamais prise en compte dans la version installée.
+  const urlOsTest = !app.isPackaged && process.env.SUBFORGE_OS_URL_TEST ? process.env.SUBFORGE_OS_URL_TEST : null;
+  enLigne = creerEnLigne({
+    fetch: (u, o) => net.fetch(u, o),
+    lireSecrets: () => ({ cle: parametres.lireSecret(SECRET_OS_CLE), motDePasse: parametres.lireSecret(SECRET_OS_MDP) }),
+    utilisateur: () => reglages().enligne.utilisateur,
+    version: app.getVersion(),
+    urlTest: urlOsTest,
+    journal,
+  });
 
   app.on('before-quit', () => { tache?.controleur.abort(); video.toutArreter(); });
 
@@ -340,6 +356,79 @@ function enregistrer({ racineApp }) {
     const bilan = glossaire.importer(texte, CODES);
     journal.info(`Glossaire importé depuis ${path.basename(f)} : ${bilan.ajoutes} ajoutés, ${bilan.ignores} ignorés`);
     return bilan;
+  });
+
+  // --- Sous-titres en ligne (OpenSubtitles) ---
+  canal('enligne:etat', [], () => ({
+    cle: parametres.secretExiste(SECRET_OS_CLE),
+    motDePasse: parametres.secretExiste(SECRET_OS_MDP),
+    utilisateur: reglages().enligne.utilisateur,
+    langues: Object.keys(CODES_OS),
+  }));
+
+  canal('enligne:enregistrer', [{
+    type: 'objet',
+    champs: {
+      cle: { type: 'string', max: 200, optionnel: true },
+      utilisateur: { type: 'string', max: 100, optionnel: true },
+      motDePasse: { type: 'string', max: 200, optionnel: true },
+    },
+  }], (_e, o) => {
+    if (o.cle !== undefined) {
+      const c = o.cle.trim();
+      if (c && !/^[A-Za-z0-9]{16,64}$/.test(c)) throw new Error('Cette clé ne ressemble pas à une clé d\'API OpenSubtitles (lettres et chiffres, 32 caractères en général).');
+      parametres.enregistrerSecret(SECRET_OS_CLE, c);
+    }
+    if (o.utilisateur !== undefined) {
+      const r = reglages();
+      r.enligne.utilisateur = o.utilisateur.trim();
+      parametres.modifier({ enligne: r.enligne });
+    }
+    if (o.motDePasse !== undefined) parametres.enregistrerSecret(SECRET_OS_MDP, o.motDePasse);
+    enLigne.deconnecter();
+    return true;
+  });
+
+  canal('enligne:tester', [], () => enLigne.tester());
+
+  const videoExistante = (chemin) => {
+    if (!path.isAbsolute(chemin) || !video.estVideo(chemin) || !fs.existsSync(chemin)) throw new ErreurSecurite('Choisissez une vidéo existante.');
+  };
+
+  canal('enligne:chercher', [{ type: 'chemin', max: 4096 }, { type: 'enum', valeurs: Object.keys(CODES_OS) }], async (_e, chemin, langue) => {
+    videoExistante(chemin);
+    const r = await enLigne.chercher(chemin, { langue });
+    journal.info(`[en ligne] ${path.basename(chemin)} : ${r.resultats.length} résultat(s) (${r.recherche.langue})`);
+    return r;
+  });
+
+  canal('enligne:telecharger', [{ type: 'chemin', max: 4096 }, { type: 'number', min: 1, max: 1e12 }, { type: 'enum', valeurs: Object.keys(CODES_OS) }], async (_e, chemin, fileId, langue) => {
+    videoExistante(chemin);
+    if (telechargementsEnCours.has(fileId)) throw new Error('Téléchargement déjà en cours.');
+    telechargementsEnCours.add(fileId);
+    try {
+      const r = await enLigne.telecharger(chemin, fileId, {
+        langue,
+        // Le fichier reçu doit être un vrai sous-titre lisible ; il est réécrit en UTF-8, sans jamais rien écraser.
+        ecrire: (film, contenu, ext, l) => {
+          const format = formats.formatDepuisChemin(`x${ext}`);
+          let doc;
+          try {
+            doc = formats.analyser(formats.decoder(contenu).texte, format);
+          } catch (e) {
+            throw new Error(`Le fichier reçu n'est pas un sous-titre lisible (${e.message}).`);
+          }
+          const cible = formats.nomSortie(film, langues.suffixe(l), ext, path.dirname(film));
+          formats.ecrireFichier(cible, doc);
+          sortiesProduites.add(cible);
+          return cible;
+        },
+      });
+      journal.info(`[en ligne] téléchargé : ${path.basename(r.fichier)} (${r.restants ?? '?'} restants aujourd'hui)`);
+      return r;
+    } finally {
+      telechargementsEnCours.delete(fileId);
+    }
   });
 
   // --- Moteurs ---

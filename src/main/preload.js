@@ -44,6 +44,11 @@ const CANAUX = [
   'glossaire:enregistrer',
   'glossaire:supprimer',
   'glossaire:importer',
+  'enligne:etat',
+  'enligne:enregistrer',
+  'enligne:tester',
+  'enligne:chercher',
+  'enligne:telecharger',
 ];
 
 // Événements envoyés par le processus principal vers l'interface (lecture seule).
@@ -102,6 +107,13 @@ contextBridge.exposeInMainWorld('forge', {
     enregistrer: (entree) => appeler('glossaire:enregistrer', entree),
     supprimer: (id) => appeler('glossaire:supprimer', id),
     importer: () => appeler('glossaire:importer'),
+  },
+  enLigne: {
+    etat: () => appeler('enligne:etat'),
+    enregistrer: (o) => appeler('enligne:enregistrer', o),
+    tester: () => appeler('enligne:tester'),
+    chercher: (chemin, langue) => appeler('enligne:chercher', chemin, langue),
+    telecharger: (chemin, fileId, langue) => appeler('enligne:telecharger', chemin, fileId, langue),
   },
   moteurs: {
     etat: () => appeler('moteurs:etat'),

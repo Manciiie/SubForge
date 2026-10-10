@@ -30,7 +30,7 @@
 | v1.1-T103 | Glossaire (écran Glossaire) | [x] |
 | v1.1-T104 | Saison entière : dossiers et sous-dossiers | [x] |
 | v1.1-T105 | OCR des sous-titres Blu-ray (PGS) | [x] |
-| v1.1-T106 | Recherche de sous-titres en ligne (OpenSubtitles) | [ ] |
+| v1.1-T106 | Recherche de sous-titres en ligne (OpenSubtitles) | [x] |
 | v1.1-T199 | Vérifications complètes + livraison | [ ] |
 
 ---

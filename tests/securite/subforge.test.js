@@ -37,11 +37,12 @@ test('clé DeepL : chiffrée sur le disque, absente de parametres.json et des jo
   fs.rmSync(dossier, { recursive: true, force: true });
 });
 
-test('clé DeepL : aucun canal ne la renvoie à l\'interface', () => {
+test('clés DeepL / OpenSubtitles et mot de passe : aucun canal ne les renvoie à l\'interface', () => {
   const src = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'main', 'services', 'traduction.js'), 'utf8');
-  const usages = [...src.matchAll(/lireSecret\(/g)];
-  assert.equal(usages.length, 1, 'lireSecret ne doit servir qu\'à fournir la clé au moteur');
-  assert.match(src, /lireCleDeepl: \(\) => parametres\.lireSecret\(SECRET_DEEPL\)/);
+  const lignes = src.split('\n').filter((l) => /lireSecret\(/.test(l));
+  assert.equal(lignes.length, 2, 'lireSecret ne sert qu\'à fournir les secrets aux modules réseau');
+  assert.match(lignes[0], /lireCleDeepl: \(\) => parametres\.lireSecret\(SECRET_DEEPL\)/);
+  assert.match(lignes[1], /lireSecrets: \(\) => \(\{ cle: parametres\.lireSecret\(SECRET_OS_CLE\), motDePasse: parametres\.lireSecret\(SECRET_OS_MDP\) \}\)/);
   const moteurs = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'main', 'services', 'moteurs.js'), 'utf8');
   assert.ok(!/\?[a-z_]*auth_key=/i.test(moteurs), 'clé passée dans une URL');
 });

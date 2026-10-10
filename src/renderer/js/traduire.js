@@ -259,10 +259,16 @@ window.__modules.push((async () => {
         el('button', { classe: 'btn btn--petit', texte: 'Ouvrir le dossier', onclick: () => T.montrer(e.sortie).catch(erreur) }),
       ]));
     } else if (!enCours) {
-      corps.push(el('div', { classe: 'carte-fichier__actions' }, [
-        el('span', { classe: 'espace' }),
-        el('button', { classe: 'btn btn--petit btn--lien', texte: 'Retirer', onclick: () => { elements.delete(e.id); carte.remove(); majFile(); } }),
-      ]));
+      const actions = [el('span', { classe: 'espace' })];
+      if (e.info?.type === 'video') {
+        actions.push(el('button', {
+          classe: `btn btn--petit${e.etat === 'sans-piste' ? ' btn--principal' : ''}`,
+          texte: 'Chercher en ligne',
+          onclick: () => chercherEnLigne(e),
+        }));
+      }
+      actions.push(el('button', { classe: 'btn btn--petit btn--lien', texte: 'Retirer', onclick: () => { elements.delete(e.id); carte.remove(); majFile(); } }));
+      corps.push(el('div', { classe: 'carte-fichier__actions' }, actions));
     }
     carte.replaceChildren(...corps);
     if (!carte.isConnected) liste.append(carte);
@@ -271,6 +277,19 @@ window.__modules.push((async () => {
   // Fichiers à (re)traduire : prêts, en erreur ou annulés — jamais ceux déjà traduits.
   function aRetraduire(e) {
     return ['pret', 'erreur', 'annule'].includes(e.etat) && (['soustitre', 'sup'].includes(e.info?.type) || (e.info?.type === 'video' && e.piste !== null));
+  }
+
+  // Sous-titres trouvés en ligne : enregistrés à côté du film puis ajoutés à la file.
+  function chercherEnLigne(e) {
+    window.SubForge.chercherEnLigne?.({
+      chemin: e.chemin,
+      nom: e.nom,
+      langue: selSource.value !== 'auto' ? selSource.value : 'en',
+      surTelechargement: async (fichier) => {
+        if (e.etat === 'sans-piste') { elements.delete(e.id); e.carte?.remove(); }
+        await ajouter([fichier]);
+      },
+    });
   }
 
   function majFile() {

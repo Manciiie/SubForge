@@ -177,6 +177,37 @@
         </div>
 
         <div class="carte">
+          <h2>Sous-titres en ligne (OpenSubtitles)</h2>
+          <p class="discret">Quand un film n'a pas de sous-titres, SubForge les cherche sur OpenSubtitles.com (empreinte du fichier, puis titre). Il faut une clé d'API gratuite ; un compte gratuit permet plus de téléchargements par jour.</p>
+          <div class="ligne-param" id="os-cle-presente" hidden>
+            <span>Clé d'API enregistrée <span class="code">••••••••</span> <span class="discret">(chiffrée par Windows)</span></span>
+            <span class="actions">
+              <button class="btn" id="btn-os-remplacer">Remplacer</button>
+              <button class="btn" id="btn-os-supprimer">Supprimer</button>
+            </span>
+          </div>
+          <div class="ligne-param" id="os-cle-saisie">
+            <input type="password" id="os-cle" placeholder="Collez votre clé d'API OpenSubtitles" autocomplete="off" spellcheck="false">
+            <button class="btn btn--principal" id="btn-os-enregistrer-cle">Enregistrer</button>
+          </div>
+          <div class="ligne-param">
+            <span>Compte (facultatif)</span>
+            <span class="actions">
+              <input type="text" id="os-utilisateur" placeholder="Nom d'utilisateur" autocomplete="off" spellcheck="false">
+              <input type="password" id="os-mdp" placeholder="Mot de passe" autocomplete="off">
+              <button class="btn" id="btn-os-compte">Enregistrer</button>
+            </span>
+          </div>
+          <div class="ligne-param">
+            <span id="os-statut" class="discret"></span>
+            <span class="actions">
+              <button class="btn btn--lien" id="btn-os-site">Créer une clé gratuite</button>
+              <button class="btn" id="btn-os-tester">Tester</button>
+            </span>
+          </div>
+        </div>
+
+        <div class="carte">
           <h2>Mémoire de traduction</h2>
           <p class="discret">Chaque réplique traduite est gardée sur ce PC : retraduire un fichier, ou une réplique déjà vue (génériques, « Oui. », « Merci. »), ne coûte plus rien à DeepL.</p>
           <label class="ligne-param">Utiliser la mémoire de traduction
@@ -266,6 +297,27 @@
 
   <div class="notifications" id="notifications" aria-live="polite"></div>
 
+  <div class="voile" id="os-fenetre" hidden>
+    <div class="boite boite--large" role="dialog" aria-modal="true" aria-labelledby="os-titre">
+      <h2 id="os-titre">Sous-titres en ligne</h2>
+      <p id="os-sous-titre" class="discret"></p>
+      <div class="ligne-param">
+        <label class="ligne-param__libre">Langue
+          <select id="os-langue"></select>
+        </label>
+        <span class="espace"></span>
+        <button class="btn" id="btn-os-chercher">Rechercher</button>
+      </div>
+      <p id="os-etat" class="discret" aria-live="polite"></p>
+      <div id="os-resultats" class="os-resultats"></div>
+      <div class="boite__actions">
+        <span class="discret" id="os-quota"></span>
+        <span class="espace"></span>
+        <button class="btn" id="btn-os-fermer">Fermer</button>
+      </div>
+    </div>
+  </div>
+
   <div class="voile" id="maj-fenetre" hidden>
     <div class="boite" role="dialog" aria-modal="true" aria-labelledby="maj-titre">
       <h2 id="maj-titre">Mise à jour disponible</h2>
@@ -291,6 +343,7 @@
   <script src="js/traduire.js"></script>
   <script src="js/moteurs.js"></script>
   <script src="js/glossaire.js"></script>
+  <script src="js/enligne.js"></script>
   <script src="js/maj.js"></script>
 </body>
 </html>
