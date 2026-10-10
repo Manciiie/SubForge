@@ -16,6 +16,7 @@ const { creerMoteurs, adresseOllamaValide, normaliserAdresse } = require('./mote
 const { creerMemoire } = require('./memoire');
 const { creerGlossaire } = require('./glossaire');
 const { traduireDocument } = require('./pipeline');
+const dossiers = require('./dossiers');
 
 const SECRET_DEEPL = 'cle_deepl';
 const CODES = langues.codes();
@@ -173,7 +174,16 @@ function enregistrer({ racineApp }) {
     return res.canceled ? null : res.filePaths[0];
   });
 
-  canal('traduction:analyser', [{ type: 'liste', max: 200, element: { type: 'chemin', max: 4096 } }], async (_e, chemins) => {
+  // Fichiers et dossiers déposés → liste des fichiers à analyser (saison entière : sous-dossiers compris).
+  canal('traduction:explorer', [{ type: 'liste', max: 200, element: { type: 'chemin', max: 4096 } }], (_e, chemins) => {
+    if (chemins.some((c) => !path.isAbsolute(c))) throw new ErreurSecurite('Chemin invalide.');
+    const r = reglages();
+    const res = dossiers.explorer(chemins, { cible: r.traduction.cible, source: r.traduction.source });
+    if (res.bilan.interdits || res.bilan.tronque) journal.avertissement('[saison] bilan du parcours :', JSON.stringify(res.bilan));
+    return res;
+  });
+
+  canal('traduction:analyser', [{ type: 'liste', max: 1000, element: { type: 'chemin', max: 4096 } }], async (_e, chemins) => {
     const sortie = [];
     for (const c of chemins) {
       if (!path.isAbsolute(c)) { sortie.push({ chemin: c, nom: c, type: 'erreur', erreur: 'Chemin invalide.' }); continue; }
@@ -183,7 +193,7 @@ function enregistrer({ racineApp }) {
   });
 
   canal('traduction:lancer', [{
-    type: 'liste', max: 200,
+    type: 'liste', max: 1000,
     element: { type: 'objet', champs: { id: { type: 'string', max: 64 }, chemin: { type: 'chemin', max: 4096 }, piste: { type: 'number', min: 0, max: 999, optionnel: true } } },
   }], async (event, elements) => {
     if (tache) throw new Error('Une traduction est déjà en cours.');

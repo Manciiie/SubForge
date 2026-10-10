@@ -3,7 +3,7 @@
 > Généré par `codemap.py` v3 : **ne pas modifier à la main**. Régénérer après chaque modification du code.
 > Format : `nom` suivi du numéro de ligne → lire seulement les lignes utiles (Read avec offset).
 
-**47 fichiers · 5964 lignes** · 46 js · 1 html
+**50 fichiers · 6303 lignes** · 49 js · 1 html
 
 ## Liens entre fichiers
 
@@ -13,36 +13,37 @@
 - IPC `diagnostic:copierRapport` : traité `src/main/ipc.js:83`, autorisé `src/main/preload.js:13`
 - IPC `fenetre:action` : traité `src/main/ipc.js:121`, autorisé `src/main/preload.js:19`
 - IPC `fichiers:choisir` : traité `src/main/ipc.js:103`, autorisé `src/main/preload.js:18`
-- IPC `glossaire:enregistrer` : traité `src/main/services/traduction.js:248`, autorisé `src/main/preload.js:43`
-- IPC `glossaire:importer` : traité `src/main/services/traduction.js:259`, autorisé `src/main/preload.js:45`
-- IPC `glossaire:lister` : traité `src/main/services/traduction.js:247`, autorisé `src/main/preload.js:42`
-- IPC `glossaire:supprimer` : traité `src/main/services/traduction.js:258`, autorisé `src/main/preload.js:44`
+- IPC `glossaire:enregistrer` : traité `src/main/services/traduction.js:258`, autorisé `src/main/preload.js:44`
+- IPC `glossaire:importer` : traité `src/main/services/traduction.js:269`, autorisé `src/main/preload.js:46`
+- IPC `glossaire:lister` : traité `src/main/services/traduction.js:257`, autorisé `src/main/preload.js:43`
+- IPC `glossaire:supprimer` : traité `src/main/services/traduction.js:268`, autorisé `src/main/preload.js:45`
 - IPC `maj:etat` : traité `src/main/mises-a-jour.js:134`, autorisé `src/main/preload.js:20`
 - IPC `maj:ignorer` : traité `src/main/mises-a-jour.js:153`, autorisé `src/main/preload.js:24`
 - IPC `maj:installer` : traité `src/main/mises-a-jour.js:145`, autorisé `src/main/preload.js:23`
 - IPC `maj:telecharger` : traité `src/main/mises-a-jour.js:138`, autorisé `src/main/preload.js:22`
 - IPC `maj:verifier` : traité `src/main/mises-a-jour.js:136`, autorisé `src/main/preload.js:21`
-- IPC `memoire:etat` : traité `src/main/services/traduction.js:238`, autorisé `src/main/preload.js:40`
-- IPC `memoire:vider` : traité `src/main/services/traduction.js:239`, autorisé `src/main/preload.js:41`
-- IPC `moteurs:enregistrerCleDeepl` : traité `src/main/services/traduction.js:277`, autorisé `src/main/preload.js:35`
-- IPC `moteurs:etat` : traité `src/main/services/traduction.js:275`, autorisé `src/main/preload.js:34`
-- IPC `moteurs:modelesOllama` : traité `src/main/services/traduction.js:292`, autorisé `src/main/preload.js:38`
-- IPC `moteurs:supprimerCleDeepl` : traité `src/main/services/traduction.js:288`, autorisé `src/main/preload.js:36`
-- IPC `moteurs:testerDeepl` : traité `src/main/services/traduction.js:290`, autorisé `src/main/preload.js:37`
-- IPC `moteurs:testerOllama` : traité `src/main/services/traduction.js:294`, autorisé `src/main/preload.js:39`
+- IPC `memoire:etat` : traité `src/main/services/traduction.js:248`, autorisé `src/main/preload.js:41`
+- IPC `memoire:vider` : traité `src/main/services/traduction.js:249`, autorisé `src/main/preload.js:42`
+- IPC `moteurs:enregistrerCleDeepl` : traité `src/main/services/traduction.js:287`, autorisé `src/main/preload.js:36`
+- IPC `moteurs:etat` : traité `src/main/services/traduction.js:285`, autorisé `src/main/preload.js:35`
+- IPC `moteurs:modelesOllama` : traité `src/main/services/traduction.js:302`, autorisé `src/main/preload.js:39`
+- IPC `moteurs:supprimerCleDeepl` : traité `src/main/services/traduction.js:298`, autorisé `src/main/preload.js:37`
+- IPC `moteurs:testerDeepl` : traité `src/main/services/traduction.js:300`, autorisé `src/main/preload.js:38`
+- IPC `moteurs:testerOllama` : traité `src/main/services/traduction.js:304`, autorisé `src/main/preload.js:40`
 - IPC `parametres:lire` : traité `src/main/ipc.js:53`, autorisé `src/main/preload.js:14`
 - IPC `parametres:modifier` : traité `src/main/ipc.js:55`, autorisé `src/main/preload.js:15`
 - IPC `secret:enregistrer` : traité `src/main/ipc.js:70`, autorisé `src/main/preload.js:16`
 - IPC `secret:existe` : traité `src/main/ipc.js:73`, autorisé `src/main/preload.js:17`
-- IPC `traduction:analyser` : traité `src/main/services/traduction.js:176`, autorisé `src/main/preload.js:29`
-- IPC `traduction:annuler` : traité `src/main/services/traduction.js:221`, autorisé `src/main/preload.js:31`
-- IPC `traduction:apercu` : traité `src/main/services/traduction.js:228`, autorisé `src/main/preload.js:32`
-- IPC `traduction:choisirDossierSortie` : traité `src/main/services/traduction.js:169`, autorisé `src/main/preload.js:28`
-- IPC `traduction:lancer` : traité `src/main/services/traduction.js:185`, autorisé `src/main/preload.js:30`
-- IPC `traduction:langues` : traité `src/main/services/traduction.js:132`, autorisé `src/main/preload.js:25`
-- IPC `traduction:modifierReglages` : traité `src/main/services/traduction.js:136`, autorisé `src/main/preload.js:27`
-- IPC `traduction:montrer` : traité `src/main/services/traduction.js:231`, autorisé `src/main/preload.js:33`
-- IPC `traduction:reglages` : traité `src/main/services/traduction.js:134`, autorisé `src/main/preload.js:26`
+- IPC `traduction:analyser` : traité `src/main/services/traduction.js:186`, autorisé `src/main/preload.js:30`
+- IPC `traduction:annuler` : traité `src/main/services/traduction.js:231`, autorisé `src/main/preload.js:32`
+- IPC `traduction:apercu` : traité `src/main/services/traduction.js:238`, autorisé `src/main/preload.js:33`
+- IPC `traduction:choisirDossierSortie` : traité `src/main/services/traduction.js:170`, autorisé `src/main/preload.js:28`
+- IPC `traduction:explorer` : traité `src/main/services/traduction.js:178`, autorisé `src/main/preload.js:29`
+- IPC `traduction:lancer` : traité `src/main/services/traduction.js:195`, autorisé `src/main/preload.js:31`
+- IPC `traduction:langues` : traité `src/main/services/traduction.js:133`, autorisé `src/main/preload.js:25`
+- IPC `traduction:modifierReglages` : traité `src/main/services/traduction.js:137`, autorisé `src/main/preload.js:27`
+- IPC `traduction:montrer` : traité `src/main/services/traduction.js:241`, autorisé `src/main/preload.js:34`
+- IPC `traduction:reglages` : traité `src/main/services/traduction.js:135`, autorisé `src/main/preload.js:26`
 
 ## Fichiers
 
@@ -129,12 +130,12 @@
 - importe : `./journal`
 - paquets : `fs`, `path`
 
-### src/main/preload.js — preload · 120 l.
-- IPC : canaux appelés : `app:infos` 64, `app:ouvrirLien` 65, `app:ouvrirJournaux` 66, `diagnostic:copierRapport` 67, `parametres:lire` 69, `parametres:modifier` 70, `secret:enregistrer` 73, `secret:existe` 74, `fichiers:choisir` 77, `fenetre:action` 81, `traduction:langues` 83, `traduction:reglages` 84, `traduction:modifierReglages` 85, `traduction:choisirDossierSortie` 86, `traduction:analyser` 87, `traduction:lancer` 88, `traduction:annuler` 89, `traduction:apercu` 90, `traduction:montrer` 91, `memoire:etat` 95, `memoire:vider` 96, `glossaire:lister` 99, `glossaire:enregistrer` 100, `glossaire:supprimer` 101, `glossaire:importer` 102, `moteurs:etat` 105, `moteurs:enregistrerCleDeepl` 106, `moteurs:supprimerCleDeepl` 107, `moteurs:testerDeepl` 108, `moteurs:modelesOllama` 109, `moteurs:testerOllama` 110, `maj:etat` 113, `maj:verifier` 114, `maj:telecharger` 115, `maj:installer` 116, `maj:ignorer` 117
-- IPC : liste blanche : `app:infos` 10, `app:ouvrirLien` 11, `app:ouvrirJournaux` 12, `diagnostic:copierRapport` 13, `parametres:lire` 14, `parametres:modifier` 15, `secret:enregistrer` 16, `secret:existe` 17, `fichiers:choisir` 18, `fenetre:action` 19, `maj:etat` 20, `maj:verifier` 21, `maj:telecharger` 22, `maj:installer` 23, `maj:ignorer` 24, `traduction:langues` 25, `traduction:reglages` 26, `traduction:modifierReglages` 27, `traduction:choisirDossierSortie` 28, `traduction:analyser` 29, `traduction:lancer` 30, `traduction:annuler` 31, `traduction:apercu` 32, `traduction:montrer` 33, `moteurs:etat` 34, `moteurs:enregistrerCleDeepl` 35, `moteurs:supprimerCleDeepl` 36, `moteurs:testerDeepl` 37, `moteurs:modelesOllama` 38, `moteurs:testerOllama` 39, `memoire:etat` 40, `memoire:vider` 41, `glossaire:lister` 42, `glossaire:enregistrer` 43, `glossaire:supprimer` 44, `glossaire:importer` 45
-- IPC : événements autorisés : `maj:changement` 49, `traduction:progression` 49
-- API exposée à l'interface : `forge.infos → app:infos` 64, `forge.ouvrirLien → app:ouvrirLien` 65, `forge.ouvrirJournaux → app:ouvrirJournaux` 66, `forge.copierRapport → diagnostic:copierRapport` 67, `forge.parametres.lire → parametres:lire` 69, `forge.parametres.modifier → parametres:modifier` 70, `forge.secrets.enregistrer → secret:enregistrer` 73, `forge.secrets.existe → secret:existe` 74, `forge.fichiers.choisir → fichiers:choisir` 77, `forge.fichiers.cheminDe` 79, `forge.fenetre → fenetre:action` 81, `forge.traduction.langues → traduction:langues` 83, `forge.traduction.reglages → traduction:reglages` 84, `forge.traduction.modifierReglages → traduction:modifierReglages` 85, `forge.traduction.choisirDossierSortie → traduction:choisirDossierSortie` 86, `forge.traduction.analyser → traduction:analyser` 87, `forge.traduction.lancer → traduction:lancer` 88, `forge.traduction.annuler → traduction:annuler` 89, `forge.traduction.apercu → traduction:apercu` 90, `forge.traduction.montrer → traduction:montrer` 91, `forge.traduction.surProgression → traduction:progression` 92, `forge.memoire.etat → memoire:etat` 95, `forge.memoire.vider → memoire:vider` 96, `forge.glossaire.lister → glossaire:lister` 99, `forge.glossaire.enregistrer → glossaire:enregistrer` 100, `forge.glossaire.supprimer → glossaire:supprimer` 101, `forge.glossaire.importer → glossaire:importer` 102, `forge.moteurs.etat → moteurs:etat` 105, `forge.moteurs.enregistrerCleDeepl → moteurs:enregistrerCleDeepl` 106, `forge.moteurs.supprimerCleDeepl → moteurs:supprimerCleDeepl` 107, `forge.moteurs.testerDeepl → moteurs:testerDeepl` 108, `forge.moteurs.modelesOllama → moteurs:modelesOllama` 109, `forge.moteurs.testerOllama → moteurs:testerOllama` 110, `forge.majs.etat → maj:etat` 113, `forge.majs.verifier → maj:verifier` 114, `forge.majs.telecharger → maj:telecharger` 115, `forge.majs.installer → maj:installer` 116, `forge.majs.ignorer → maj:ignorer` 117, `forge.majs.surChangement → maj:changement` 118
-- fonctions : `ecouter(evenement, rappel)` 51, `relais(_event, donnees)` 53, `appeler(canal, ...args)` 58
+### src/main/preload.js — preload · 122 l.
+- IPC : canaux appelés : `app:infos` 65, `app:ouvrirLien` 66, `app:ouvrirJournaux` 67, `diagnostic:copierRapport` 68, `parametres:lire` 70, `parametres:modifier` 71, `secret:enregistrer` 74, `secret:existe` 75, `fichiers:choisir` 78, `fenetre:action` 82, `traduction:langues` 84, `traduction:reglages` 85, `traduction:modifierReglages` 86, `traduction:choisirDossierSortie` 87, `traduction:explorer` 88, `traduction:analyser` 89, `traduction:lancer` 90, `traduction:annuler` 91, `traduction:apercu` 92, `traduction:montrer` 93, `memoire:etat` 97, `memoire:vider` 98, `glossaire:lister` 101, `glossaire:enregistrer` 102, `glossaire:supprimer` 103, `glossaire:importer` 104, `moteurs:etat` 107, `moteurs:enregistrerCleDeepl` 108, `moteurs:supprimerCleDeepl` 109, `moteurs:testerDeepl` 110, `moteurs:modelesOllama` 111, `moteurs:testerOllama` 112, `maj:etat` 115, `maj:verifier` 116, `maj:telecharger` 117, `maj:installer` 118, `maj:ignorer` 119
+- IPC : liste blanche : `app:infos` 10, `app:ouvrirLien` 11, `app:ouvrirJournaux` 12, `diagnostic:copierRapport` 13, `parametres:lire` 14, `parametres:modifier` 15, `secret:enregistrer` 16, `secret:existe` 17, `fichiers:choisir` 18, `fenetre:action` 19, `maj:etat` 20, `maj:verifier` 21, `maj:telecharger` 22, `maj:installer` 23, `maj:ignorer` 24, `traduction:langues` 25, `traduction:reglages` 26, `traduction:modifierReglages` 27, `traduction:choisirDossierSortie` 28, `traduction:explorer` 29, `traduction:analyser` 30, `traduction:lancer` 31, `traduction:annuler` 32, `traduction:apercu` 33, `traduction:montrer` 34, `moteurs:etat` 35, `moteurs:enregistrerCleDeepl` 36, `moteurs:supprimerCleDeepl` 37, `moteurs:testerDeepl` 38, `moteurs:modelesOllama` 39, `moteurs:testerOllama` 40, `memoire:etat` 41, `memoire:vider` 42, `glossaire:lister` 43, `glossaire:enregistrer` 44, `glossaire:supprimer` 45, `glossaire:importer` 46
+- IPC : événements autorisés : `maj:changement` 50, `traduction:progression` 50
+- API exposée à l'interface : `forge.infos → app:infos` 65, `forge.ouvrirLien → app:ouvrirLien` 66, `forge.ouvrirJournaux → app:ouvrirJournaux` 67, `forge.copierRapport → diagnostic:copierRapport` 68, `forge.parametres.lire → parametres:lire` 70, `forge.parametres.modifier → parametres:modifier` 71, `forge.secrets.enregistrer → secret:enregistrer` 74, `forge.secrets.existe → secret:existe` 75, `forge.fichiers.choisir → fichiers:choisir` 78, `forge.fichiers.cheminDe` 80, `forge.fenetre → fenetre:action` 82, `forge.traduction.langues → traduction:langues` 84, `forge.traduction.reglages → traduction:reglages` 85, `forge.traduction.modifierReglages → traduction:modifierReglages` 86, `forge.traduction.choisirDossierSortie → traduction:choisirDossierSortie` 87, `forge.traduction.explorer → traduction:explorer` 88, `forge.traduction.analyser → traduction:analyser` 89, `forge.traduction.lancer → traduction:lancer` 90, `forge.traduction.annuler → traduction:annuler` 91, `forge.traduction.apercu → traduction:apercu` 92, `forge.traduction.montrer → traduction:montrer` 93, `forge.traduction.surProgression → traduction:progression` 94, `forge.memoire.etat → memoire:etat` 97, `forge.memoire.vider → memoire:vider` 98, `forge.glossaire.lister → glossaire:lister` 101, `forge.glossaire.enregistrer → glossaire:enregistrer` 102, `forge.glossaire.supprimer → glossaire:supprimer` 103, `forge.glossaire.importer → glossaire:importer` 104, `forge.moteurs.etat → moteurs:etat` 107, `forge.moteurs.enregistrerCleDeepl → moteurs:enregistrerCleDeepl` 108, `forge.moteurs.supprimerCleDeepl → moteurs:supprimerCleDeepl` 109, `forge.moteurs.testerDeepl → moteurs:testerDeepl` 110, `forge.moteurs.modelesOllama → moteurs:modelesOllama` 111, `forge.moteurs.testerOllama → moteurs:testerOllama` 112, `forge.majs.etat → maj:etat` 115, `forge.majs.verifier → maj:verifier` 116, `forge.majs.telecharger → maj:telecharger` 117, `forge.majs.installer → maj:installer` 118, `forge.majs.ignorer → maj:ignorer` 119, `forge.majs.surChangement → maj:changement` 120
+- fonctions : `ecouter(evenement, rappel)` 52, `relais(_event, donnees)` 54, `appeler(canal, ...args)` 59
 - paquets : `electron`
 
 ### src/main/securite.js — processus principal · 185 l.
@@ -143,6 +144,12 @@
 - méthodes : `constructor(message)` 8, `constructor({ tailleMax = 20 * 1024 ** 3, fichiersMax = 200000, ratio…)` 49, `ajouter({ tailleDecompressee, tailleCompressee })` 58
 - exporte : `ErreurSecurite` 176, `cheminSousDossier` 176, `verifierEntreeArchive` 176, `LimitesDecompression` 176, `validerArguments` 176, `urlExterneAutorisee` 176, `argumentsCommande` 176, `masquerSecrets` 176
 - paquets : `path`
+
+### src/main/services/dossiers.js — processus principal · 130 l.
+- fonctions : `triNaturel(a, b)` 17, `parcourir(racine, { profondeurMax = 6, fichiersMax = 1000 } = {})` 19, `visiter(dossier, profondeur)` 22, `decomposer(chemin)` 54, `memeLangue(a, b)` 68, `selectionner(fichiers, { cible, source = 'auto' })` 71, `explorer(chemins, { cible, source, fichiersMax = 1000 })` 104
+- exporte : `parcourir` 130, `selectionner` 130, `explorer` 130, `decomposer` 130, `EXT_SOUSTITRES` 130, `EXT_VIDEO` 130, `langue` 130
+- importe : `./langues`
+- paquets : `fs`, `path`
 
 ### src/main/services/formats.js — processus principal · 413 l.
 - classes : `ErreurFormat` 12
@@ -180,11 +187,11 @@
 - exporte : `traduireDocument` 103
 - importe : `./formats`, `./glossaire`
 
-### src/main/services/traduction.js — processus principal · 302 l.
-- IPC : canaux traités : `traduction:langues` 132, `traduction:reglages` 134, `traduction:modifierReglages` 136, `traduction:choisirDossierSortie` 169, `traduction:analyser` 176, `traduction:lancer` 185, `traduction:annuler` 221, `traduction:apercu` 228, `traduction:montrer` 231, `memoire:etat` 238, `memoire:vider` 239, `glossaire:lister` 247, `glossaire:enregistrer` 248, `glossaire:supprimer` 258, `glossaire:importer` 259, `moteurs:etat` 275, `moteurs:enregistrerCleDeepl` 277, `moteurs:supprimerCleDeepl` 288, `moteurs:testerDeepl` 290, `moteurs:modelesOllama` 292, `moteurs:testerOllama` 294
-- fonctions : `reglages()` 31, `envoyer(evenement)` 40, `analyserUn(chemin)` 47, `traduireElement(el, options, signal)` 70, `rapporter(etat, extra = {})` 71, `enregistrer({ racineApp })` 120
-- exporte : `enregistrer` 302
-- importe : `../ipc`, `../securite`, `../parametres`, `../journal`, `./formats`, `./video`, `./langues`, `./moteurs`, `./memoire`, `./glossaire`, `./pipeline`
+### src/main/services/traduction.js — processus principal · 312 l.
+- IPC : canaux traités : `traduction:langues` 133, `traduction:reglages` 135, `traduction:modifierReglages` 137, `traduction:choisirDossierSortie` 170, `traduction:explorer` 178, `traduction:analyser` 186, `traduction:lancer` 195, `traduction:annuler` 231, `traduction:apercu` 238, `traduction:montrer` 241, `memoire:etat` 248, `memoire:vider` 249, `glossaire:lister` 257, `glossaire:enregistrer` 258, `glossaire:supprimer` 268, `glossaire:importer` 269, `moteurs:etat` 285, `moteurs:enregistrerCleDeepl` 287, `moteurs:supprimerCleDeepl` 298, `moteurs:testerDeepl` 300, `moteurs:modelesOllama` 302, `moteurs:testerOllama` 304
+- fonctions : `reglages()` 32, `envoyer(evenement)` 41, `analyserUn(chemin)` 48, `traduireElement(el, options, signal)` 71, `rapporter(etat, extra = {})` 72, `enregistrer({ racineApp })` 121
+- exporte : `enregistrer` 312
+- importe : `../ipc`, `../securite`, `../parametres`, `../journal`, `./formats`, `./video`, `./langues`, `./moteurs`, `./memoire`, `./glossaire`, `./pipeline`, `./dossiers`
 - paquets : `electron`, `fs`, `path`
 
 ### src/main/services/video.js — processus principal · 122 l.
@@ -193,8 +200,8 @@
 - importe : `../securite`, `./langues`
 - paquets : `child_process`, `fs`, `os`, `path`
 
-### src/renderer/index.html — interface · 293 l.
-- écrans / sections : `traduire` 24, `glossaire` 25, `moteurs` 26, `parametres` 28, `a-propos` 29, `ecran-traduire` 34, `ecran-glossaire` 101, `ecran-moteurs` 141, `ecran-parametres` 211, `ecran-a-propos` 251
+### src/renderer/index.html — interface · 296 l.
+- écrans / sections : `traduire` 24, `glossaire` 25, `moteurs` 26, `parametres` 28, `a-propos` 29, `ecran-traduire` 34, `ecran-glossaire` 104, `ecran-moteurs` 144, `ecran-parametres` 214, `ecran-a-propos` 254
 - scripts : `js/ui.js`, `js/app.js`, `js/traduire.js`, `js/moteurs.js`, `js/glossaire.js`, `js/maj.js`
 - styles : `styles/theme.css`, `styles/app.css`
 
@@ -214,12 +221,17 @@
 - API Electron utilisée : `forge.ouvrirLien` 64, `forge.ouvrirLien` 100, `forge.memoire.etat` 105, `forge.memoire.vider` 118
 - fonctions : `nombre(n)` 11, `rafraichir()` 13, `afficherQuota(u)` 27, `chargerModeles({ silencieux = false } = {})` 67, `majMemoire()` 103
 
-### src/renderer/js/traduire.js — interface · 306 l.
-- API Electron utilisée : `forge.moteurs.etat` 65, `forge.fichiers.cheminDe` 120, `forge.fichiers.choisir` 126
-- fonctions : `appliquerReglages(r)` 32, `modifier(o)` 45, `majAvertissement()` 60, `ajouter(chemins)` 83, `description(e)` 139, `libellePiste(p)` 148, `dessiner(e)` 157, `aRetraduire(e)` 219, `majFile()` 223, `afficherApercu(e)` 281
+### src/renderer/js/traduire.js — interface · 354 l.
+- API Electron utilisée : `forge.moteurs.etat` 65, `forge.fichiers.cheminDe` 160, `forge.fichiers.choisir` 166, `forge.fichiers.choisir` 171
+- fonctions : `appliquerReglages(r)` 32, `modifier(o)` 45, `majAvertissement()` 60, `choisirPiste(pistes)` 85, `parmi(l)` 88, `appliquerInfo(e, info)` 92, `ajouter(chemins)` 110, `description(e)` 184, `libellePiste(p)` 196, `dessiner(e)` 205, `aRetraduire(e)` 267, `majFile()` 271, `afficherApercu(e)` 329
 
 ### src/renderer/js/ui.js — interface · 43 l.
 - fonctions : `el(tag, attributs = {}, enfants = [])` 6, `notifier(message, type = 'info', duree = 4000)` 18, `erreur(e)` 25, `appliquerTheme(theme, accent)` 30, `afficherEcran(nom)` 37
+
+### tests/dossiers.test.js — tests · 89 l.
+- fonctions : `arbre(fichiers)` 11
+- importe : `../src/main/services/dossiers`
+- paquets : `node:test`, `node:assert/strict`, `fs`, `os`, `path`
 
 ### tests/e2e/faux-deepl.js — tests · 18 l.
 - paquets : `http`
@@ -232,6 +244,11 @@
 - fonctions : `fauxOllama()` 11, `ffmpeg()` 40, `utiliserFauxOllama(p, serveur)` 45
 - exporte : `fauxOllama` 56, `ffmpeg` 56, `utiliserFauxOllama` 56, `RACINE` 56
 - paquets : `http`, `path`
+
+### tests/e2e/saison.js — tests · 57 l.
+- fonctions : `film(chemin, srt)` 13
+- importe : `./outils`
+- paquets : `fs`, `path`, `child_process`
 
 ### tests/e2e/traduction.js — tests · 126 l.
 - importe : `./outils`

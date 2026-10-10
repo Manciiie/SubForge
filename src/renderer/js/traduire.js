@@ -80,8 +80,51 @@ window.__modules.push((async () => {
   const zone = $('zone-depot');
   const liste = $('liste-fichiers');
 
+  // Piste par défaut : texte dans la langue source, sinon texte complet (pas « forcés »),
+  // sinon piste image lisible par OCR (Blu-ray), sinon rien.
+  function choisirPiste(pistes) {
+    const textes = pistes.filter((p) => p.format);
+    const images = pistes.filter((p) => !p.format && p.ocr);
+    const parmi = (l) => l.find((p) => p.langue === selSource.value && !p.forces) || l.find((p) => !p.forces) || l[0];
+    return (textes.length ? parmi(textes) : null) || (images.length ? parmi(images) : null) || null;
+  }
+
+  function appliquerInfo(e, info) {
+    e.info = info;
+    e.message = null;
+    if (info.type === 'erreur') { e.etat = 'erreur'; e.message = info.erreur; return; }
+    if (info.type === 'video') {
+      const choix = choisirPiste(info.pistes);
+      e.piste = choix ? choix.indice : null;
+      e.etat = choix ? 'pret' : 'sans-piste';
+      if (!choix) {
+        e.message = info.pistes.length
+          ? 'Seulement des sous-titres en image que SubForge ne sait pas lire (DVD / langue sans OCR). Cherchez-les en ligne.'
+          : 'Aucune piste de sous-titres dans cette vidéo : cherchez-les en ligne.';
+      }
+      return;
+    }
+    e.etat = 'pret';
+  }
+
   async function ajouter(chemins) {
-    const nouveaux = chemins.filter((c) => ![...elements.values()].some((e) => e.chemin === c));
+    if (!chemins.length) return;
+    let exploration;
+    try {
+      exploration = await T.explorer(chemins);
+    } catch (err) { erreur(err); return; }
+    const b = exploration.bilan;
+    if (b.dossiers) {
+      const morceaux = [`${exploration.fichiers.length} fichier(s) ajouté(s)`];
+      if (b.dejaTraduits) morceaux.push(`${b.dejaTraduits} déjà traduit(s), ignoré(s)`);
+      if (b.videosRemplacees) morceaux.push(`${b.videosRemplacees} vidéo(s) remplacée(s) par leur sous-titre`);
+      if (b.interdits) morceaux.push(`${b.interdits} dossier(s) illisible(s)`);
+      if (b.tronque) morceaux.push('limite de 1 000 fichiers atteinte');
+      if (!exploration.fichiers.length) notifier(b.dejaTraduits ? `Tout est déjà traduit dans ce dossier (${b.dejaTraduits} épisode(s)).` : 'Aucun film ni sous-titre dans ce dossier.', 'alerte', 7000);
+      else notifier(morceaux.join(' · '), b.interdits || b.tronque ? 'alerte' : 'succes', 8000);
+    }
+    if (b.introuvables) notifier(`${b.introuvables} élément(s) introuvable(s) (déplacé(s) ou supprimé(s)).`, 'alerte');
+    const nouveaux = exploration.fichiers.filter((c) => ![...elements.values()].some((e) => e.chemin === c));
     if (!nouveaux.length) return;
     const ids = nouveaux.map((c) => {
       const id = `f${++compteur}`;
@@ -91,26 +134,23 @@ window.__modules.push((async () => {
       return id;
     });
     majFile();
-    try {
-      const infos = await T.analyser(nouveaux);
+    // Analyse par paquets de 4 : les cartes se remplissent au fur et à mesure (saison de 24 épisodes).
+    for (let k = 0; k < nouveaux.length; k += 4) {
+      const paquet = nouveaux.slice(k, k + 4);
+      let infos;
+      try {
+        infos = await T.analyser(paquet);
+      } catch (err) {
+        infos = paquet.map((c) => ({ chemin: c, nom: c, type: 'erreur', erreur: err.message.replace(/^Error invoking remote method '[^']+': (\w+Error: )?/, '') }));
+      }
       infos.forEach((info, i) => {
-        const e = elements.get(ids[i]);
+        const e = elements.get(ids[k + i]);
         if (!e) return;
-        e.info = info;
-        if (info.type === 'erreur') { e.etat = 'erreur'; e.message = info.erreur; }
-        else if (info.type === 'video') {
-          const textes = info.pistes.filter((p) => p.format);
-          // Piste par défaut : celle dans la langue source choisie, sinon la première complète (pas « forcés »).
-          const choix = textes.find((p) => p.langue === selSource.value && !p.forces)
-            || textes.find((p) => !p.forces) || textes[0];
-          e.piste = choix ? choix.indice : null;
-          e.etat = choix ? 'pret' : 'erreur';
-          if (!choix) e.message = info.pistes.length ? 'Seulement des sous-titres en image (PGS/VobSub) : pas de texte à traduire.' : 'Aucune piste de sous-titres dans cette vidéo.';
-        } else e.etat = 'pret';
+        appliquerInfo(e, info);
         dessiner(e);
       });
-    } catch (err) { erreur(err); }
-    majFile();
+      majFile();
+    }
   }
 
   ['dragenter', 'dragover'].forEach((t) => zone.addEventListener(t, (e) => { e.preventDefault(); zone.classList.add('survol'); }));
@@ -121,6 +161,11 @@ window.__modules.push((async () => {
   });
   document.addEventListener('dragover', (e) => e.preventDefault());
   document.addEventListener('drop', (e) => e.preventDefault());
+  $('btn-choisir-dossier').addEventListener('click', async () => {
+    try {
+      ajouter(await window.forge.fichiers.choisir({ titre: 'Choisir le dossier d\'une saison (sous-dossiers compris)', dossier: true }));
+    } catch (e) { erreur(e); }
+  });
   $('btn-choisir').addEventListener('click', async () => {
     try {
       ajouter(await window.forge.fichiers.choisir({
@@ -132,17 +177,20 @@ window.__modules.push((async () => {
 
   // --- Cartes -----------------------------------------------------------------------
   const LIBELLES = {
-    analyse: 'Analyse…', pret: 'Prêt', attente: 'En attente', extraction: 'Extraction de la piste…',
+    analyse: 'Analyse…', pret: 'Prêt', 'sans-piste': 'Pas de sous-titres', attente: 'En attente', extraction: 'Extraction de la piste…',
     traduction: 'Traduction…', ecriture: 'Enregistrement…', termine: 'Traduit', erreur: 'Erreur', annule: 'Annulé',
   };
 
   function description(e) {
     const i = e.info;
-    if (!i || i.type === 'erreur') return '';
+    const dossier = e.chemin.split(/[\\/]/).slice(-2, -1)[0];
+    const lieu = dossier ? `dossier « ${dossier} »` : null;
+    if (!i || i.type === 'erreur') return lieu || '';
     if (i.type === 'soustitre') {
-      return [i.format.toUpperCase(), `${i.repliques.toLocaleString('fr-FR')} répliques`, i.nomLangue, i.encodage].filter(Boolean).join(' · ');
+      return [i.format.toUpperCase(), `${i.repliques.toLocaleString('fr-FR')} répliques`, i.nomLangue, i.encodage, lieu].filter(Boolean).join(' · ');
     }
-    return `Vidéo · ${i.pistes.length} piste(s) de sous-titres`;
+    if (i.type === 'sup') return [`Sous-titres Blu-ray (image) · ${i.repliques.toLocaleString('fr-FR')} images`, i.nomLangue, lieu].filter(Boolean).join(' · ');
+    return [`Vidéo · ${i.pistes.length} piste(s) de sous-titres`, lieu].filter(Boolean).join(' · ');
   }
 
   function libellePiste(p) {
@@ -150,7 +198,7 @@ window.__modules.push((async () => {
     if (p.titre) morceaux.push(`« ${p.titre} »`);
     if (p.forces) morceaux.push('forcés');
     if (p.malentendants) morceaux.push('malentendants');
-    if (!p.format) morceaux.push('non traduisible');
+    if (!p.format) morceaux.push(p.ocr ? 'image : lue par OCR' : 'non traduisible');
     return morceaux.join(' · ');
   }
 
@@ -171,7 +219,7 @@ window.__modules.push((async () => {
       const sel = el('select', { classe: 'select-piste', 'aria-label': 'Piste de sous-titres à traduire' });
       for (const p of e.info.pistes) {
         const o = el('option', { value: String(p.indice), texte: libellePiste(p) });
-        if (!p.format) o.disabled = true;
+        if (!p.format && !p.ocr) o.disabled = true;
         sel.append(o);
       }
       if (e.piste !== null) sel.value = String(e.piste);
@@ -187,7 +235,7 @@ window.__modules.push((async () => {
       corps.push(barre);
       if (e.total) corps.push(el('span', { classe: 'discret', texte: `${e.fait || 0} / ${e.total} segments` }));
     }
-    if (e.message && ['erreur', 'annule'].includes(e.etat)) corps.push(el('p', { classe: 'carte-fichier__message', texte: e.message }));
+    if (e.message && ['erreur', 'annule', 'sans-piste'].includes(e.etat)) corps.push(el('p', { classe: 'carte-fichier__message', texte: e.message }));
     if (e.etat === 'termine' && e.bilan) {
       const b = e.bilan;
       const morceaux = [];

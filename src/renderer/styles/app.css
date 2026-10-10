@@ -237,3 +237,5 @@ input[type="color"] { width: 44px; height: 28px; border: 0; background: none; cu
 .table-glossaire__terme { font-weight: 600; user-select: text; overflow-wrap: anywhere; }
 .table-glossaire__actions { display: flex; gap: 6px; justify-content: flex-end; }
 @media (max-width: 1100px) { .formulaire-glossaire { grid-template-columns: 1fr 1fr; } }
+.zone-depot__boutons { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 10px; }
+.zone-depot.compacte .zone-depot__boutons { margin-top: 0; }

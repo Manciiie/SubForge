@@ -71,9 +71,12 @@
         <p class="avertissement-moteur discret" id="avertissement-moteur"></p>
 
         <div class="zone-depot" id="zone-depot" tabindex="0">
-          <p><strong>Glissez ici vos films ou fichiers de sous-titres</strong></p>
+          <p><strong>Glissez ici vos films, sous-titres ou le dossier d'une saison entière</strong></p>
           <p class="discret">.srt · .ass · .ssa · .vtt · .mkv · .mp4 · .avi · .mov · .webm</p>
-          <button class="btn btn--principal" id="btn-choisir">Choisir des fichiers</button>
+          <div class="zone-depot__boutons">
+            <button class="btn btn--principal" id="btn-choisir">Choisir des fichiers</button>
+            <button class="btn" id="btn-choisir-dossier">Choisir un dossier (saison)</button>
+          </div>
         </div>
 
         <div class="file" id="file" hidden>

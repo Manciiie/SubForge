@@ -28,7 +28,7 @@
 | v1.1-T101 | ffmpeg 7.1 (source PyPI imageio-ffmpeg, empreinte figée) | [x] |
 | v1.1-T102 | Mémoire de traduction | [x] |
 | v1.1-T103 | Glossaire (écran Glossaire) | [x] |
-| v1.1-T104 | Saison entière : dossiers et sous-dossiers | [ ] |
+| v1.1-T104 | Saison entière : dossiers et sous-dossiers | [x] |
 | v1.1-T105 | OCR des sous-titres Blu-ray (PGS) | [ ] |
 | v1.1-T106 | Recherche de sous-titres en ligne (OpenSubtitles) | [ ] |
 | v1.1-T199 | Vérifications complètes + livraison | [ ] |
