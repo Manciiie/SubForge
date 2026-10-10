@@ -5,7 +5,7 @@
 
 ## 📍 État actuel
 - **Version livrée** : aucune — 1.1.0 compilée et vérifiée, **bloquée** : dépôts GitHub `Manciiie/SubForge` et `SubForge-releases` pas encore créés
-- **Dépôt** : `Manciiie/SubForge` — dernier envoi : — (8 commits locaux en attente d'envoi)
+- **Dépôt** : `Manciiie/SubForge` — dernier envoi : version 1.1.0 (2026-10-10)
 - **Testé sur Windows réel** : non (PC non joignable) ; `ffmpeg.exe` 7.1 vérifié sous wine
 - **Version en cours** : 1.1.0
 - **Prochaine tâche** : v1.1-T199 — dès que le dépôt existe : `pousser-github.sh`, `npm run publier`, livraison
