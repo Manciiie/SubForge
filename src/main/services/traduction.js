@@ -4,6 +4,7 @@
 
 const { app, net, shell, dialog, BrowserWindow } = require('electron');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const { canal } = require('../ipc');
 const { ErreurSecurite } = require('../securite');
@@ -40,7 +41,7 @@ const sortiesProduites = new Set();
 function reglages() {
   const p = parametres.lire();
   return {
-    traduction: { source: 'auto', cible: 'fr', moteur: 'deepl', formatSortie: 'identique', dossierSortie: null, memoire: true, integrer: false, ...(p.traduction || {}) },
+    traduction: { source: 'auto', cible: 'fr', moteur: 'deepl', formatSortie: 'identique', dossierSortie: null, memoire: true, resultatFilm: 'film', ...(p.traduction || {}) },
     deepl: { formalite: 'defaut', ...(p.deepl || {}) },
     ollama: { adresse: 'http://127.0.0.1:11434', modele: '', ...(p.ollama || {}) },
     enligne: { utilisateur: '', ...(p.enligne || {}) },
@@ -101,6 +102,7 @@ async function analyserUn(chemin) {
 async function traduireElement(el, options, signal) {
   const rapporter = (etat, extra = {}) => envoyer({ id: el.id, etat, ...extra });
   let extraction = null;
+  let dossierPiste = null; // dossier temporaire du sous-titre quand il ne va que dans le film
   try {
     let fichier = el.chemin;
     let sup = path.extname(el.chemin).toLowerCase() === '.sup' ? el.chemin : null;
@@ -157,20 +159,41 @@ async function traduireElement(el, options, signal) {
     const docSortie = options.formatSortie === 'srt' ? formats.versSrt(doc) : doc;
     const ext = docSortie.format === 'ass' ? (path.extname(fichier).toLowerCase() === '.ssa' ? '.ssa' : '.ass') : `.${docSortie.format}`;
     const dossier = options.dossierSortie || path.dirname(el.chemin);
-    const cible = formats.nomSortie(el.chemin, langues.suffixe(options.cible), ext, dossier);
+    const estFilm = video.estVideo(el.chemin);
+    const mode = estFilm ? options.resultatFilm : 'fichier';
+    // « Film seul » : le sous-titre traduit ne passe que par un dossier temporaire, puis va dans le film.
+    const cibleAcote = formats.nomSortie(el.chemin, langues.suffixe(options.cible), ext, dossier);
+    let cible = cibleAcote;
+    if (mode === 'film') {
+      dossierPiste = fs.mkdtempSync(path.join(os.tmpdir(), 'subforge-piste-'));
+      cible = path.join(dossierPiste, path.basename(cibleAcote));
+    }
     formats.ecrireFichier(cible, docSortie);
-    sortiesProduites.add(cible);
+    if (mode !== 'film') sortiesProduites.add(cible);
 
     const paires = doc.repliques.slice(0, 400).map((r, i) => ({ debut: r.debut, original: original[i], traduit: formats.texteVisible(r.texte) }));
-    resultats.set(el.id, { paires, sortie: cible, total: doc.repliques.length });
-    journal.info(`Traduit : ${path.basename(el.chemin)} → ${path.basename(cible)} (${bilan.segments} segments, ${bilan.envoyes} envoyés, ${bilan.repris} repris de la mémoire, ${options.moteur})`);
+    journal.info(`Traduit : ${path.basename(el.chemin)} → ${path.basename(cibleAcote)} (${bilan.segments} segments, ${bilan.envoyes} envoyés, ${bilan.repris} repris de la mémoire, ${options.moteur})`);
 
-    // Copie du film avec la piste traduite (option). Un échec ici ne perd jamais la traduction déjà écrite.
+    // Film avec la piste traduite. Un échec ici ne perd jamais la traduction : elle est alors
+    // enregistrée à côté du film comme un sous-titre normal.
     let integration = null;
-    if (options.integrer && video.estVideo(el.chemin)) {
+    let sortie = cible;
+    if (mode !== 'fichier') {
       integration = await integrerAuFilm(el.chemin, cible, options, signal, (part) => rapporter('integration', { fait: Math.round(part * 100), total: 100, message: 'Ajout de la piste au film…' }));
+      if (mode === 'film') {
+        if (integration.fichier) {
+          sortie = integration.fichier;
+          integration.seul = true;
+        } else {
+          fs.copyFileSync(cible, cibleAcote, fs.constants.COPYFILE_EXCL);
+          sortiesProduites.add(cibleAcote);
+          sortie = cibleAcote;
+          integration.secours = path.basename(cibleAcote);
+        }
+      }
     }
-    rapporter('termine', { sortie: cible, nomSortie: path.basename(cible), repliques: doc.repliques.length, bilan: { ...bilan, ocr: bilanOcr, integration } });
+    resultats.set(el.id, { paires, sortie, total: doc.repliques.length });
+    rapporter('termine', { sortie, nomSortie: path.basename(sortie), repliques: doc.repliques.length, bilan: { ...bilan, ocr: bilanOcr, integration } });
   } catch (e) {
     if (e.name === 'AbortError' || signal.aborted) {
       rapporter('annule', { message: 'Annulé.' });
@@ -182,6 +205,9 @@ async function traduireElement(el, options, signal) {
     }
   } finally {
     extraction?.nettoyer();
+    if (dossierPiste) {
+      try { fs.rmSync(dossierPiste, { recursive: true, force: true }); } catch (e) { journal.erreur('[traduction] dossier temporaire non supprimé :', e); }
+    }
   }
 }
 
@@ -258,11 +284,11 @@ function enregistrer({ racineApp }) {
       adresseOllama: { type: 'string', max: 300, optionnel: true },
       modeleOllama: { type: 'string', max: 200, optionnel: true },
       memoire: { type: 'boolean', optionnel: true },
-      integrer: { type: 'boolean', optionnel: true },
+      resultatFilm: { type: 'enum', valeurs: ['film', 'film-et-fichier', 'fichier'], optionnel: true },
     },
   }], (_e, o) => {
     const r = reglages();
-    for (const c of ['source', 'cible', 'moteur', 'formatSortie', 'memoire', 'integrer']) if (o[c] !== undefined) r.traduction[c] = o[c];
+    for (const c of ['source', 'cible', 'moteur', 'formatSortie', 'memoire', 'resultatFilm']) if (o[c] !== undefined) r.traduction[c] = o[c];
     if (o.viderDossierSortie) r.traduction.dossierSortie = null;
     if (o.dossierSortie !== undefined && o.dossierSortie !== null) {
       if (!path.isAbsolute(o.dossierSortie) || !fs.existsSync(o.dossierSortie)) throw new ErreurSecurite('Dossier de sortie introuvable.');
@@ -315,7 +341,7 @@ function enregistrer({ racineApp }) {
       source: r.traduction.source,
       cible: r.traduction.cible,
       formatSortie: r.traduction.formatSortie,
-      integrer: r.traduction.integrer === true,
+      resultatFilm: ['film', 'film-et-fichier', 'fichier'].includes(r.traduction.resultatFilm) ? r.traduction.resultatFilm : 'film',
       dossierSortie: r.traduction.dossierSortie && fs.existsSync(r.traduction.dossierSortie) ? r.traduction.dossierSortie : null,
       formalite: r.deepl.formalite,
       memoire: r.traduction.memoire,

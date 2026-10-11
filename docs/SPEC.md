@@ -30,7 +30,7 @@ fichier on ne sait où. Je veux : glisser le film ou le sous-titre, choisir la l
 | Saison | Dossier entier, sous-dossiers, déjà traduits ignorés | 1.1.0 | `tasks/v1.1-T104.md` |
 | OCR Blu-ray | Pistes PGS / `.sup` lues hors ligne puis traduites | 1.1.0 | `tasks/v1.1-T105.md` |
 | En ligne | Sous-titres trouvés sur OpenSubtitles quand le film n'en a pas | 1.1.0 | `tasks/v1.1-T106.md` |
-| Ajouter au film | Copie MKV du film avec la piste traduite, sans réencoder | 1.2.0 | `tasks/v1.2-T201.md` |
+| Ajouter au film | Copie MKV du film avec la piste traduite, sans réencoder ; résultat par défaut d'une vidéo depuis la 1.2.1 (un seul fichier) | 1.2.0 | `tasks/v1.2-T201.md` |
 | IA locale simple | Bascule et choix du modèle automatiques, messages clairs | 1.2.0 | `tasks/v1.2-T202.md` |
 | En ligne (saison) | Recherche + téléchargement automatiques et sûrs pour toutes les vidéos sans sous-titres | 1.1.0 | `tasks/v1.1-T107.md` |
 
@@ -46,6 +46,9 @@ fichier on ne sait où. Je veux : glisser le film ou le sous-titre, choisir la l
 - Erreurs : clé DeepL refusée → « Clé DeepL refusée : vérifiez-la dans Moteurs. » ; quota épuisé →
   « Quota DeepL du mois épuisé » ; Ollama arrêté → « L'IA locale ne répond pas : lancez Ollama » ;
   piste image → « Sous-titres en image (PGS/VobSub) : pas de texte à traduire ».
+- Vidéo traduite (1.2.1) : par défaut un seul fichier, `Film.FR.mkv`, qui contient la piste
+  traduite ; pas de sous-titre séparé. Choix « Résultat (vidéos) » : film / film + fichier /
+  fichier seul. Ajout au film impossible → la traduction est enregistrée à part.
 - Annuler arrête la traduction en cours sans laisser de fichier à moitié écrit.
 
 ## 4. Hors périmètre

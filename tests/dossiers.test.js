@@ -52,6 +52,14 @@ test('saison : langue source préférée, « fre » / « fra » reconnus comme d
   fs.rmSync(r, { recursive: true, force: true });
 });
 
+test('saison : « Episode.FR.mkv » (film avec la piste) compte comme déjà traduit ; « Episode.ES.mkv » ignoré au profit de l\'original', () => {
+  const r = arbre(['E1.mkv', 'E1.FR.mkv', 'E2.mkv', 'E2.ES.mkv', 'E3.mkv']);
+  const { fichiers, bilan } = d.explorer([r], { cible: 'fr', source: 'auto' });
+  assert.deepEqual(fichiers.map((f) => path.basename(f)), ['E2.mkv', 'E3.mkv']);
+  assert.equal(bilan.dejaTraduits, 1);
+  fs.rmSync(r, { recursive: true, force: true });
+});
+
 test('saison : limite de fichiers, dossier vide, fichier déposé directement gardé, chemin disparu compté', () => {
   const r = arbre(Array.from({ length: 30 }, (_, i) => `E${i}.mkv`));
   const t = d.explorer([r], { cible: 'fr', fichiersMax: 10 });

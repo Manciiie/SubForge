@@ -4,16 +4,16 @@
 > Garder court : 5 dernières sessions en détail, les plus anciennes résumées en une ligne.
 
 ## 📍 État actuel
-- **Version livrée** : 1.2.0 (2026-10-11)
-- **Dépôt** : `Manciiie/SubForge` — dernier envoi : version 1.1.0 (2026-10-10)
+- **Version livrée** : 1.2.1 (2026-10-12)
+- **Dépôt** : `Manciiie/SubForge` — dernier envoi : version 1.2.1 (2026-10-12)
 - **Testé sur Windows réel** : non (PC non joignable) ; `ffmpeg.exe` 7.1 vérifié sous wine
-- **Version en cours** : 1.2.0
+- **Version en cours** : 1.2.1
 - **Prochaine tâche** : — mises à jour automatiques toujours inactives (dépôt -releases + jeton à créer)
 - **Ce qui marche** : tout le périmètre 1.0 + glossaire, mémoire, saison, OCR Blu-ray (version compilée comprise), recherche en ligne (faux serveur), ffmpeg 7
 - **Fragile / non vérifié** : vrais DeepL / Ollama / OpenSubtitles jamais appelés depuis la session ; OCR testé sur un .sup fabriqué (police DejaVu), pas sur un vrai Blu-ray ; mises à jour automatiques inactives (pas de jeton)
 
 ## 🚧 Questions pour moi
-- (aucune)
+- Doublage IA (voix) : niveau 1, 2 ou 3 ? (proposé le 2026-10-11, recommandé : 2)
 
 ## 🐞 Bugs connus
 | ID | Description (ce que je fais → ce qui se passe) | Gravité | Version | Statut |
@@ -27,6 +27,11 @@ Gravité : 🔴 crash / perte de données · 🟠 fonction cassée · 🟡 gêna
 ---
 
 ## 📓 Journal des sessions
+
+### 2026-10-12 — Version 1.2.1
+- **Retour d'usage** : « la traduction s'est ajoutée à part au lieu d'être générée avec le film ».
+- **Fait** : résultat d'une vidéo = un seul fichier `Film.FR.mkv` par défaut (sous-titre temporaire, supprimé après l'ajout ; recopié à côté si l'ajout échoue) ; choix « Résultat (vidéos) » à 3 valeurs (remplace la case `integrer`, ancien réglage ignoré) ; saison : `Episode.FR.mkv` = déjà traduit.
+- **Vérifié** : 81 tests, 7 scénarios e2e (dont v12 étendu), CODEMAP 0 point.
 
 ### 2026-10-11 — Version 1.2.0
 - **Retours d'usage** : modèle Ollama « téléchargé » mais absent d'Ollama (`ollama list` vide) ; moteur resté sur DeepL sans clé ; « Error: » dans les messages ; demande de fusionner .ass et .mkv.

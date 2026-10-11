@@ -60,6 +60,7 @@ module.exports = async (p) => {
   // --- 2. Traduire -----------------------------------------------------------------
   await p.ecran('traduire');
   await p.choisir('#opt-moteur', 'ollama');
+  await p.choisir('#opt-resultat', 'fichier'); // ce scénario vérifie le fichier de sous-titres séparé
   await p.choisir('#opt-source', 'en');
   await p.choisir('#opt-cible', 'fr');
   await p.eval(`window.__subforgeAjouter(${JSON.stringify([srt, mkv])})`);

@@ -1,5 +1,15 @@
 # Journal des modifications
 
+## 1.2.1 — 2026-10-12
+### Changements
+- Traduire un film donne maintenant **un seul fichier** : le film avec la piste traduite
+  (Film.FR.mkv), sans fichier de sous-titres séparé à côté. C'est le réglage par défaut.
+- La case « Ajouter au film » devient un choix « Résultat (vidéos) » : film avec la piste
+  traduite / film + fichier de sous-titres / fichier de sous-titres seul.
+- Si l'ajout au film échoue (disque plein…), la traduction est enregistrée à part : rien n'est perdu.
+- Saison : un épisode qui a déjà son « Episode.FR.mkv » est reconnu comme déjà traduit, et ce
+  fichier n'est pas repris comme un nouvel épisode.
+
 ## 1.2.0 — 2026-10-11
 ### Nouveautés
 - Ajouter au film : une case dans Traduire crée une copie du film (Film.FR.mkv) qui contient la

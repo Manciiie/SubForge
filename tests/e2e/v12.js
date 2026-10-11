@@ -3,7 +3,8 @@
 //   1. IA locale : adresse du faux Ollama saisie → modèle unique choisi tout seul, moteur basculé
 //      sur l'IA locale (pas de clé DeepL), sans rien sélectionner à la main.
 //   2. Messages d'erreur sans « Error: ».
-//   3. « Ajouter au film » : Film.FR.mkv créé avec la piste traduite (par défaut), original intact.
+//   3. Résultat par défaut (1.2.1) : un seul fichier, Film.FR.mkv avec la piste traduite, aucun
+//      sous-titre séparé ; original intact. Puis « film + fichier » : les deux.
 
 const fs = require('fs');
 const path = require('path');
@@ -32,8 +33,7 @@ module.exports = async (p) => {
   await p.ecran('traduire');
   await p.choisir('#opt-source', 'en');
   await p.choisir('#opt-cible', 'fr');
-  await p.eval('(document.getElementById("opt-integrer").checked = true, document.getElementById("opt-integrer").dispatchEvent(new Event("change")))');
-  await p.pause(300);
+  p.verifier((await p.eval('document.getElementById("opt-resultat").value')) === 'film', 'par défaut : film avec la piste traduite');
   const d = path.join(p.dossierTemp, 'Films');
   fs.mkdirSync(d);
   const srt = path.join(p.dossierTemp, 'p.srt');
@@ -52,9 +52,24 @@ module.exports = async (p) => {
   let desc = '';
   try { execFileSync(ffmpeg(), ['-hide_banner', '-nostdin', '-i', copie], { stdio: ['ignore', 'pipe', 'pipe'] }); } catch (e) { desc = String(e.stderr); }
   p.verifier(/Subtitle: subrip.*\n[\s\S]*\(fre\): Subtitle: subrip.*\(default\)/.test(desc) && /title\s*: Français/.test(desc), 'la copie contient la piste anglaise + la piste française nommée, par défaut');
-  p.verifier(/Film avec la piste traduite → The Witch Part 1 \(2018\)\.FR\.mkv/.test(await p.texte('.carte-fichier')), 'carte : lien vers la copie');
-  p.verifier(fs.existsSync(path.join(d, 'The Witch Part 1 (2018).fr.srt')), 'le sous-titre traduit est aussi gardé à côté');
-  p.verifier(fs.readdirSync(d).every((f) => !f.endsWith('.part')), 'aucun fichier .part restant');
+  const carte = await p.texte('.carte-fichier');
+  p.verifier(/→ The Witch Part 1 \(2018\)\.FR\.mkv/.test(carte) && /choisissez-la dans votre lecteur/.test(carte), `carte : résultat = le film (${carte.slice(0, 200)})`);
+  p.verifier(JSON.stringify(fs.readdirSync(d).sort()) === JSON.stringify(['The Witch Part 1 (2018).FR.mkv', 'The Witch Part 1 (2018).mkv']), `aucun fichier de sous-titres séparé, aucun .part (${fs.readdirSync(d).join(', ')})`);
   await p.capture('e2e-v12-integration');
+
+  // --- 4. Film + fichier séparé ----------------------------------------------------------
+  await p.choisir('#opt-resultat', 'film-et-fichier');
+  await p.pause(300);
+  const d2 = path.join(p.dossierTemp, 'Films2');
+  fs.mkdirSync(d2);
+  const mkv2 = path.join(d2, 'Autre.mkv');
+  fs.copyFileSync(mkv, mkv2);
+  await p.clic('#btn-vider');
+  await p.eval(`window.__subforgeAjouter(${JSON.stringify([mkv2])})`);
+  await p.attendre('.carte-fichier[data-etat="pret"]', 15000);
+  await p.clic('#btn-traduire');
+  await p.attendre('.carte-fichier[data-etat="termine"]', 30000);
+  p.verifier(fs.existsSync(path.join(d2, 'Autre.FR.mkv')) && fs.existsSync(path.join(d2, 'Autre.fr.srt')), 'film + fichier : Autre.FR.mkv et Autre.fr.srt');
+  p.verifier(/Film avec la piste traduite → Autre\.FR\.mkv/.test(await p.texte('.carte-fichier')), 'carte : lien vers le film');
   serveur.close();
 };

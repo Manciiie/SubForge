@@ -79,8 +79,12 @@ function selectionner(fichiers, { cible, source = 'auto' }) {
   const bilan = { dejaTraduits: 0, videosRemplacees: 0 };
   for (const membres of groupes.values()) {
     const sousTitres = membres.filter((m) => EXT_SOUSTITRES.has(m.ext));
-    const videos = membres.filter((m) => EXT_VIDEO.has(m.ext));
-    if (sousTitres.some((s) => memeLangue(s.langue, cible))) { bilan.dejaTraduits += 1; continue; }
+    let videos = membres.filter((m) => EXT_VIDEO.has(m.ext));
+    // Déjà traduit : « Episode.fr.srt » ou « Episode.FR.mkv » (film avec la piste, créé par SubForge).
+    if ([...sousTitres, ...videos].some((s) => memeLangue(s.langue, cible))) { bilan.dejaTraduits += 1; continue; }
+    // « Episode.ES.mkv » à côté de « Episode.mkv » : copie d'une traduction précédente, on part de l'original.
+    const originaux = videos.filter((v) => !v.langue);
+    if (originaux.length) videos = originaux;
     // Un sous-titre image (.sup) ne remplace une vidéo que s'il n'y a pas de sous-titre texte.
     const textes = sousTitres.filter((s) => s.ext !== '.sup');
     const candidats = textes.length ? textes : sousTitres;

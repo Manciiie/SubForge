@@ -13,6 +13,7 @@ module.exports = async (p) => {
   if (!process.env.SUBFORGE_OS_URL_TEST) throw new Error('Lancer avec SUBFORGE_OS_URL_TEST (voir l\'en-tête du fichier).');
   const serveur = await fauxOllama();
   await utiliserFauxOllama(p, serveur);
+  await p.choisir('#opt-resultat', 'fichier'); // ce scénario vérifie le fichier de sous-titres séparé
   await p.choisir('#opt-source', 'en');
   await p.choisir('#opt-cible', 'fr');
 

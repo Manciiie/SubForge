@@ -37,7 +37,7 @@ window.__modules.push((async () => {
     selCible.value = r.traduction.cible;
     selMoteur.value = r.traduction.moteur;
     selFormat.value = r.traduction.formatSortie;
-    $('opt-integrer').checked = r.traduction.integrer === true;
+    $('opt-resultat').value = r.traduction.resultatFilm || 'film';
     const d = r.traduction.dossierSortie;
     libDossier.textContent = d || 'À côté du film';
     libDossier.title = d || '';
@@ -52,7 +52,7 @@ window.__modules.push((async () => {
   selCible.addEventListener('change', () => modifier({ cible: selCible.value }));
   selMoteur.addEventListener('change', () => modifier({ moteur: selMoteur.value }));
   selFormat.addEventListener('change', () => modifier({ formatSortie: selFormat.value }));
-  $('opt-integrer').addEventListener('change', () => modifier({ integrer: $('opt-integrer').checked }));
+  $('opt-resultat').addEventListener('change', () => modifier({ resultatFilm: $('opt-resultat').value }));
   $('btn-dossier').addEventListener('click', async () => {
     try {
       const d = await T.choisirDossierSortie();
@@ -254,14 +254,17 @@ window.__modules.push((async () => {
       if (b.envoyes) morceaux.push(`${b.envoyes.toLocaleString('fr-FR')} phrase${b.envoyes > 1 ? 's' : ''} envoyée${b.envoyes > 1 ? 's' : ''} au moteur`);
       if (morceaux.length) corps.push(el('span', { classe: 'discret', texte: morceaux.join(' · ') }));
       if (b.aVerifier) corps.push(el('p', { classe: 'carte-fichier__message carte-fichier__message--alerte', texte: `${b.aVerifier} réplique${b.aVerifier > 1 ? 's' : ''} à vérifier : le moteur a perdu un terme du glossaire.` }));
-      if (b.integration?.fichier) {
+      if (b.integration?.fichier && !b.integration.seul) {
         corps.push(el('div', { classe: 'carte-fichier__actions' }, [
           el('span', { classe: 'discret', texte: `Film avec la piste traduite → ${b.integration.nom}` }),
           el('span', { classe: 'espace' }),
-          el('button', { classe: 'btn btn--petit', texte: 'Voir la copie', onclick: () => T.montrer(b.integration.fichier).catch(erreur) }),
+          el('button', { classe: 'btn btn--petit', texte: 'Voir le film', onclick: () => T.montrer(b.integration.fichier).catch(erreur) }),
         ]));
       }
-      if (b.integration?.erreur) corps.push(el('p', { classe: 'carte-fichier__message carte-fichier__message--alerte', texte: `Ajout au film impossible : ${b.integration.erreur}. Le fichier de sous-titres traduit, lui, est bien enregistré.` }));
+      if (b.integration?.seul) corps.push(el('span', { classe: 'discret', texte: 'Film avec la piste traduite : choisissez-la dans votre lecteur (menu Sous-titres).' }));
+      if (b.integration?.erreur) {
+        corps.push(el('p', { classe: 'carte-fichier__message carte-fichier__message--alerte', texte: `Ajout au film impossible : ${b.integration.erreur}. La traduction est enregistrée à part${b.integration.secours ? ` (${b.integration.secours})` : ''}.` }));
+      }
       if (b.erreurMemoire) corps.push(el('p', { classe: 'carte-fichier__message carte-fichier__message--alerte', texte: `Mémoire de traduction non enregistrée (${b.erreurMemoire}) : la traduction, elle, est bien écrite.` }));
     }
     if (e.etat === 'termine') {
@@ -320,7 +323,7 @@ window.__modules.push((async () => {
     if (rechercheAuto) { $('btn-traduire').disabled = true; $('btn-vider').hidden = true; }
     $('btn-annuler').hidden = !enCours;
     $('btn-vider').hidden = enCours;
-    for (const s of [selSource, selCible, selMoteur, selFormat, $('opt-integrer'), $('btn-dossier'), $('btn-dossier-defaut')]) s.disabled = enCours;
+    for (const s of [selSource, selCible, selMoteur, selFormat, $('opt-resultat'), $('btn-dossier'), $('btn-dossier-defaut')]) s.disabled = enCours;
   }
 
   // Saison entière : sous-titres cherchés et téléchargés automatiquement pour chaque vidéo qui n'en a pas.

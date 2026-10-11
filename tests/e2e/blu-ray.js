@@ -11,6 +11,7 @@ const { fauxOllama, ffmpeg, utiliserFauxOllama, RACINE } = require('./outils');
 module.exports = async (p) => {
   const serveur = await fauxOllama();
   await utiliserFauxOllama(p, serveur);
+  await p.choisir('#opt-resultat', 'fichier'); // ce scénario vérifie le fichier de sous-titres séparé
   await p.choisir('#opt-source', 'auto');
   await p.choisir('#opt-cible', 'fr');
 

@@ -59,9 +59,12 @@
               <option value="srt">Toujours SRT</option>
             </select>
           </label>
-          <label class="option option--case-film" title="Crée une copie du film (.mkv) qui contient la piste traduite, sans réencoder la vidéo. L'original n'est pas modifié.">
-            <span>Ajouter au film</span>
-            <span class="ligne-case"><input type="checkbox" id="opt-integrer"> copie .mkv avec la piste</span>
+          <label class="option" title="Pour une vidéo : où va la traduction. Le film d'origine n'est jamais modifié ; la vidéo n'est pas réencodée.">Résultat (vidéos)
+            <select id="opt-resultat">
+              <option value="film">Film avec la piste traduite (.mkv)</option>
+              <option value="film-et-fichier">Film avec la piste + fichier de sous-titres</option>
+              <option value="fichier">Fichier de sous-titres seul</option>
+            </select>
           </label>
           <div class="option option--large">
             <span>Enregistrer</span>
