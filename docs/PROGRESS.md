@@ -4,10 +4,10 @@
 > Garder court : 5 dernières sessions en détail, les plus anciennes résumées en une ligne.
 
 ## 📍 État actuel
-- **Version livrée** : 1.2.1 (2026-10-12)
-- **Dépôt** : `Manciiie/SubForge` — dernier envoi : version 1.2.1 (2026-10-12)
+- **Version livrée** : 1.2.2 (2026-10-12)
+- **Dépôt** : `Manciiie/SubForge` — dernier envoi : version 1.2.2 (2026-10-12)
 - **Testé sur Windows réel** : non (PC non joignable) ; `ffmpeg.exe` 7.1 vérifié sous wine
-- **Version en cours** : 1.2.1
+- **Version en cours** : 1.2.2
 - **Prochaine tâche** : — mises à jour automatiques toujours inactives (dépôt -releases + jeton à créer)
 - **Ce qui marche** : tout le périmètre 1.0 + glossaire, mémoire, saison, OCR Blu-ray (version compilée comprise), recherche en ligne (faux serveur), ffmpeg 7
 - **Fragile / non vérifié** : vrais DeepL / Ollama / OpenSubtitles jamais appelés depuis la session ; OCR testé sur un .sup fabriqué (police DejaVu), pas sur un vrai Blu-ray ; mises à jour automatiques inactives (pas de jeton)
@@ -27,6 +27,12 @@ Gravité : 🔴 crash / perte de données · 🟠 fonction cassée · 🟡 gêna
 ---
 
 ## 📓 Journal des sessions
+
+### 2026-10-12 — Version 1.2.2
+- **Retour d'usage** : piste française choisie dans le Lecteur Windows → rien ne s'affiche (film d'origine en ASS).
+- **Cause** : le Lecteur multimédia / Films et TV n'affichent pas les pistes ASS d'un MKV.
+- **Fait** : piste ajoutée au film toujours convertie en SRT (`formats.versSrt`) ; fichier séparé inchangé.
+- **Vérifié** : e2e v12 étendu (film ASS → piste fre subrip, texte et minutage) ; minutage vérifié sur film à début non nul.
 
 ### 2026-10-12 — Version 1.2.1
 - **Retour d'usage** : « la traduction s'est ajoutée à part au lieu d'être générée avec le film ».

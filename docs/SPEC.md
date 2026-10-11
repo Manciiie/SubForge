@@ -49,6 +49,7 @@ fichier on ne sait où. Je veux : glisser le film ou le sous-titre, choisir la l
 - Vidéo traduite (1.2.1) : par défaut un seul fichier, `Film.FR.mkv`, qui contient la piste
   traduite ; pas de sous-titre séparé. Choix « Résultat (vidéos) » : film / film + fichier /
   fichier seul. Ajout au film impossible → la traduction est enregistrée à part.
+  La piste ajoutée au film est toujours en SRT (1.2.2 : le lecteur Windows n'affiche pas l'ASS).
 - Annuler arrête la traduction en cours sans laisser de fichier à moitié écrit.
 
 ## 4. Hors périmètre

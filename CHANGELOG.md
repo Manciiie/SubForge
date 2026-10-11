@@ -1,5 +1,12 @@
 # Journal des modifications
 
+## 1.2.2 — 2026-10-12
+### Corrections
+- Sous-titres français invisibles dans le Lecteur multimédia de Windows / Films et TV quand le
+  film d'origine avait des sous-titres ASS : la piste ajoutée au film est maintenant toujours en
+  SRT, lue par tous les lecteurs (italique, gras et souligné gardés). Le format ASS reste
+  disponible pour le fichier séparé.
+
 ## 1.2.1 — 2026-10-12
 ### Changements
 - Traduire un film donne maintenant **un seul fichier** : le film avec la piste traduite

@@ -71,5 +71,26 @@ module.exports = async (p) => {
   await p.attendre('.carte-fichier[data-etat="termine"]', 30000);
   p.verifier(fs.existsSync(path.join(d2, 'Autre.FR.mkv')) && fs.existsSync(path.join(d2, 'Autre.fr.srt')), 'film + fichier : Autre.FR.mkv et Autre.fr.srt');
   p.verifier(/Film avec la piste traduite → Autre\.FR\.mkv/.test(await p.texte('.carte-fichier')), 'carte : lien vers le film');
+
+  // --- 5. Film dont la piste est en ASS : la piste ajoutée est en SRT (lecteur Windows) -----
+  await p.choisir('#opt-resultat', 'film');
+  await p.pause(300);
+  const d3 = path.join(p.dossierTemp, 'Films3');
+  fs.mkdirSync(d3);
+  const mkv3 = path.join(d3, 'Anime.mkv');
+  execFileSync(ffmpeg(), ['-loglevel', 'error', '-y', '-f', 'lavfi', '-i', 'color=c=black:s=160x90:d=3', '-i', srt,
+    '-map', '0', '-map', '1', '-c:v', 'mpeg4', '-c:s', 'ass', '-metadata:s:s:0', 'language=eng', mkv3]);
+  await p.clic('#btn-vider');
+  await p.eval(`window.__subforgeAjouter(${JSON.stringify([mkv3])})`);
+  await p.attendre('.carte-fichier[data-etat="pret"]', 15000);
+  await p.clic('#btn-traduire');
+  await p.attendre('.carte-fichier[data-etat="termine"]', 30000);
+  const copie3 = path.join(d3, 'Anime.FR.mkv');
+  let desc3 = '';
+  try { execFileSync(ffmpeg(), ['-hide_banner', '-nostdin', '-i', copie3], { stdio: ['ignore', 'pipe', 'pipe'] }); } catch (e) { desc3 = String(e.stderr); }
+  p.verifier(/\(fre\): Subtitle: subrip.*\(default\)/.test(desc3), `piste ASS d'origine → piste française en SRT (${(desc3.match(/Subtitle:.*/g) || []).join(' | ')})`);
+  const texte3 = execFileSync(ffmpeg(), ['-loglevel', 'error', '-i', copie3, '-map', '0:s:1', '-f', 'srt', '-'], { encoding: 'utf8' });
+  p.verifier(/00:00:00,500 --> 00:00:01,500/.test(texte3) && /\[fr\] Hello there/.test(texte3), `texte et minutage de la piste française (${texte3.trim().replace(/\s+/g, ' ')})`);
+  p.verifier(JSON.stringify(fs.readdirSync(d3).sort()) === JSON.stringify(['Anime.FR.mkv', 'Anime.mkv']), `toujours un seul fichier (${fs.readdirSync(d3).join(', ')})`);
   serveur.close();
 };

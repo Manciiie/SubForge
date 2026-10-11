@@ -179,7 +179,15 @@ async function traduireElement(el, options, signal) {
     let integration = null;
     let sortie = cible;
     if (mode !== 'fichier') {
-      integration = await integrerAuFilm(el.chemin, cible, options, signal, (part) => rapporter('integration', { fait: Math.round(part * 100), total: 100, message: 'Ajout de la piste au film…' }));
+      // La piste ajoutée au film est toujours en SRT : le Lecteur multimédia de Windows et
+      // Films et TV n'affichent pas les pistes ASS d'un MKV (VLC, lui, lit les deux).
+      let piste = cible;
+      if (docSortie.format !== 'srt') {
+        if (!dossierPiste) dossierPiste = fs.mkdtempSync(path.join(os.tmpdir(), 'subforge-piste-'));
+        piste = path.join(dossierPiste, 'piste-film.srt');
+        formats.ecrireFichier(piste, formats.versSrt(doc));
+      }
+      integration = await integrerAuFilm(el.chemin, piste, options, signal, (part) => rapporter('integration', { fait: Math.round(part * 100), total: 100, message: 'Ajout de la piste au film…' }));
       if (mode === 'film') {
         if (integration.fichier) {
           sortie = integration.fichier;
