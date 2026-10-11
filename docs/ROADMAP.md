@@ -36,13 +36,13 @@
 
 ---
 
-## 1.2.0 — Piste traduite dans le film, IA locale plus simple `[~]`
+## 1.2.0 — Piste traduite dans le film, IA locale plus simple `[x]`
 **Résultat** : demandés le 2026-10-11 (point 1 de la liste + retours d'usage avec Ollama).
 | ID | Tâche | Statut |
 |---|---|---|
 | v1.2-T201 | Ajouter la piste traduite au film (copie MKV, sans réencoder) | [x] |
 | v1.2-T202 | IA locale : bascule automatique, modèle choisi seul, messages clairs | [x] |
-| v1.2-T299 | Vérifications complètes + livraison | [ ] |
+| v1.2-T299 | Vérifications complètes + livraison | [x] |
 
 ---
 
