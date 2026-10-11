@@ -5,12 +5,32 @@
 
 const formats = require('./formats');
 const glossaire = require('./glossaire');
+const { langue } = require('./langues');
+const { nonTraduit, nombreMots } = require('./moteurs');
 
 const RE_MARQUEURS = /<[xg]\s+n="\d+"\s*\/>/g;
 const A_TRADUIRE = /\p{L}/u;
 
 function erreurAnnulation() {
   return Object.assign(new Error('Traduction annulée.'), { name: 'AbortError' });
+}
+
+// Garde-fou : une piste « traduite » restée en grande partie dans sa langue d'origine n'est jamais
+// enregistrée comme traduction (aucun fichier écrit, message clair à la place).
+function verifierTraduit(originaux, traductions, options) {
+  let phrases = 0;
+  let recopiees = 0;
+  originaux.forEach((o, i) => {
+    if (nombreMots(o) < 2) return;
+    phrases += 1;
+    if (nonTraduit(o, traductions[i])) recopiees += 1;
+  });
+  if (recopiees < 5 || recopiees < phrases * 0.25) return;
+  const nomCible = langue(options.cible)?.nom?.toLowerCase() || options.cible;
+  const conseil = options.moteur === 'ollama'
+    ? `Le modèle d'IA locale « ${options.modele} » ne traduit pas correctement : choisissez-en un autre dans l'écran Moteurs (conseillé : qwen2.5:7b).`
+    : 'Vérifiez la langue de départ choisie.';
+  throw new Error(`Traduction ratée : ${recopiees} répliques sur ${phrases} sont restées telles quelles. ${conseil} Si ces sous-titres sont déjà en ${nomCible}, il n'y a rien à traduire.`);
 }
 
 async function traduireDocument(doc, { moteurs, memoire = null, glossairePrepare = null, options, signal, surAvancement = () => {} }) {
@@ -50,9 +70,15 @@ async function traduireDocument(doc, { moteurs, memoire = null, glossairePrepare
   let caracteresEconomises = 0;
   if (memoire && options.memoire !== false && uniques.length) {
     const { trouves, manquants } = memoire.chercher(contexteMemoire, uniques);
-    for (const [i, t] of trouves) { traduitsUniques[i] = t; caracteresEconomises += uniques[i].replace(RE_MARQUEURS, '').length; }
-    repris = trouves.size;
-    aEnvoyer = manquants;
+    // Une « traduction » mémorisée identique à l'original (IA locale qui avait recopié) est ignorée.
+    const aRefaire = [];
+    for (const [i, t] of trouves) {
+      if (nonTraduit(uniques[i], t)) { aRefaire.push(i); continue; }
+      traduitsUniques[i] = t;
+      caracteresEconomises += uniques[i].replace(RE_MARQUEURS, '').length;
+    }
+    repris = trouves.size - aRefaire.length;
+    aEnvoyer = manquants.concat(aRefaire).sort((a, b) => a - b);
   }
 
   // 5. Moteur, pour les seuls textes nouveaux.
@@ -67,8 +93,10 @@ async function traduireDocument(doc, { moteurs, memoire = null, glossairePrepare
     const resultats = await moteurs.traduireTout(envoyes, { ...options, signal }, (fait) => surAvancement(repris + fait, total));
     if (signal?.aborted) throw erreurAnnulation();
     resultats.forEach((t, j) => { traduitsUniques[aEnvoyer[j]] = t; });
+    verifierTraduit(uniques, traduitsUniques, options);
     if (memoire && options.memoire !== false) {
-      const r = memoire.ajouter(contexteMemoire, aEnvoyer.map((i, j) => [uniques[i], resultats[j]]));
+      const paires = aEnvoyer.map((i, j) => [uniques[i], resultats[j]]).filter(([o, t]) => !nonTraduit(o, t));
+      const r = memoire.ajouter(contexteMemoire, paires);
       if (!r.ok) erreurMemoire = r.erreur;
     }
   }

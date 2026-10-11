@@ -150,3 +150,27 @@ test('traitement complet : doublons envoyés une fois, deuxième passage 100 % m
   assert.equal(m4.recus.length, 3);
   fs.rmSync(d, { recursive: true, force: true });
 });
+
+test('garde-fou : piste restée en anglais → erreur claire, rien en mémoire ; anciennes recopies de la mémoire ignorées', async () => {
+  const d = dossier();
+  const memoire = creerMemoire({ fichier: path.join(d, 'm.jsonl'), journal: silencieux });
+  const srt = Array.from({ length: 10 }, (_, i) => `${i + 1}\n00:00:0${i},000 --> 00:00:0${i},900\nThey are Americans number ${i}\n`).join('\n');
+  const lire = () => formats.analyser(srt, 'srt');
+  const options = { moteur: 'ollama', modele: 'petit:1b', source: 'en', cible: 'fr', memoire: true };
+  const recopieur = { async traduireTout(segments) { return segments.slice(); } };
+  await assert.rejects(traduireDocument(lire(), { moteurs: recopieur, memoire, options }),
+    /Traduction ratée : 10 répliques sur 10 sont restées telles quelles\. Le modèle d'IA locale « petit:1b »/);
+  assert.equal(memoire.etat().entrees, 0, 'aucune recopie enregistrée en mémoire');
+
+  // Mémoire « empoisonnée » par une version précédente : ces entrées sont ignorées et retraduites.
+  const contexte = { moteur: 'ollama', variante: 'modele:petit:1b', source: 'en', cible: 'fr' };
+  memoire.ajouter(contexte, [['They are Americans number 0', 'They are Americans number 0'], ['They are Americans number 1', 'Ce sont des Américains numéro 1']]);
+  const m = fauxMoteur();
+  const doc = lire();
+  const b = await traduireDocument(doc, { moteurs: m, memoire, options });
+  assert.equal(b.repris, 1);
+  assert.ok(m.recus.includes('They are Americans number 0'));
+  assert.equal(doc.repliques[0].texte, '[fr] They are Americans number 0');
+  assert.equal(doc.repliques[1].texte, 'Ce sont des Américains numéro 1');
+  fs.rmSync(d, { recursive: true, force: true });
+});

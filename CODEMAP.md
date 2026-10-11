@@ -3,7 +3,7 @@
 > Généré par `codemap.py` v3 : **ne pas modifier à la main**. Régénérer après chaque modification du code.
 > Format : `nom` suivi du numéro de ligne → lire seulement les lignes utiles (Read avec offset).
 
-**64 fichiers · 8367 lignes** · 63 js · 1 html
+**64 fichiers · 8504 lignes** · 63 js · 1 html
 
 ## Liens entre fichiers
 
@@ -191,13 +191,12 @@
 - exporte : `creerMemoire` 123, `MAX_ENTREES` 123
 - paquets : `crypto`, `fs`, `path`
 
-### src/main/services/moteurs.js — processus principal · 312 l.
+### src/main/services/moteurs.js — processus principal · 341 l.
 - classes : `ErreurMoteur` 8
-- fonctions : `pause(ms, signal)` 17, `erreurAnnulation()` 21, `signalAvecDelai(signal, ms)` 23, `lireJson(reponse)` 28, `versXml(texte)` 38, `echapper(t)` 47, `depuisXml(t)` 48, `adresseOllamaValide(url)` 53, `normaliserAdresse(url)` 64, `creerMoteurs({ fetch, lireCleDeepl, urlDeeplTest = null, journal = con…)` 70, `baseDeepl(cle)` 72, `appelDeepl(chemin, { methode = 'GET', corps = null, signal } = {})` 77, `usageDeepl()` 114, `traduireDeepl(segments, { source, cible, formalite = 'defaut', contexte…)` 123, `appelOllama(adresse, chemin, { corps = null, signal, delai = 15000 }…)` 147, `modelesOllama(adresse)` 173, `consigne(source, cible)` 182, `extraireObjet(contenu)` 194, `lotOllama(segments, { adresse, modele, source, cible, contexte, sig…)` 207, `traduireOllama(segments, { adresse, modele, source, cible, contexte = []…)` 237, `traiter(indices, taille, essai = 0)` 241, `traduireTout(segments, options, surAvancement = ()` 278
+- fonctions : `pause(ms, signal)` 17, `erreurAnnulation()` 21, `signalAvecDelai(signal, ms)` 23, `lireJson(reponse)` 28, `normaliser(t)` 40, `nombreMots(t)` 41, `nonTraduit(original, traduction)` 42, `mauvaiseEcriture(original, traduction, cible)` 47, `versXml(texte)` 51, `echapper(t)` 60, `depuisXml(t)` 61, `adresseOllamaValide(url)` 66, `normaliserAdresse(url)` 77, `creerMoteurs({ fetch, lireCleDeepl, urlDeeplTest = null, journal = con…)` 83, `baseDeepl(cle)` 85, `appelDeepl(chemin, { methode = 'GET', corps = null, signal } = {})` 90, `usageDeepl()` 127, `traduireDeepl(segments, { source, cible, formalite = 'defaut', contexte…)` 136, `appelOllama(adresse, chemin, { corps = null, signal, delai = 15000 }…)` 160, `modelesOllama(adresse)` 186, `consigne(source, cible)` 195, `demande(segments, contexte, cible)` 209, `extraireObjet(contenu)` 219, `lotOllama(segments, { adresse, modele, source, cible, contexte, sig…)` 231, `traduireOllama(segments, { adresse, modele, source, cible, contexte = []…)` 261, `traiter(indices, taille, essai = 0)` 266, `traduireTout(segments, options, surAvancement = ()` 307
 - méthodes : `constructor(message, { definitive = true } = {})` 9
-- exporte : `creerMoteurs` 312, `ErreurMoteur` 312, `adresseOllamaValide` 312, `normaliserAdresse` 312, `versXml` 312, `depuisXml` 312
+- exporte : `creerMoteurs` 341, `ErreurMoteur` 341, `adresseOllamaValide` 341, `normaliserAdresse` 341, `versXml` 341, `depuisXml` 341, `nonTraduit` 341, `nombreMots` 341
 - importe : `./langues`
-- paquets : `lines`
 
 ### src/main/services/ocr.js — processus principal · 102 l.
 - fonctions : `erreurAnnulation()` 14, `nettoyer(texte, langue)` 19, `creerOcr({ dossierLangues, cheminTravailleur = null, journal = con…)` 31, `disponible(langue)` 32, `lire(images, { langue, signal, surAvancement = ()` 38, `arreter()` 47, `versSrt(repliques, textes)` 86, `temps(ms)` 87
@@ -211,10 +210,10 @@
 - méthodes : `constructor(m)` 12
 - exporte : `compter` 224, `lireSup` 224, `decoderRle` 224, `versPgm` 224, `ErreurPgs` 224, `TAILLE_MAX` 224
 
-### src/main/services/pipeline.js — processus principal · 103 l.
-- fonctions : `erreurAnnulation()` 12, `traduireDocument(doc, { moteurs, memoire = null, glossairePrepare = null…)` 16
-- exporte : `traduireDocument` 103
-- importe : `./formats`, `./glossaire`
+### src/main/services/pipeline.js — processus principal · 131 l.
+- fonctions : `erreurAnnulation()` 14, `verifierTraduit(originaux, traductions, options)` 20, `traduireDocument(doc, { moteurs, memoire = null, glossairePrepare = null…)` 36
+- exporte : `traduireDocument` 131
+- importe : `./formats`, `./glossaire`, `./langues`, `./moteurs`
 
 ### src/main/services/traduction.js — processus principal · 548 l.
 - IPC : canaux traités : `traduction:langues` 278, `traduction:reglages` 280, `traduction:modifierReglages` 282, `traduction:choisirDossierSortie` 316, `traduction:explorer` 324, `traduction:analyser` 332, `traduction:lancer` 341, `traduction:annuler` 378, `traduction:apercu` 385, `traduction:montrer` 388, `memoire:etat` 395, `memoire:vider` 396, `glossaire:lister` 404, `glossaire:enregistrer` 405, `glossaire:supprimer` 415, `glossaire:importer` 416, `enligne:etat` 432, `enligne:enregistrer` 439, `enligne:tester` 462, `enligne:chercher` 468, `enligne:telecharger` 490, `enligne:automatique` 507, `moteurs:etat` 521, `moteurs:enregistrerCleDeepl` 523, `moteurs:supprimerCleDeepl` 534, `moteurs:testerDeepl` 536, `moteurs:modelesOllama` 538, `moteurs:testerOllama` 540
@@ -289,9 +288,9 @@
 - importe : `./outils`
 - paquets : `fs`, `path`
 
-### tests/e2e/outils.js — tests · 56 l.
-- fonctions : `fauxOllama()` 11, `ffmpeg()` 40, `utiliserFauxOllama(p, serveur)` 45
-- exporte : `fauxOllama` 56, `ffmpeg` 56, `utiliserFauxOllama` 56, `RACINE` 56
+### tests/e2e/outils.js — tests · 63 l.
+- fonctions : `fauxOllama()` 11, `lignesDemandees(contenu)` 41, `ffmpeg()` 47, `utiliserFauxOllama(p, serveur)` 52
+- exporte : `fauxOllama` 63, `ffmpeg` 63, `utiliserFauxOllama` 63, `lignesDemandees` 63, `RACINE` 63
 - paquets : `http`, `path`
 
 ### tests/e2e/saison.js — tests · 58 l.
@@ -303,7 +302,7 @@
 - importe : `./outils`
 - paquets : `fs`, `path`, `child_process`
 
-### tests/e2e/v12.js — tests · 96 l.
+### tests/e2e/v12.js — tests · 116 l.
 - importe : `./outils`
 - paquets : `fs`, `path`, `child_process`
 
@@ -322,14 +321,14 @@
 - importe : `../src/main/services/formats`
 - paquets : `node:test`, `node:assert/strict`, `fs`, `os`, `path`
 
-### tests/glossaire-memoire.test.js — tests · 152 l.
-- fonctions : `dossier()` 15, `fauxMoteur()` 18
+### tests/glossaire-memoire.test.js — tests · 176 l.
+- fonctions : `dossier()` 15, `fauxMoteur()` 18, `lire()` 158
 - importe : `../src/main/services/glossaire`, `../src/main/services/memoire`, `../src/main/services/pipeline`, `../src/main/services/formats`
 - paquets : `node:test`, `node:assert/strict`, `fs`, `os`, `path`
 
-### tests/moteurs.test.js — tests · 112 l.
-- fonctions : `serveur(gestion)` 9, `json(res, code, o, entetes = {})` 19
-- importe : `../src/main/services/moteurs`
+### tests/moteurs.test.js — tests · 141 l.
+- fonctions : `serveur(gestion)` 10, `json(res, code, o, entetes = {})` 20
+- importe : `../src/main/services/moteurs`, `./e2e/outils`
 - paquets : `node:test`, `node:assert/strict`, `http`
 
 ### tests/ocr.test.js — tests · 114 l.

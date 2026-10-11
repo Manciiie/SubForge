@@ -1,5 +1,16 @@
 # Journal des modifications
 
+## 1.2.3 — 2026-10-12
+### Corrections
+- IA locale : la piste « Français » pouvait contenir le texte anglais d'origine. Certains modèles
+  Ollama recopiaient la demande au lieu de la traduire, et SubForge l'acceptait. Désormais :
+  - la demande est envoyée sous une forme que le modèle ne peut plus recopier telle quelle ;
+  - une réplique renvoyée sans traduction (ou écrite dans une autre langue, comme du chinois) est
+    redemandée ;
+  - si le modèle ne traduit vraiment pas, SubForge s'arrête avec un message clair (et conseille un
+    autre modèle) au lieu de créer un film avec une piste « Français » en anglais ;
+  - les fausses traductions déjà gardées dans la mémoire de traduction sont ignorées et refaites.
+
 ## 1.2.2 — 2026-10-12
 ### Corrections
 - Sous-titres français invisibles dans le Lecteur multimédia de Windows / Films et TV quand le

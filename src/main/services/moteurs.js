@@ -35,6 +35,19 @@ async function lireJson(reponse) {
 
 const RE_MARQUEUR = /<[xg]\s+n="\d+"\s*\/>/g; // <x/> : balise de mise en forme, <g/> : terme du glossaire
 
+// Réponse « traduite » identique à l'original (le modèle a recopié au lieu de traduire).
+// Seules les répliques d'au moins deux mots comptent : « Ja-yoon ! » ou « OK. » restent souvent tels quels.
+const normaliser = (t) => String(t || '').replace(RE_MARQUEUR, ' ').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+const nombreMots = (t) => normaliser(t).split(' ').filter((m) => /\p{L}{2,}/u.test(m)).length;
+function nonTraduit(original, traduction) {
+  return nombreMots(original) >= 2 && normaliser(original) === normaliser(traduction);
+}
+// Réponse dans une autre écriture (ex. chinois au lieu de français) : refusée.
+const RE_ASIE = /[\p{Script=Han}\p{Script=Hangul}\p{Script=Hiragana}\p{Script=Katakana}]/u;
+function mauvaiseEcriture(original, traduction, cible) {
+  return !['zh', 'ja', 'ko'].includes(String(cible).split('-')[0]) && RE_ASIE.test(traduction) && !RE_ASIE.test(original);
+}
+
 function versXml(texte) {
   let sortie = '';
   let dernier = 0;
@@ -183,12 +196,24 @@ function creerMoteurs({ fetch, lireCleDeepl, urlDeeplTest = null, journal = cons
     const de = source && source !== 'auto' ? langue(source)?.anglais : null;
     const vers = langue(cible)?.anglais || cible;
     return [
-      `You are a professional film subtitle translator. Translate each subtitle line ${de ? `from ${de} ` : ''}into ${vers}.`,
-      'The input is JSON: "context" holds the previous lines (for reference only, do not translate them) and "lines" maps ids to the text to translate.',
-      'Answer ONLY with a JSON object mapping every id from "lines" to its translation. Same ids, no extra keys, no comments.',
+      `You are a professional film subtitle translator. You translate subtitle lines ${de ? `from ${de} ` : ''}into ${vers}.`,
+      `Every translation MUST be written in ${vers}. Never copy the original text unchanged.`,
+      'Answer ONLY with a JSON object mapping each line number to its translation, for example {"1": "...", "2": "..."}. Same numbers, no extra keys, no comments.',
       'Keep every marker like <x n="0"/> or <g n="0"/> exactly as written, at the matching place in the sentence. A <g/> marker stands for a name or a fixed term: treat it as a noun.',
       'Write natural spoken dialogue, as short as the original. Keep names unchanged. Never merge or split lines. Never leave a line empty.',
     ].join('\n');
+  }
+
+  // Demande en texte simple (une ligne numérotée par réplique, en chaîne JSON) : un objet JSON en
+  // entrée était parfois recopié tel quel par les petits modèles, donc renvoyé sans traduction.
+  function demande(segments, contexte, cible) {
+    const vers = langue(cible)?.anglais || cible;
+    const parties = [];
+    if (contexte.length) parties.push('Previous lines, for context only (do not translate them):', ...contexte.map((c) => `- ${JSON.stringify(c)}`), '');
+    parties.push(`Translate these ${segments.length} subtitle line(s) into ${vers}:`);
+    segments.forEach((t, i) => parties.push(`${i + 1}. ${JSON.stringify(t)}`));
+    parties.push('', `Answer with the JSON object of the ${vers} translations only.`);
+    return parties.join('\n');
   }
 
   function extraireObjet(contenu) {
@@ -198,15 +223,12 @@ function creerMoteurs({ fetch, lireCleDeepl, urlDeeplTest = null, journal = cons
     if (a < 0 || b <= a) return null;
     try {
       const o = JSON.parse(t.slice(a, b + 1));
-      if (o && typeof o === 'object' && o.lines && typeof o.lines === 'object') return o.lines;
       if (o && typeof o === 'object' && o.translations && typeof o.translations === 'object') return o.translations;
       return o;
-    } catch { return null; }
+    } catch { return null; } // silence-ok: réponse illisible = répliques redemandées par l'appelant
   }
 
   async function lotOllama(segments, { adresse, modele, source, cible, contexte, signal }) {
-    const lignes = {};
-    segments.forEach((s, i) => { lignes[String(i + 1)] = s; });
     const d = await appelOllama(adresse, '/api/chat', {
       signal,
       delai: 300000, // premier chargement du modèle en mémoire vidéo : peut être long
@@ -218,7 +240,7 @@ function creerMoteurs({ fetch, lireCleDeepl, urlDeeplTest = null, journal = cons
         options: { temperature: 0.2, num_ctx: 8192 },
         messages: [
           { role: 'system', content: consigne(source, cible) },
-          { role: 'user', content: JSON.stringify({ context: contexte, lines: lignes }) },
+          { role: 'user', content: demande(segments, contexte, cible) },
         ],
       },
     });
@@ -226,6 +248,8 @@ function creerMoteurs({ fetch, lireCleDeepl, urlDeeplTest = null, journal = cons
     return segments.map((s, i) => {
       const v = objet?.[String(i + 1)];
       if (typeof v !== 'string' || v.trim() === '') return null;
+      // Recopiée sans traduction ou écrite dans une autre langue : redemandée, gardée en dernier recours.
+      if (nonTraduit(s, v) || mauvaiseEcriture(s, v, cible)) return { brouillon: v, recopie: true };
       // Un marqueur oublié = un nom ou une mise en forme perdus : réponse refusée, la réplique est redemandée.
       const attendus = (s.match(RE_MARQUEUR) || []).map((m) => m.replace(/\s+/g, ' ')).sort().join();
       const recus = (v.match(RE_MARQUEUR) || []).map((m) => m.replace(/\s+/g, ' ')).sort().join();
@@ -237,7 +261,8 @@ function creerMoteurs({ fetch, lireCleDeepl, urlDeeplTest = null, journal = cons
   async function traduireOllama(segments, { adresse, modele, source, cible, contexte = [], signal }) {
     if (!modele) throw new ErreurMoteur('Aucun modèle d\'IA locale choisi : choisissez-en un dans l\'écran Moteurs.');
     const resultats = new Array(segments.length).fill(null);
-    const brouillons = new Map(); // réponses où un marqueur manquait : gardées en dernier recours
+    const brouillons = new Map(); // réponses imparfaites (marqueur perdu, recopiée) : gardées en dernier recours
+    let recopiees = 0; // répliques que le modèle refuse de traduire même une par une
     async function traiter(indices, taille, essai = 0) {
       for (let k = 0; k < indices.length; k += taille) {
         if (signal?.aborted) throw erreurAnnulation();
@@ -254,7 +279,7 @@ function creerMoteurs({ fetch, lireCleDeepl, urlDeeplTest = null, journal = cons
         lot.forEach((i, j) => {
           const r = reponses[j];
           if (typeof r === 'string') resultats[i] = r;
-          else { if (r?.brouillon) brouillons.set(i, r.brouillon); manquants.push(i); }
+          else { if (r?.brouillon) brouillons.set(i, { texte: r.brouillon, recopie: r.recopie === true }); manquants.push(i); }
         });
         if (manquants.length) {
           if (taille > 1) await traiter(manquants, Math.max(1, Math.floor(taille / 3)));
@@ -263,7 +288,11 @@ function creerMoteurs({ fetch, lireCleDeepl, urlDeeplTest = null, journal = cons
             // Dernier recours : la réponse sans tous ses marqueurs (la réplique sera signalée « à vérifier »).
             for (const i of manquants) {
               if (!brouillons.has(i)) throw new ErreurMoteur('L\'IA locale n\'arrive pas à traduire certaines répliques : essayez un autre modèle.');
-              resultats[i] = brouillons.get(i);
+              const b = brouillons.get(i);
+              if (b.recopie && ++recopiees >= 8) {
+                throw new ErreurMoteur(`Le modèle d'IA locale « ${modele} » renvoie les répliques sans les traduire. Choisissez un autre modèle dans l'écran Moteurs (conseillé : qwen2.5:7b, à installer avec : ollama pull qwen2.5:7b).`);
+              }
+              resultats[i] = b.texte;
             }
           }
         }
@@ -309,4 +338,4 @@ function creerMoteurs({ fetch, lireCleDeepl, urlDeeplTest = null, journal = cons
   return { usageDeepl, traduireDeepl, modelesOllama, traduireOllama, traduireTout };
 }
 
-module.exports = { creerMoteurs, ErreurMoteur, adresseOllamaValide, normaliserAdresse, versXml, depuisXml };
+module.exports = { creerMoteurs, ErreurMoteur, adresseOllamaValide, normaliserAdresse, versXml, depuisXml, nonTraduit, nombreMots };

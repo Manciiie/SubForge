@@ -4,10 +4,10 @@
 > Garder court : 5 dernières sessions en détail, les plus anciennes résumées en une ligne.
 
 ## 📍 État actuel
-- **Version livrée** : 1.2.2 (2026-10-12)
-- **Dépôt** : `Manciiie/SubForge` — dernier envoi : version 1.2.2 (2026-10-12)
+- **Version livrée** : 1.2.3 (2026-10-12)
+- **Dépôt** : `Manciiie/SubForge` — dernier envoi : version 1.2.3 (2026-10-12)
 - **Testé sur Windows réel** : non (PC non joignable) ; `ffmpeg.exe` 7.1 vérifié sous wine
-- **Version en cours** : 1.2.2
+- **Version en cours** : 1.2.3
 - **Prochaine tâche** : — mises à jour automatiques toujours inactives (dépôt -releases + jeton à créer)
 - **Ce qui marche** : tout le périmètre 1.0 + glossaire, mémoire, saison, OCR Blu-ray (version compilée comprise), recherche en ligne (faux serveur), ffmpeg 7
 - **Fragile / non vérifié** : vrais DeepL / Ollama / OpenSubtitles jamais appelés depuis la session ; OCR testé sur un .sup fabriqué (police DejaVu), pas sur un vrai Blu-ray ; mises à jour automatiques inactives (pas de jeton)
@@ -18,6 +18,7 @@
 ## 🐞 Bugs connus
 | ID | Description (ce que je fais → ce qui se passe) | Gravité | Version | Statut |
 |---|---|---|---|---|
+| B-001 | Film traduit avec l'IA locale → piste « Français » en anglais (modèle qui recopie) | 🟠 | 1.2.2 | corrigé 1.2.3 (non vérifié avec un vrai modèle) |
 
 Gravité : 🔴 crash / perte de données · 🟠 fonction cassée · 🟡 gênant · ⚪ cosmétique
 
@@ -27,6 +28,12 @@ Gravité : 🔴 crash / perte de données · 🟠 fonction cassée · 🟡 gêna
 ---
 
 ## 📓 Journal des sessions
+
+### 2026-10-12 — Version 1.2.3
+- **Retour d'usage** (vidéo d'écran) : piste « Français » sélectionnée → texte anglais (« Why? », « They're Americans, ») dans VLC et le lecteur Windows.
+- **Cause probable** : le vrai modèle Ollama renvoyait l'entrée (objet JSON `lines`) sans traduire ; `extraireObjet` acceptait `o.lines` ; aucun contrôle « traduit = original ». Mémoire alimentée avec ces recopies.
+- **Fait** : demande en texte numéroté (chaînes JSON) au lieu d'un objet ; `nonTraduit` / `mauvaiseEcriture` → réplique redemandée ; 8 recopies persistantes → erreur claire ; garde-fou document (≥ 5 et ≥ 25 % recopiées → erreur, rien écrit) ; mémoire : recopies ni enregistrées ni reprises.
+- **Vérifié** : 83 tests, 8 scénarios e2e (v12 : modèle qui recopie → message, aucun fichier). **Pas vérifié** : vrai modèle Ollama (téléchargement impossible ici).
 
 ### 2026-10-12 — Version 1.2.2
 - **Retour d'usage** : piste française choisie dans le Lecteur Windows → rien ne s'affiche (film d'origine en ASS).

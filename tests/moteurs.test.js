@@ -5,6 +5,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const http = require('http');
 const { creerMoteurs, adresseOllamaValide, versXml, depuisXml } = require('../src/main/services/moteurs');
+const { lignesDemandees } = require('./e2e/outils');
 
 function serveur(gestion) {
   return new Promise((ok) => {
@@ -70,7 +71,7 @@ test('Ollama : lots JSON numérotés, réponses incomplètes redemandées, jamai
   const { s, url } = await serveur((req, res, corps) => {
     if (req.url === '/api/tags') return json(res, 200, { models: [{ name: 'qwen2.5:7b', size: 4.7e9 }, { name: 'nomic-embed-text', size: 3e8 }] });
     requetes.push(corps);
-    const entree = JSON.parse(corps.messages[1].content).lines;
+    const entree = lignesDemandees(corps.messages[1].content);
     const sortie = {};
     for (const [k, v] of Object.entries(entree)) sortie[k] = `[fr] ${v}`;
     if (premiere) { premiere = false; delete sortie['3']; sortie['2'] = ''; } // le modèle « oublie » des lignes
@@ -85,6 +86,34 @@ test('Ollama : lots JSON numérotés, réponses incomplètes redemandées, jamai
   assert.equal(requetes[0].format, 'json');
   assert.equal(requetes[0].model, 'qwen2.5:7b');
   assert.match(requetes[0].messages[0].content, /into French/);
+  s.close();
+});
+
+test('Ollama : réplique recopiée sans traduction → redemandée ; modèle qui recopie tout → message clair', async () => {
+  let mode = 'une-fois';
+  const vues = new Map();
+  const { s, url } = await serveur((req, res, corps) => {
+    assert.ok(!corps.messages[1].content.trim().startsWith('{'), 'la demande n\'est plus un objet JSON recopiable');
+    const entree = lignesDemandees(corps.messages[1].content);
+    const sortie = {};
+    for (const [k, v] of Object.entries(entree)) {
+      const n = (vues.get(v) || 0) + 1;
+      vues.set(v, n);
+      if (mode === 'toujours' || (mode === 'une-fois' && n === 1)) sortie[k] = v; // recopie
+      else if (mode === 'chinois' && n === 1) sortie[k] = '为什么？';
+      else sortie[k] = `[fr] ${v}`;
+    }
+    return json(res, 200, { message: { role: 'assistant', content: JSON.stringify(sortie) } });
+  });
+  const m = creerMoteurs({ fetch, lireCleDeepl: () => null, journal: silencieux });
+  const o = { moteur: 'ollama', adresse: url, modele: 'petit:1b', source: 'en', cible: 'fr' };
+  const segments = ['Why are you here?', 'They are Americans,', 'Ja-yoon!', 'Go home now.'];
+  assert.deepEqual(await m.traduireTout(segments, o), segments.map((t) => `[fr] ${t}`));
+  mode = 'chinois'; vues.clear();
+  assert.deepEqual(await m.traduireTout(['Why is that?'], o), ['[fr] Why is that?']);
+  mode = 'toujours'; vues.clear();
+  const film = Array.from({ length: 20 }, (_, i) => `This is line number ${i}`);
+  await assert.rejects(m.traduireTout(film, o), /« petit:1b » renvoie les répliques sans les traduire/);
   s.close();
 });
 

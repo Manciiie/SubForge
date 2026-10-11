@@ -92,5 +92,25 @@ module.exports = async (p) => {
   const texte3 = execFileSync(ffmpeg(), ['-loglevel', 'error', '-i', copie3, '-map', '0:s:1', '-f', 'srt', '-'], { encoding: 'utf8' });
   p.verifier(/00:00:00,500 --> 00:00:01,500/.test(texte3) && /\[fr\] Hello there/.test(texte3), `texte et minutage de la piste française (${texte3.trim().replace(/\s+/g, ' ')})`);
   p.verifier(JSON.stringify(fs.readdirSync(d3).sort()) === JSON.stringify(['Anime.FR.mkv', 'Anime.mkv']), `toujours un seul fichier (${fs.readdirSync(d3).join(', ')})`);
+
+  // --- 6. Modèle qui recopie au lieu de traduire : message clair, aucun film « traduit » en anglais ---
+  serveur.recopier = true;
+  const d4 = path.join(p.dossierTemp, 'Films4');
+  fs.mkdirSync(d4);
+  const srt4 = path.join(p.dossierTemp, 'p4.srt');
+  fs.writeFileSync(srt4, Array.from({ length: 12 }, (_, i) => `${i + 1}\n00:00:0${Math.floor(i / 5)},${String((i % 5) * 200).padStart(3, '0')} --> 00:00:0${Math.floor(i / 5)},${String((i % 5) * 200 + 150).padStart(3, '0')}\nThey are Americans number ${i}\n`).join('\n'));
+  const mkv4 = path.join(d4, 'Witch.mkv');
+  execFileSync(ffmpeg(), ['-loglevel', 'error', '-y', '-f', 'lavfi', '-i', 'color=c=black:s=160x90:d=3', '-i', srt4,
+    '-map', '0', '-map', '1', '-c:v', 'mpeg4', '-c:s', 'srt', '-metadata:s:s:0', 'language=eng', mkv4]);
+  await p.clic('#btn-vider');
+  await p.eval(`window.__subforgeAjouter(${JSON.stringify([mkv4])})`);
+  await p.attendre('.carte-fichier[data-etat="pret"]', 15000);
+  await p.clic('#btn-traduire');
+  await p.attendre('.carte-fichier[data-etat="erreur"]', 60000);
+  const carte4 = await p.texte('.carte-fichier');
+  p.verifier(/renvoie les répliques sans les traduire|Traduction ratée/.test(carte4), `carte : message clair (${carte4.slice(0, 260)})`);
+  p.verifier(JSON.stringify(fs.readdirSync(d4)) === JSON.stringify(['Witch.mkv']), `aucun film ni sous-titre « traduit » créé (${fs.readdirSync(d4).join(', ')})`);
+  await p.capture('e2e-v12-recopie');
+  serveur.recopier = false;
   serveur.close();
 };

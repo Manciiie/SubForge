@@ -21,9 +21,9 @@ function fauxOllama() {
           return;
         }
         const msg = JSON.parse(corps);
-        const lignes = JSON.parse(msg.messages[1].content).lines;
+        const lignes = lignesDemandees(msg.messages[1].content);
         const sortie = {};
-        for (const [k, v] of Object.entries(lignes)) { sortie[k] = `[fr] ${v}`; recues.push(v); }
+        for (const [k, v] of Object.entries(lignes)) { sortie[k] = s.recopier ? v : `[fr] ${v}`; recues.push(v); } // s.recopier : imite un modèle qui ne traduit pas
         const lent = Object.values(lignes).some((v) => v.includes('LENT'));
         setTimeout(() => {
           if (res.destroyed) return;
@@ -35,6 +35,13 @@ function fauxOllama() {
     s.recues = recues;
     s.listen(0, '127.0.0.1', () => ok(s));
   });
+}
+
+// Répliques demandées au modèle : « 1. "texte" », une par ligne (format de moteurs.js).
+function lignesDemandees(contenu) {
+  const lignes = {};
+  for (const m of contenu.matchAll(/^(\d+)\. (".*")$/gm)) lignes[m[1]] = JSON.parse(m[2]);
+  return lignes;
 }
 
 function ffmpeg() {
@@ -53,4 +60,4 @@ async function utiliserFauxOllama(p, serveur) {
   await p.choisir('#opt-moteur', 'ollama');
 }
 
-module.exports = { fauxOllama, ffmpeg, utiliserFauxOllama, RACINE };
+module.exports = { fauxOllama, ffmpeg, utiliserFauxOllama, lignesDemandees, RACINE };
