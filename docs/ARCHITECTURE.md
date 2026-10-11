@@ -46,7 +46,7 @@ docs/              mémoire du projet (non embarquée dans l'exe)
 | Diagnostic | `diagnostic.js` | `diagnostic:copierRapport` | Paramètres › Dépannage | secrets et dossier perso masqués |
 | Formats | `services/formats.js` (pur) | — | — | taille max 20 Mo, écriture atomique sans écrasement, balises jamais orphelines |
 | Langues | `services/langues.js` | `traduction:langues` | — | — |
-| Pistes vidéo | `services/video.js` | (via `traduction:analyser` / `lancer`) | carte du fichier | `spawn` sans shell, binaire absolu, délai, kill à l'annulation/fermeture |
+| Pistes vidéo + ajout au film | `services/video.js` (`integrerPiste`) | (via `traduction:analyser` / `lancer`) | carte du fichier | `spawn` sans shell, binaire absolu, délai, kill à l'annulation/fermeture |
 | Moteurs | `services/moteurs.js` (pur, `fetch` injecté) | `moteurs:etat`, `moteurs:enregistrerCleDeepl`, `moteurs:supprimerCleDeepl`, `moteurs:testerDeepl`, `moteurs:modelesOllama`, `moteurs:testerOllama` | Moteurs | clé au coffre jamais renvoyée, HTTP local seulement, réponses bornées |
 | Traitement d'un document | `services/pipeline.js` (pur) | — | — | glossaire → dédoublonnage → mémoire → moteur → restitution |
 | Mémoire | `services/memoire.js` (pur) | `memoire:etat`, `memoire:vider` | Moteurs | JSONL, ajout en fin, compactage atomique, plafond 300 000 |

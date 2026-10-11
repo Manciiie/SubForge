@@ -93,3 +93,54 @@ test('binaire absent ou relatif refusé', async () => {
   await assert.rejects(video.executer('ffmpeg', ['-version']), /introuvable/);
   await assert.rejects(video.executer(path.join(os.tmpdir(), 'nexistepas', 'ffmpeg'), ['-version']), /introuvable/);
 });
+
+test('intégration : copie MKV avec la piste traduite (nommée, par défaut), pistes d\'origine gardées, original intact', { skip: !disponible && 'ffmpeg absent' }, async () => {
+  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'subforge-integ-'));
+  const srt = path.join(d, 'a.srt');
+  fs.writeFileSync(srt, '1\n00:00:00,500 --> 00:00:01,500\nHello\n');
+  const ass = path.join(d, 'a.ass');
+  await video.executer(FFMPEG, ['-loglevel', 'error', '-y', '-i', srt, ass]);
+  const film = path.join(d, 'Film é (2024).mkv');
+  await video.executer(FFMPEG, ['-loglevel', 'error', '-y', '-f', 'lavfi', '-i', 'color=c=black:s=64x48:d=3', '-f', 'lavfi', '-t', '3', '-i', 'anullsrc=r=8000:cl=mono',
+    '-i', srt, '-i', ass, '-map', '0', '-map', '1', '-map', '2', '-map', '3', '-c:v', 'mpeg4', '-c:a', 'pcm_s16le', '-c:s:0', 'srt', '-c:s:1', 'ass',
+    '-metadata:s:s:0', 'language=eng', '-disposition:s:0', 'default', film]);
+  const avant = fs.readFileSync(film);
+  const traduit = path.join(d, 'Film é (2024).fr.ass');
+  fs.writeFileSync(traduit, fs.readFileSync(ass, 'utf8').replace('Hello', 'Bonjour'));
+  const progression = [];
+  const sortie = path.join(d, 'Film é (2024).FR.mkv');
+  const r = await video.integrerPiste(FFMPEG, film, traduit, { sortie, langueIso3: 'fre', titre: 'Français', surAvancement: (x) => progression.push(x) });
+  assert.equal(r.sortie, sortie);
+  assert.ok(fs.readFileSync(film).equals(avant), 'original intact');
+  const desc = (await video.executer(FFMPEG, ['-hide_banner', '-nostdin', '-i', sortie])).erreurs;
+  assert.match(desc, /Video: mpeg4/);
+  assert.match(desc, /Audio: pcm_s16le/);
+  const pistes = video.analyserFlux(desc);
+  assert.equal(pistes.length, 3);
+  assert.equal(pistes[2].langue, 'fr');
+  assert.equal(pistes[2].titre, 'Français');
+  assert.ok(pistes[2].parDefaut && !pistes[0].parDefaut, 'seule la piste traduite est par défaut');
+  assert.equal(progression.at(-1), 1);
+  assert.deepEqual(fs.readdirSync(d).filter((f) => f.endsWith('.part')), []);
+  // Le texte relu dans la copie est bien la traduction.
+  const relu = await video.extrairePiste(FFMPEG, sortie, pistes[2]);
+  assert.match(fs.readFileSync(relu.fichier, 'utf8'), /Bonjour/);
+  relu.nettoyer();
+  fs.rmSync(d, { recursive: true, force: true });
+});
+
+test('intégration : MP4 avec texte mov_text → copie MKV lisible ; annulation → aucun .part', { skip: !disponible && 'ffmpeg absent' }, async () => {
+  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'subforge-integ-mp4-'));
+  const srt = path.join(d, 'a.srt');
+  fs.writeFileSync(srt, '1\n00:00:00,500 --> 00:00:01,500\nHello\n');
+  const mp4 = path.join(d, 'Film.mp4');
+  await video.executer(FFMPEG, ['-loglevel', 'error', '-y', '-f', 'lavfi', '-i', 'color=c=black:s=64x48:d=2', '-i', srt, '-c:v', 'mpeg4', '-c:s', 'mov_text', mp4]);
+  const r = await video.integrerPiste(FFMPEG, mp4, srt, { sortie: path.join(d, 'Film.FR.mkv'), langueIso3: 'fre', titre: 'Français' });
+  const pistes = video.analyserFlux((await video.executer(FFMPEG, ['-hide_banner', '-nostdin', '-i', r.sortie])).erreurs);
+  assert.deepEqual(pistes.map((p) => p.codec), ['subrip', 'subrip']);
+  const c = new AbortController();
+  c.abort();
+  await assert.rejects(video.integrerPiste(FFMPEG, mp4, srt, { sortie: path.join(d, 'X.mkv'), signal: c.signal }), /annulée/);
+  assert.deepEqual(fs.readdirSync(d).filter((f) => f.endsWith('.part')), []);
+  fs.rmSync(d, { recursive: true, force: true });
+});

@@ -40,7 +40,7 @@ const sortiesProduites = new Set();
 function reglages() {
   const p = parametres.lire();
   return {
-    traduction: { source: 'auto', cible: 'fr', moteur: 'deepl', formatSortie: 'identique', dossierSortie: null, memoire: true, ...(p.traduction || {}) },
+    traduction: { source: 'auto', cible: 'fr', moteur: 'deepl', formatSortie: 'identique', dossierSortie: null, memoire: true, integrer: false, ...(p.traduction || {}) },
     deepl: { formalite: 'defaut', ...(p.deepl || {}) },
     ollama: { adresse: 'http://127.0.0.1:11434', modele: '', ...(p.ollama || {}) },
     enligne: { utilisateur: '', ...(p.enligne || {}) },
@@ -164,7 +164,13 @@ async function traduireElement(el, options, signal) {
     const paires = doc.repliques.slice(0, 400).map((r, i) => ({ debut: r.debut, original: original[i], traduit: formats.texteVisible(r.texte) }));
     resultats.set(el.id, { paires, sortie: cible, total: doc.repliques.length });
     journal.info(`Traduit : ${path.basename(el.chemin)} → ${path.basename(cible)} (${bilan.segments} segments, ${bilan.envoyes} envoyés, ${bilan.repris} repris de la mémoire, ${options.moteur})`);
-    rapporter('termine', { sortie: cible, nomSortie: path.basename(cible), repliques: doc.repliques.length, bilan: { ...bilan, ocr: bilanOcr } });
+
+    // Copie du film avec la piste traduite (option). Un échec ici ne perd jamais la traduction déjà écrite.
+    let integration = null;
+    if (options.integrer && video.estVideo(el.chemin)) {
+      integration = await integrerAuFilm(el.chemin, cible, options, signal, (part) => rapporter('integration', { fait: Math.round(part * 100), total: 100, message: 'Ajout de la piste au film…' }));
+    }
+    rapporter('termine', { sortie: cible, nomSortie: path.basename(cible), repliques: doc.repliques.length, bilan: { ...bilan, ocr: bilanOcr, integration } });
   } catch (e) {
     if (e.name === 'AbortError' || signal.aborted) {
       rapporter('annule', { message: 'Annulé.' });
@@ -176,6 +182,32 @@ async function traduireElement(el, options, signal) {
     }
   } finally {
     extraction?.nettoyer();
+  }
+}
+
+// Film.FR.mkv à côté du film (ou dans le dossier de sortie). Renvoie { fichier, nom } ou { erreur }.
+async function integrerAuFilm(film, sousTitre, options, signal, surAvancement) {
+  const l = langues.langue(options.cible);
+  const dossier = options.dossierSortie || path.dirname(film);
+  try {
+    const taille = fs.statSync(film).size;
+    const libre = (() => { const s = fs.statfsSync(dossier); return Number(s.bavail) * Number(s.bsize); })();
+    if (libre < taille * 1.02 + 50 * 1024 * 1024) {
+      const go = (n) => `${(n / 1e9).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} Go`;
+      throw new Error(`pas assez de place sur le disque (il faut ${go(taille)}, il reste ${go(libre)})`);
+    }
+    const sortie = formats.nomSortie(film, langues.suffixe(options.cible).toUpperCase(), '.mkv', dossier);
+    surAvancement(0);
+    await video.integrerPiste(binaireFfmpeg, film, sousTitre, {
+      sortie, langueIso3: l?.iso3?.[0] || 'und', titre: l?.nom || options.cible, signal, surAvancement,
+    });
+    sortiesProduites.add(sortie);
+    journal.info(`[intégration] ${path.basename(film)} → ${path.basename(sortie)}`);
+    return { fichier: sortie, nom: path.basename(sortie) };
+  } catch (e) {
+    if (e.name === 'AbortError' || signal.aborted) throw e;
+    journal.erreur(`[intégration] ${path.basename(film)} :`, e);
+    return { erreur: e.message };
   }
 }
 
@@ -226,10 +258,11 @@ function enregistrer({ racineApp }) {
       adresseOllama: { type: 'string', max: 300, optionnel: true },
       modeleOllama: { type: 'string', max: 200, optionnel: true },
       memoire: { type: 'boolean', optionnel: true },
+      integrer: { type: 'boolean', optionnel: true },
     },
   }], (_e, o) => {
     const r = reglages();
-    for (const c of ['source', 'cible', 'moteur', 'formatSortie', 'memoire']) if (o[c] !== undefined) r.traduction[c] = o[c];
+    for (const c of ['source', 'cible', 'moteur', 'formatSortie', 'memoire', 'integrer']) if (o[c] !== undefined) r.traduction[c] = o[c];
     if (o.viderDossierSortie) r.traduction.dossierSortie = null;
     if (o.dossierSortie !== undefined && o.dossierSortie !== null) {
       if (!path.isAbsolute(o.dossierSortie) || !fs.existsSync(o.dossierSortie)) throw new ErreurSecurite('Dossier de sortie introuvable.');
@@ -282,6 +315,7 @@ function enregistrer({ racineApp }) {
       source: r.traduction.source,
       cible: r.traduction.cible,
       formatSortie: r.traduction.formatSortie,
+      integrer: r.traduction.integrer === true,
       dossierSortie: r.traduction.dossierSortie && fs.existsSync(r.traduction.dossierSortie) ? r.traduction.dossierSortie : null,
       formalite: r.deepl.formalite,
       memoire: r.traduction.memoire,

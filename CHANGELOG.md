@@ -1,5 +1,21 @@
 # Journal des modifications
 
+## 1.2.0 — 2026-10-11
+### Nouveautés
+- Ajouter au film : une case dans Traduire crée une copie du film (Film.FR.mkv) qui contient la
+  piste traduite, nommée « Français » et choisie par défaut, à côté des pistes d'origine. Sans
+  réencoder (une à deux minutes, aucune perte de qualité) ; le film d'origine n'est pas modifié ;
+  les MP4 et autres formats donnent aussi une copie .mkv ; place disque vérifiée avant ; Annuler.
+
+### Améliorations (IA locale)
+- Sans clé DeepL, SubForge passe tout seul sur l'IA locale dès qu'un modèle Ollama est prêt.
+- Le modèle Ollama est choisi automatiquement quand il n'y en a qu'un.
+- La liste des modèles se met à jour à chaque ouverture de l'écran Moteurs.
+- Message clair quand Ollama n'a aucun modèle, avec la commande à taper.
+
+### Corrections
+- Les messages d'erreur ne commencent plus par « Error: ».
+
 ## 1.1.0 — 2026-10-10
 ### Nouveautés
 - Glossaire (nouvel écran) : noms propres à ne jamais traduire et termes à traduire toujours

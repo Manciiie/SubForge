@@ -4,11 +4,11 @@
 > Garder court : 5 dernières sessions en détail, les plus anciennes résumées en une ligne.
 
 ## 📍 État actuel
-- **Version livrée** : aucune — 1.1.0 compilée et vérifiée, **bloquée** : dépôts GitHub `Manciiie/SubForge` et `SubForge-releases` pas encore créés
+- **Version livrée** : 1.1.0 (2026-10-10) ; 1.2.0 en cours de livraison
 - **Dépôt** : `Manciiie/SubForge` — dernier envoi : version 1.1.0 (2026-10-10)
 - **Testé sur Windows réel** : non (PC non joignable) ; `ffmpeg.exe` 7.1 vérifié sous wine
-- **Version en cours** : 1.1.0
-- **Prochaine tâche** : v1.1-T199 — dès que le dépôt existe : `pousser-github.sh`, `npm run publier`, livraison
+- **Version en cours** : 1.2.0
+- **Prochaine tâche** : v1.2-T299 (livraison) ; mises à jour automatiques toujours inactives (dépôt -releases + jeton à créer)
 - **Ce qui marche** : tout le périmètre 1.0 + glossaire, mémoire, saison, OCR Blu-ray (version compilée comprise), recherche en ligne (faux serveur), ffmpeg 7
 - **Fragile / non vérifié** : vrais DeepL / Ollama / OpenSubtitles jamais appelés depuis la session ; OCR testé sur un .sup fabriqué (police DejaVu), pas sur un vrai Blu-ray ; mises à jour automatiques inactives (pas de jeton)
 
@@ -27,6 +27,11 @@ Gravité : 🔴 crash / perte de données · 🟠 fonction cassée · 🟡 gêna
 ---
 
 ## 📓 Journal des sessions
+
+### 2026-10-11 — Version 1.2.0
+- **Retours d'usage** : modèle Ollama « téléchargé » mais absent d'Ollama (`ollama list` vide) ; moteur resté sur DeepL sans clé ; « Error: » dans les messages ; demande de fusionner .ass et .mkv.
+- **Fait** : T201 (ajouter au film), T202 (IA locale simple).
+- **Vérifié** : 80 tests, 7 scénarios e2e, scan 0 bloquant.
 
 ### 2026-10-10 — Version 1.1.0
 - **Fait** : squelette rattrapé (5→7) ; ffmpeg 7.1 ; mémoire de traduction ; glossaire ; saison entière ; OCR Blu-ray ; recherche OpenSubtitles ; installeur 1.1.0.

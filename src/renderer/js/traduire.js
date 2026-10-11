@@ -37,6 +37,7 @@ window.__modules.push((async () => {
     selCible.value = r.traduction.cible;
     selMoteur.value = r.traduction.moteur;
     selFormat.value = r.traduction.formatSortie;
+    $('opt-integrer').checked = r.traduction.integrer === true;
     const d = r.traduction.dossierSortie;
     libDossier.textContent = d || 'À côté du film';
     libDossier.title = d || '';
@@ -51,6 +52,7 @@ window.__modules.push((async () => {
   selCible.addEventListener('change', () => modifier({ cible: selCible.value }));
   selMoteur.addEventListener('change', () => modifier({ moteur: selMoteur.value }));
   selFormat.addEventListener('change', () => modifier({ formatSortie: selFormat.value }));
+  $('opt-integrer').addEventListener('change', () => modifier({ integrer: $('opt-integrer').checked }));
   $('btn-dossier').addEventListener('click', async () => {
     try {
       const d = await T.choisirDossierSortie();
@@ -143,7 +145,7 @@ window.__modules.push((async () => {
       try {
         infos = await T.analyser(paquet);
       } catch (err) {
-        infos = paquet.map((c) => ({ chemin: c, nom: c, type: 'erreur', erreur: err.message.replace(/^Error invoking remote method '[^']+': (\w+Error: )?/, '') }));
+        infos = paquet.map((c) => ({ chemin: c, nom: c, type: 'erreur', erreur: err.message.replace(/^Error invoking remote method '[^']+': (\w*Error: )?/, '') }));
       }
       infos.forEach((info, i) => {
         const e = elements.get(ids[k + i]);
@@ -179,7 +181,7 @@ window.__modules.push((async () => {
 
   // --- Cartes -----------------------------------------------------------------------
   const LIBELLES = {
-    analyse: 'Analyse…', recherche: 'Recherche en ligne…', pret: 'Prêt', 'sans-piste': 'Pas de sous-titres', ocr: 'Lecture des images…', attente: 'En attente', extraction: 'Extraction de la piste…',
+    analyse: 'Analyse…', recherche: 'Recherche en ligne…', integration: 'Ajout au film…', pret: 'Prêt', 'sans-piste': 'Pas de sous-titres', ocr: 'Lecture des images…', attente: 'En attente', extraction: 'Extraction de la piste…',
     traduction: 'Traduction…', ecriture: 'Enregistrement…', termine: 'Traduit', erreur: 'Erreur', annule: 'Annulé',
   };
 
@@ -230,12 +232,13 @@ window.__modules.push((async () => {
       corps.push(el('label', { classe: 'ligne-piste' }, ['Piste ', sel]));
     }
 
-    if (['traduction', 'extraction', 'ecriture', 'ocr'].includes(e.etat)) {
+    if (['traduction', 'extraction', 'ecriture', 'ocr', 'integration'].includes(e.etat)) {
       const pct = e.total ? Math.round((100 * (e.fait || 0)) / e.total) : 0;
       const barre = el('div', { classe: 'barre-progression' }, [el('span')]);
       barre.firstChild.style.width = `${e.etat === 'ecriture' ? 100 : pct}%`;
       corps.push(barre);
-      if (e.total) corps.push(el('span', { classe: 'discret', texte: `${(e.fait || 0).toLocaleString('fr-FR')} / ${e.total.toLocaleString('fr-FR')} ${e.etat === 'ocr' ? 'images lues (OCR)' : 'répliques'}` }));
+      if (e.etat === 'integration') corps.push(el('span', { classe: 'discret', texte: `Copie du film avec la piste traduite : ${e.fait || 0} %` }));
+      else if (e.total) corps.push(el('span', { classe: 'discret', texte: `${(e.fait || 0).toLocaleString('fr-FR')} / ${e.total.toLocaleString('fr-FR')} ${e.etat === 'ocr' ? 'images lues (OCR)' : 'répliques'}` }));
     }
     if (e.message && ['erreur', 'annule', 'sans-piste'].includes(e.etat)) corps.push(el('p', { classe: 'carte-fichier__message', texte: e.message }));
     if (e.etat === 'termine' && e.bilan) {
@@ -251,6 +254,14 @@ window.__modules.push((async () => {
       if (b.envoyes) morceaux.push(`${b.envoyes.toLocaleString('fr-FR')} phrase${b.envoyes > 1 ? 's' : ''} envoyée${b.envoyes > 1 ? 's' : ''} au moteur`);
       if (morceaux.length) corps.push(el('span', { classe: 'discret', texte: morceaux.join(' · ') }));
       if (b.aVerifier) corps.push(el('p', { classe: 'carte-fichier__message carte-fichier__message--alerte', texte: `${b.aVerifier} réplique${b.aVerifier > 1 ? 's' : ''} à vérifier : le moteur a perdu un terme du glossaire.` }));
+      if (b.integration?.fichier) {
+        corps.push(el('div', { classe: 'carte-fichier__actions' }, [
+          el('span', { classe: 'discret', texte: `Film avec la piste traduite → ${b.integration.nom}` }),
+          el('span', { classe: 'espace' }),
+          el('button', { classe: 'btn btn--petit', texte: 'Voir la copie', onclick: () => T.montrer(b.integration.fichier).catch(erreur) }),
+        ]));
+      }
+      if (b.integration?.erreur) corps.push(el('p', { classe: 'carte-fichier__message carte-fichier__message--alerte', texte: `Ajout au film impossible : ${b.integration.erreur}. Le fichier de sous-titres traduit, lui, est bien enregistré.` }));
       if (b.erreurMemoire) corps.push(el('p', { classe: 'carte-fichier__message carte-fichier__message--alerte', texte: `Mémoire de traduction non enregistrée (${b.erreurMemoire}) : la traduction, elle, est bien écrite.` }));
     }
     if (e.etat === 'termine') {
@@ -309,7 +320,7 @@ window.__modules.push((async () => {
     if (rechercheAuto) { $('btn-traduire').disabled = true; $('btn-vider').hidden = true; }
     $('btn-annuler').hidden = !enCours;
     $('btn-vider').hidden = enCours;
-    for (const s of [selSource, selCible, selMoteur, selFormat, $('btn-dossier'), $('btn-dossier-defaut')]) s.disabled = enCours;
+    for (const s of [selSource, selCible, selMoteur, selFormat, $('opt-integrer'), $('btn-dossier'), $('btn-dossier-defaut')]) s.disabled = enCours;
   }
 
   // Saison entière : sous-titres cherchés et téléchargés automatiquement pour chaque vidéo qui n'en a pas.
@@ -342,7 +353,7 @@ window.__modules.push((async () => {
         try {
           r = await window.forge.enLigne.automatique(e.chemin, langue);
         } catch (err) {
-          r = { statut: 'erreur', raison: err.message.replace(/^Error invoking remote method '[^']+': (\w+Error: )?/, '') };
+          r = { statut: 'erreur', raison: err.message.replace(/^Error invoking remote method '[^']+': (\w*Error: )?/, '') };
         }
         if (r.statut === 'telecharge') {
           bilan.telecharges += 1;
@@ -380,6 +391,7 @@ window.__modules.push((async () => {
   $('btn-traduire').addEventListener('click', async () => {
     const aTraduire = [...elements.values()].filter(aRetraduire);
     if (!aTraduire.length) return;
+    if (selMoteur.value === 'deepl') await window.SubForge.basculerSiUtile?.();
     try {
       enCours = true;
       aTraduire.forEach((e) => { e.etat = 'attente'; e.message = null; e.fait = 0; e.total = 0; });

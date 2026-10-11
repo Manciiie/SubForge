@@ -30,6 +30,8 @@ fichier on ne sait où. Je veux : glisser le film ou le sous-titre, choisir la l
 | Saison | Dossier entier, sous-dossiers, déjà traduits ignorés | 1.1.0 | `tasks/v1.1-T104.md` |
 | OCR Blu-ray | Pistes PGS / `.sup` lues hors ligne puis traduites | 1.1.0 | `tasks/v1.1-T105.md` |
 | En ligne | Sous-titres trouvés sur OpenSubtitles quand le film n'en a pas | 1.1.0 | `tasks/v1.1-T106.md` |
+| Ajouter au film | Copie MKV du film avec la piste traduite, sans réencoder | 1.2.0 | `tasks/v1.2-T201.md` |
+| IA locale simple | Bascule et choix du modèle automatiques, messages clairs | 1.2.0 | `tasks/v1.2-T202.md` |
 | En ligne (saison) | Recherche + téléchargement automatiques et sûrs pour toutes les vidéos sans sous-titres | 1.1.0 | `tasks/v1.1-T107.md` |
 
 ### Comportements attendus
@@ -47,7 +49,7 @@ fichier on ne sait où. Je veux : glisser le film ou le sous-titre, choisir la l
 - Annuler arrête la traduction en cours sans laisser de fichier à moitié écrit.
 
 ## 4. Hors périmètre
-- Modifier ou ré-encoder la vidéo, incruster les sous-titres (v1.0).
+- Ré-encoder la vidéo, incruster les sous-titres dans l'image, modifier le film d'origine (la 1.2 crée une copie MKV).
 - OCR des sous-titres en image de DVD (VobSub) et de TNT (DVB) — PGS (Blu-ray) depuis la 1.1.
 - Transcription de l'audio (c'est VoxForge).
 - Synchronisation / décalage des minutages.

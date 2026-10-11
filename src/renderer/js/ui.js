@@ -23,7 +23,7 @@ window.UI = (() => {
   }
 
   function erreur(e) {
-    const message = (e && e.message ? e.message : String(e)).replace(/^Error invoking remote method '[^']+': (\w+Error: )?/, '');
+    const message = (e && e.message ? e.message : String(e)).replace(/^Error invoking remote method '[^']+': (\w*Error: )?/, '');
     notifier(message, 'erreur', 6000);
   }
 

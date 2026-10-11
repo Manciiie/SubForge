@@ -3,7 +3,7 @@
 > Une version = un lot de modules ou d'améliorations, chacun avec sa fiche dans `tasks/`.
 > La liste numérotée d'améliorations proposée à chaque livraison devient la version suivante.
 
-**Version en cours** : 1.1.0
+**Version en cours** : 1.2.0
 
 ---
 
@@ -20,7 +20,7 @@
 
 ---
 
-## 1.1.0 — Glossaire, mémoire, saisons, OCR Blu-ray, recherche en ligne, ffmpeg 7 `[~]`
+## 1.1.0 — Glossaire, mémoire, saisons, OCR Blu-ray, recherche en ligne, ffmpeg 7 `[x]`
 **Résultat** : demandés le 2026-10-10 (points 3 à 8 de la liste proposée).
 | ID | Tâche | Statut |
 |---|---|---|
@@ -32,13 +32,22 @@
 | v1.1-T105 | OCR des sous-titres Blu-ray (PGS) | [x] |
 | v1.1-T106 | Recherche de sous-titres en ligne (OpenSubtitles) | [x] |
 | v1.1-T107 | Recherche en ligne automatique pour toute une saison | [x] |
-| v1.1-T199 | Vérifications complètes + livraison | [ ] |
+| v1.1-T199 | Vérifications complètes + livraison | [x] |
+
+---
+
+## 1.2.0 — Piste traduite dans le film, IA locale plus simple `[~]`
+**Résultat** : demandés le 2026-10-11 (point 1 de la liste + retours d'usage avec Ollama).
+| ID | Tâche | Statut |
+|---|---|---|
+| v1.2-T201 | Ajouter la piste traduite au film (copie MKV, sans réencoder) | [x] |
+| v1.2-T202 | IA locale : bascule automatique, modèle choisi seul, messages clairs | [x] |
+| v1.2-T299 | Vérifications complètes + livraison | [ ] |
 
 ---
 
 ## Proposé pour la suite (pas encore validé)
 Reprendre ici la liste numérotée envoyée avec la dernière livraison.
-1. Remettre la piste traduite dans une copie du film (MKV avec la nouvelle piste, sans ré-encoder)
 2. Éditeur de répliques : corriger une traduction (ou un texte lu par OCR) à la main avant d'enregistrer
 3. OCR des sous-titres de DVD (VobSub) et de TNT (DVB)
 4. Glossaire par série : un glossaire différent selon le dossier
@@ -51,6 +60,7 @@ Reprendre ici la liste numérotée envoyée avec la dernière livraison.
 | Version | Date | Contenu |
 |---|---|---|
 | 1.0.0 | 2026-10-07 | SRT/ASS/VTT, pistes MKV/MP4, DeepL + Ollama, file, Annuler, aperçu (jamais livrée) |
+| 1.2.0 | 2026-10-11 | Piste traduite ajoutée au film (MKV), IA locale sans manipulation |
 | 1.1.0 | 2026-10-10 | Glossaire, mémoire, saison, OCR Blu-ray, OpenSubtitles (film + saison auto), ffmpeg 7.1 |
 
 **Statuts** : `[ ]` à faire · `[~]` en cours · `[x]` fait · `[-]` abandonné · `[!]` bloqué

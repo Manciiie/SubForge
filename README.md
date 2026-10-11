@@ -19,6 +19,8 @@ Traducteur de sous-titres de films
    **Pas de sous-titres ?** « Chercher en ligne » sur la carte du film (clé OpenSubtitles gratuite
    dans Moteurs). Pour une saison entière : « Chercher en ligne (N sans sous-titres) » en haut de la
    liste télécharge tout seul les sous-titres sûrs.
+   **Ajouter au film** (case dans les options) : SubForge crée aussi `Film.FR.mkv`, une copie du film
+   qui contient la piste traduite (sans réencoder, l'original n'est pas touché).
 3. Le fichier traduit est enregistré à côté du film : `Film.fr.srt` (jamais d'écrasement :
    `Film.fr (2).srt` si besoin). VLC, MPC, Plex ou Kodi le trouvent tout seuls. La vidéo n'est
    jamais modifiée.

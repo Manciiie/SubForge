@@ -28,7 +28,7 @@ function estVideo(chemin) {
   return EXTENSIONS_VIDEO.has(path.extname(chemin).toLowerCase());
 }
 
-function executer(binaire, args, { delai = 60000, signal, sortieMax = 4 * 1024 * 1024 } = {}) {
+function executer(binaire, args, { delai = 60000, signal, sortieMax = 4 * 1024 * 1024, surSortie = null } = {}) {
   return new Promise((ok, ko) => {
     if (!path.isAbsolute(binaire) || !fs.existsSync(binaire)) {
       ko(new Error('ffmpeg est introuvable dans le dossier de l\'application : réinstallez SubForge.'));
@@ -44,7 +44,7 @@ function executer(binaire, args, { delai = 60000, signal, sortieMax = 4 * 1024 *
     const minuteur = setTimeout(() => { p.kill(); terminer(() => ko(new Error('ffmpeg ne répond plus (délai dépassé).'))); }, delai);
     signal?.addEventListener('abort', surAnnulation, { once: true });
     if (signal?.aborted) surAnnulation();
-    p.stdout.on('data', (d) => { if (sortie.length < sortieMax) sortie += d; });
+    p.stdout.on('data', (d) => { if (surSortie) surSortie(String(d)); else if (sortie.length < sortieMax) sortie += d; });
     p.stderr.on('data', (d) => { if (erreurs.length < sortieMax) erreurs += d; });
     p.on('error', (e) => terminer(() => ko(new Error(`Impossible de lancer ffmpeg : ${e.message}`))));
     p.on('close', (code) => terminer(() => ok({ code, sortie, erreurs })));
@@ -119,9 +119,62 @@ async function extrairePiste(binaire, chemin, piste, { signal } = {}) {
   }
 }
 
+// Durée totale lue dans la description de ffmpeg (« Duration: 01:52:13.40 »), en secondes.
+function lireDuree(texteFfmpeg) {
+  const m = /Duration:\s*(\d+):(\d{2}):(\d{2}(?:\.\d+)?)/.exec(texteFfmpeg);
+  return m ? Number(m[1]) * 3600 + Number(m[2]) * 60 + Number(m[3]) : null;
+}
+
+// Copie du film avec la piste de sous-titres traduite en plus (MKV, sans réencoder : -c copy).
+// Toutes les pistes d'origine sont gardées (pistes de données exceptées), la nouvelle est nommée,
+// marquée dans sa langue et cochée par défaut. Écriture dans un .part puis renommage ; l'original n'est jamais ouvert en écriture.
+async function integrerPiste(binaire, film, sousTitre, { sortie, langueIso3 = 'und', titre = '', signal, surAvancement = () => {} } = {}) {
+  const description = await executer(binaire, ['-hide_banner', '-nostdin', '-i', film], { delai: 30000, signal });
+  const pistes = analyserFlux(description.erreurs);
+  const duree = lireDuree(description.erreurs);
+  const n = pistes.length; // la nouvelle piste sera la n-ième piste de sous-titres
+  // Le texte MP4 (mov_text) n'existe pas en MKV : converti en SRT ; les autres pistes sont copiées telles quelles.
+  const conversions = pistes.filter((p) => p.codec === 'mov_text').flatMap((p) => [`-c:s:${p.indice}`, 'srt']);
+  const temporaire = `${sortie}.part`;
+  const args = [
+    '-hide_banner', '-nostdin', '-y', '-loglevel', 'error', '-nostats', '-progress', 'pipe:1',
+    '-i', film, '-i', sousTitre,
+    '-map', '0', '-map', '-0:d?', '-map', '1:s:0',
+    '-c', 'copy', ...conversions,
+    '-disposition:s', '0', `-disposition:s:${n}`, 'default',
+    `-metadata:s:s:${n}`, `language=${langueIso3}`, `-metadata:s:s:${n}`, `title=${titre}`,
+    '-f', 'matroska', temporaire,
+  ];
+  let tampon = '';
+  try {
+    const r = await executer(binaire, args, {
+      delai: 4 * 3600 * 1000, signal,
+      surSortie: (morceau) => {
+        tampon += morceau;
+        const lignes = tampon.split('\n');
+        tampon = lignes.pop();
+        for (const l of lignes) {
+          const m = /^out_time_(?:us|ms)=(\d+)/.exec(l.trim());
+          if (m && duree) surAvancement(Math.min(1, Number(m[1]) / 1e6 / duree));
+        }
+      },
+    });
+    if (r.code !== 0 || !fs.existsSync(temporaire) || fs.statSync(temporaire).size === 0) {
+      throw new Error(`ffmpeg n'a pas pu créer la copie${r.erreurs ? ` : ${r.erreurs.trim().split(/\r?\n/).pop().slice(0, 200)}` : '.'}`);
+    }
+    if (fs.existsSync(sortie)) throw new Error('Le fichier de sortie existe déjà.');
+    fs.renameSync(temporaire, sortie);
+    surAvancement(1);
+    return { sortie, pistes: n + 1 };
+  } catch (e) {
+    try { fs.rmSync(temporaire, { force: true }); } catch { /* silence-ok: nettoyage du .part, l'erreur d'origine est relancée */ }
+    throw e;
+  }
+}
+
 function toutArreter() {
   for (const p of processus) { try { p.kill(); } catch { /* silence-ok: processus déjà terminé */ } }
   processus.clear();
 }
 
-module.exports = { estPgs, EXTENSIONS_VIDEO, cheminFfmpeg, estVideo, analyserFlux, listerPistes, extrairePiste, toutArreter, executer };
+module.exports = { integrerPiste, lireDuree, estPgs, EXTENSIONS_VIDEO, cheminFfmpeg, estVideo, analyserFlux, listerPistes, extrairePiste, toutArreter, executer };

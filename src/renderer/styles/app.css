@@ -255,3 +255,5 @@ input[type="color"] { width: 44px; height: 28px; border: 0; background: none; cu
 .badge--exact { background: color-mix(in srgb, var(--succes) 22%, transparent); color: var(--texte); }
 .badge--auto { background: color-mix(in srgb, var(--alerte) 20%, transparent); color: var(--texte); }
 .carte-fichier[data-etat="sans-piste"] .carte-fichier__message { background: color-mix(in srgb, var(--alerte) 16%, transparent); }
+.ligne-case { display: flex; align-items: center; gap: 8px; height: 34px; color: var(--texte); font-size: 13px; }
+.pastille--integration { background: color-mix(in srgb, var(--accent) 20%, transparent); color: var(--texte); }

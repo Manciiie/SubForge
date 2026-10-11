@@ -64,28 +64,55 @@ window.__modules.push((async () => {
   $('btn-deepl-site').addEventListener('click', () => window.forge.ouvrirLien('https://www.deepl.com/pro-api'));
 
   // --- Ollama ---
+  // Liste des modèles d'Ollama. Un seul modèle (ou le modèle choisi a disparu) → choisi automatiquement.
   async function chargerModeles({ silencieux = false } = {}) {
     const statut = $('ollama-statut');
     statut.textContent = 'Recherche des modèles…';
     try {
       const modeles = await M.modelesOllama($('ollama-adresse').value);
       const sel = $('ollama-modele');
-      const actuel = sel.value;
+      const etat = await M.etat();
+      const actuel = etat.ollama.modele || sel.value;
       sel.replaceChildren(el('option', { value: '', texte: '— Aucun —' }), ...modeles.map((m) => el('option', {
         value: m.nom, texte: m.taille ? `${m.nom} (${(m.taille / 1e9).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} Go)` : m.nom,
       })));
-      if (modeles.some((m) => m.nom === actuel)) sel.value = actuel;
-      statut.textContent = modeles.length ? `Ollama répond : ${modeles.length} modèle(s) installé(s).` : 'Ollama répond, mais aucun modèle n\'est installé (ollama pull …).';
+      let choisi = modeles.some((m) => m.nom === actuel) ? actuel : '';
+      if (!choisi && modeles.length && (modeles.length === 1 || actuel)) choisi = modeles[0].nom;
+      sel.value = choisi;
+      if (choisi !== (etat.ollama.modele || '')) {
+        await T.modifierReglages({ modeleOllama: choisi });
+        if (choisi) notifier(`Modèle d'IA locale choisi : ${choisi}.`, 'succes');
+      }
+      statut.textContent = modeles.length
+        ? `Ollama répond : ${modeles.length} modèle(s) installé(s).`
+        : 'Ollama répond, mais aucun modèle n\'est installé. Dans l\'invite de commandes Windows, tapez : ollama pull qwen2.5:7b — puis « Actualiser la liste ».';
+      await basculerSiUtile();
     } catch (e) {
-      statut.textContent = silencieux ? 'IA locale non détectée.' : e.message.replace(/^Error invoking remote method '[^']+': (\w+Error: )?/, '');
+      const message = (e?.message || String(e)).replace(/^Error invoking remote method '[^']+': (\w*Error: )?/, '');
+      statut.textContent = silencieux ? `IA locale non détectée : ${message}` : message;
     }
+    await window.SubForge.rafraichirOptions?.();
   }
+
+  // Sans clé DeepL, avec un modèle d'IA locale prêt : le moteur passe tout seul sur l'IA locale.
+  async function basculerSiUtile() {
+    const etat = await M.etat();
+    if (etat.traduction.moteur === 'deepl' && !etat.cleDeepl && etat.ollama.modele) {
+      await T.modifierReglages({ moteur: 'ollama' });
+      await window.SubForge.rafraichirOptions?.();
+      notifier(`Pas de clé DeepL : SubForge utilise l'IA locale (${etat.ollama.modele}).`, 'info', 7000);
+      return true;
+    }
+    return false;
+  }
+  window.SubForge.basculerSiUtile = basculerSiUtile;
+  window.SubForge.chargerModeles = chargerModeles;
 
   $('ollama-adresse').addEventListener('change', async () => {
     try { await T.modifierReglages({ adresseOllama: $('ollama-adresse').value }); await chargerModeles(); } catch (e) { erreur(e); await rafraichir(); }
   });
   $('ollama-modele').addEventListener('change', async () => {
-    try { await T.modifierReglages({ modeleOllama: $('ollama-modele').value }); await window.SubForge.rafraichirOptions?.(); } catch (e) { erreur(e); }
+    try { await T.modifierReglages({ modeleOllama: $('ollama-modele').value }); await basculerSiUtile(); await window.SubForge.rafraichirOptions?.(); } catch (e) { erreur(e); }
   });
   $('btn-ollama-actualiser').addEventListener('click', () => chargerModeles());
   $('btn-ollama-tester').addEventListener('click', async () => {
@@ -119,7 +146,7 @@ window.__modules.push((async () => {
     majMemoire();
   });
   window.SubForge.majMemoire = majMemoire;
-  document.querySelector('.nav-item[data-ecran="moteurs"]').addEventListener('click', majMemoire);
+  document.querySelector('.nav-item[data-ecran="moteurs"]').addEventListener('click', () => { majMemoire(); chargerModeles(); });
 
   await rafraichir();
   await majMemoire();

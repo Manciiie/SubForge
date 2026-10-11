@@ -8,7 +8,7 @@ window.__modules.push((async () => {
   const { el, notifier, erreur } = window.UI;
   const $ = (id) => document.getElementById(id);
   const E = window.forge.enLigne;
-  const nettoyer = (e) => (e?.message || String(e)).replace(/^Error invoking remote method '[^']+': (\w+Error: )?/, '');
+  const nettoyer = (e) => (e?.message || String(e)).replace(/^Error invoking remote method '[^']+': (\w*Error: )?/, '');
 
   const langues = await window.forge.traduction.langues();
   let etat = await E.etat();
