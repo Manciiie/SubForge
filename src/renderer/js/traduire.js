@@ -38,6 +38,10 @@ window.__modules.push((async () => {
     selMoteur.value = r.traduction.moteur;
     selFormat.value = r.traduction.formatSortie;
     $('opt-resultat').value = r.traduction.resultatFilm || 'film';
+    $('opt-registre').value = r.traduction.registre || 'auto';
+    $('opt-relecture').checked = r.traduction.relecture !== false;
+    $('opt-synchro').checked = r.traduction.synchro !== false;
+    majRegistre();
     const d = r.traduction.dossierSortie;
     libDossier.textContent = d || 'À côté du film';
     libDossier.title = d || '';
@@ -53,6 +57,15 @@ window.__modules.push((async () => {
   selMoteur.addEventListener('change', () => modifier({ moteur: selMoteur.value }));
   selFormat.addEventListener('change', () => modifier({ formatSortie: selFormat.value }));
   $('opt-resultat').addEventListener('change', () => modifier({ resultatFilm: $('opt-resultat').value }));
+  $('opt-registre').addEventListener('change', () => modifier({ registre: $('opt-registre').value }));
+  $('opt-relecture').addEventListener('change', () => modifier({ relecture: $('opt-relecture').checked }));
+  $('opt-synchro').addEventListener('change', () => modifier({ synchro: $('opt-synchro').checked }));
+  // Tu / vous : seulement pour les langues qui ont une forme polie.
+  function majRegistre() {
+    const avec = ['fr', 'de', 'es', 'it', 'pt', 'nl', 'pl', 'ru'].includes(String(selCible.value).split('-')[0]);
+    $('opt-registre').disabled = !avec || enCours;
+    $('opt-registre').title = avec ? '' : 'Cette langue n\'a pas de tutoiement ni de vouvoiement.';
+  }
   $('btn-dossier').addEventListener('click', async () => {
     try {
       const d = await T.choisirDossierSortie();
@@ -181,7 +194,7 @@ window.__modules.push((async () => {
 
   // --- Cartes -----------------------------------------------------------------------
   const LIBELLES = {
-    analyse: 'Analyse…', recherche: 'Recherche en ligne…', integration: 'Ajout au film…', pret: 'Prêt', 'sans-piste': 'Pas de sous-titres', ocr: 'Lecture des images…', attente: 'En attente', extraction: 'Extraction de la piste…',
+    analyse: 'Analyse…', recherche: 'Recherche en ligne…', integration: 'Ajout au film…', synchro: 'Synchronisation…', relecture: 'Relecture IA…', pret: 'Prêt', 'sans-piste': 'Pas de sous-titres', ocr: 'Lecture des images…', attente: 'En attente', extraction: 'Extraction de la piste…',
     traduction: 'Traduction…', ecriture: 'Enregistrement…', termine: 'Traduit', erreur: 'Erreur', annule: 'Annulé',
   };
 
@@ -232,12 +245,14 @@ window.__modules.push((async () => {
       corps.push(el('label', { classe: 'ligne-piste' }, ['Piste ', sel]));
     }
 
-    if (['traduction', 'extraction', 'ecriture', 'ocr', 'integration'].includes(e.etat)) {
+    if (['traduction', 'extraction', 'ecriture', 'ocr', 'integration', 'synchro', 'relecture'].includes(e.etat)) {
       const pct = e.total ? Math.round((100 * (e.fait || 0)) / e.total) : 0;
       const barre = el('div', { classe: 'barre-progression' }, [el('span')]);
       barre.firstChild.style.width = `${e.etat === 'ecriture' ? 100 : pct}%`;
       corps.push(barre);
-      if (e.etat === 'integration') corps.push(el('span', { classe: 'discret', texte: `Copie du film avec la piste traduite : ${e.fait || 0} %` }));
+      if (e.etat === 'synchro') corps.push(el('span', { classe: 'discret', texte: `Écoute du son du film pour recaler les sous-titres : ${e.fait || 0} %` }));
+      else if (e.etat === 'relecture') corps.push(el('span', { classe: 'discret', texte: `Relecture par l'IA : scène ${Math.min((e.fait || 0) + 1, e.total || 1)} sur ${e.total || 1}` }));
+      else if (e.etat === 'integration') corps.push(el('span', { classe: 'discret', texte: `Copie du film avec la piste traduite : ${e.fait || 0} %` }));
       else if (e.total) corps.push(el('span', { classe: 'discret', texte: `${(e.fait || 0).toLocaleString('fr-FR')} / ${e.total.toLocaleString('fr-FR')} ${e.etat === 'ocr' ? 'images lues (OCR)' : 'répliques'}` }));
     }
     if (e.message && ['erreur', 'annule', 'sans-piste'].includes(e.etat)) corps.push(el('p', { classe: 'carte-fichier__message', texte: e.message }));
@@ -253,6 +268,25 @@ window.__modules.push((async () => {
       if (b.caracteresEconomises && reglages.traduction.moteur === 'deepl') morceaux.push(`${b.caracteresEconomises.toLocaleString('fr-FR')} caractères DeepL économisés`);
       if (b.envoyes) morceaux.push(`${b.envoyes.toLocaleString('fr-FR')} phrase${b.envoyes > 1 ? 's' : ''} envoyée${b.envoyes > 1 ? 's' : ''} au moteur`);
       if (morceaux.length) corps.push(el('span', { classe: 'discret', texte: morceaux.join(' · ') }));
+      if (b.synchro) {
+        const sy = b.synchro;
+        const sec = (ms) => `${ms > 0 ? '+' : '−'}${(Math.abs(ms) / 1000).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} s`;
+        if (sy.erreur) corps.push(el('p', { classe: 'carte-fichier__message carte-fichier__message--alerte', texte: `Synchronisation impossible (${sy.erreur}) : minutages d'origine gardés.` }));
+        else if (sy.raison === 'recale') corps.push(el('span', { classe: 'discret', texte: `Recalé sur le son de ${sy.film} : ${sec(sy.decalageMs)}${sy.vitesse ? `, vitesse ${sy.vitesse}` : ''}.` }));
+        else if (sy.raison === 'deja') corps.push(el('span', { classe: 'discret', texte: `Déjà synchronisé avec ${sy.film}.` }));
+        else if (sy.raison === 'incertain') corps.push(el('p', { classe: 'carte-fichier__message carte-fichier__message--alerte', texte: `Synchronisation incertaine avec ${sy.film} : minutages d'origine gardés.` }));
+      }
+      if (b.relecture) {
+        const rl = b.relecture;
+        if (rl.indisponible) corps.push(el('span', { classe: 'discret', texte: 'Relecture IA non faite : aucun modèle d\'IA locale choisi (écran Moteurs).' }));
+        else {
+          const morceauxR = [`${rl.corrigees} réplique${rl.corrigees > 1 ? 's' : ''} corrigée${rl.corrigees > 1 ? 's' : ''}`];
+          if (rl.tuVous) morceauxR.push(`dont ${rl.tuVous} tu/vous`);
+          if (rl.doutes) morceauxR.push(`${rl.doutes} à vérifier`);
+          corps.push(el('span', { classe: 'discret', texte: `Relecture IA : ${morceauxR.join(', ')} (${rl.scenes} scène${rl.scenes > 1 ? 's' : ''}).` }));
+          if (rl.erreur) corps.push(el('p', { classe: 'carte-fichier__message carte-fichier__message--alerte', texte: `Relecture interrompue (${rl.erreur}) : le reste est gardé tel que traduit.` }));
+        }
+      }
       if (b.expressions?.length) {
         const n = b.expressions.length;
         corps.push(el('span', { classe: 'discret', texte: `${n} expression${n > 1 ? 's' : ''} traduite${n > 1 ? 's' : ''} par le sens : ${b.expressions.slice(0, 6).join(', ')}${n > 6 ? '…' : ''}` }));
@@ -327,7 +361,8 @@ window.__modules.push((async () => {
     if (rechercheAuto) { $('btn-traduire').disabled = true; $('btn-vider').hidden = true; }
     $('btn-annuler').hidden = !enCours;
     $('btn-vider').hidden = enCours;
-    for (const s of [selSource, selCible, selMoteur, selFormat, $('opt-resultat'), $('btn-dossier'), $('btn-dossier-defaut')]) s.disabled = enCours;
+    for (const s of [selSource, selCible, selMoteur, selFormat, $('opt-resultat'), $('opt-relecture'), $('opt-synchro'), $('btn-dossier'), $('btn-dossier-defaut')]) s.disabled = enCours;
+    majRegistre();
   }
 
   // Saison entière : sous-titres cherchés et téléchargés automatiquement pour chaque vidéo qui n'en a pas.
@@ -447,19 +482,32 @@ window.__modules.push((async () => {
       const lignes = [el('div', { classe: 'apercu__ligne apercu__ligne--entete', role: 'row' }, [
         el('span', { texte: 'Temps' }), el('span', { texte: 'Original' }), el('span', { texte: 'Traduction' }),
       ])];
+      const notees = r.paires.filter((p) => p.note).length;
+      $('apercu-filtre-zone').hidden = notees === 0;
+      const seulement = notees > 0 && $('apercu-filtre').checked;
       for (const p of r.paires) {
-        lignes.push(el('div', { classe: 'apercu__ligne', role: 'row' }, [
+        if (seulement && !p.note) continue;
+        const traduit = el('span', { texte: p.traduit });
+        if (p.note) traduit.append(el('span', { classe: `apercu__note apercu__note--${p.note.type}`, texte: `${p.note.type === 'corrige' ? 'Corrigée' : 'À vérifier'} : ${p.note.raison}` }));
+        lignes.push(el('div', { classe: `apercu__ligne${p.note ? ` apercu__ligne--${p.note.type}` : ''}`, role: 'row' }, [
           el('span', { classe: 'apercu__temps', texte: String(p.debut).replace(/[,.]\d+$/, '') }),
           el('span', { texte: p.original }),
-          el('span', { texte: p.traduit }),
+          traduit,
         ]));
       }
       $('apercu-table').replaceChildren(...lignes);
-      $('apercu-note').textContent = r.total > r.paires.length ? `${r.paires.length} premières répliques sur ${r.total.toLocaleString('fr-FR')}.` : '';
+      const premieres = r.paires.filter((p) => !p.numero || p.numero <= 400).length;
+      $('apercu-note').textContent = [
+        r.total > premieres ? `${premieres} premières répliques sur ${r.total.toLocaleString('fr-FR')}${notees ? ', plus toutes celles relues' : ''}.` : '',
+        notees ? `${notees} réplique${notees > 1 ? 's' : ''} relue${notees > 1 ? 's' : ''} par l'IA (en couleur).` : '',
+      ].filter(Boolean).join(' ');
+      apercuCourant = e;
       $('apercu').hidden = false;
       $('apercu').scrollIntoView({ behavior: 'smooth', block: 'start' });
     } catch (err) { erreur(err); }
   }
+  let apercuCourant = null;
+  $('apercu-filtre').addEventListener('change', () => { if (apercuCourant) afficherApercu(apercuCourant); });
   $('btn-fermer-apercu').addEventListener('click', () => { $('apercu').hidden = true; });
 
   // Pour les tests de bout en bout : ajouter des fichiers sans boîte de dialogue.

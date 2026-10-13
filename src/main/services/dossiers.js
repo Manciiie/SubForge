@@ -131,4 +131,18 @@ function explorer(chemins, { cible, source, fichiersMax = 1000 }) {
   return { fichiers, bilan: total };
 }
 
-module.exports = { parcourir, selectionner, explorer, decomposer, EXT_SOUSTITRES, EXT_VIDEO, langue };
+// Vidéo d'origine d'un sous-titre externe : même dossier, même nom (« Film.en.srt » → « Film.mkv »).
+// Les vidéos portant un code de langue (« Film.FR.mkv », copies faites par SubForge) sont écartées.
+function videoAssociee(cheminSousTitre) {
+  const cible = decomposer(cheminSousTitre).base;
+  let noms;
+  try { noms = fs.readdirSync(path.dirname(cheminSousTitre)); } catch { return null; } // silence-ok: dossier illisible = pas de vidéo associée
+  const candidates = noms
+    .map((n) => path.join(path.dirname(cheminSousTitre), n))
+    .filter((c) => EXT_VIDEO.has(path.extname(c).toLowerCase()))
+    .map((c) => ({ c, d: decomposer(c) }))
+    .filter(({ d }) => d.base === cible && !d.langue);
+  return candidates.length === 1 ? candidates[0].c : null;
+}
+
+module.exports = { parcourir, selectionner, explorer, decomposer, videoAssociee, EXT_SOUSTITRES, EXT_VIDEO, langue };

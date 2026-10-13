@@ -4,10 +4,10 @@
 > Garder court : 5 dernières sessions en détail, les plus anciennes résumées en une ligne.
 
 ## 📍 État actuel
-- **Version livrée** : 1.3.0 (2026-10-13)
-- **Dépôt** : `Manciiie/SubForge` — dernier envoi : version 1.3.0 (2026-10-13)
+- **Version livrée** : 1.4.0 (2026-10-14)
+- **Dépôt** : `Manciiie/SubForge` — dernier envoi : version 1.4.0 (2026-10-14)
 - **Testé sur Windows réel** : non (PC non joignable) ; `ffmpeg.exe` 7.1 vérifié sous wine
-- **Version en cours** : 1.3.0
+- **Version en cours** : 1.4.0
 - **Prochaine tâche** : — mises à jour automatiques toujours inactives (dépôt -releases + jeton à créer)
 - **Ce qui marche** : tout le périmètre 1.0 + glossaire, mémoire, saison, OCR Blu-ray (version compilée comprise), recherche en ligne (faux serveur), ffmpeg 7
 - **Fragile / non vérifié** : vrais DeepL / Ollama / OpenSubtitles jamais appelés depuis la session ; OCR testé sur un .sup fabriqué (police DejaVu), pas sur un vrai Blu-ray ; mises à jour automatiques inactives (pas de jeton)
@@ -28,6 +28,12 @@ Gravité : 🔴 crash / perte de données · 🟠 fonction cassée · 🟡 gêna
 ---
 
 ## 📓 Journal des sessions
+
+### 2026-10-14 — Version 1.4.0
+- **Demande** : relecture par l'IA, synchronisation automatique, tutoiement/vouvoiement constant.
+- **Fait** : T401, T402, T403 (D-010, D-011). Sous-titre + vidéo associée → piste ajoutée au film.
+- **Vérifié** : 98 tests, 10 scénarios e2e (dont `v14.js`), captures, scan 0 bloquant. `enligne-saison.js` adapté (Episode.FR.mkv au lieu d'Episode.fr.srt).
+- **Pas vérifié** : vrai film (synchronisation sur un son réel), vrai modèle Ollama pour la relecture, Windows réel.
 
 ### 2026-10-13 — Version 1.3.0
 - **Demande** : « interpréter certains mots ou groupes de mots, adaptés à la langue de la traduction » → lu comme : expressions idiomatiques / argot traduites par le sens.

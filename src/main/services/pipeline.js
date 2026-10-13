@@ -34,7 +34,7 @@ function verifierTraduit(originaux, traductions, options) {
   throw new Error(`Traduction ratée : ${recopiees} répliques sur ${phrases} sont restées telles quelles. ${conseil} Si ces sous-titres sont déjà en ${nomCible}, il n'y a rien à traduire.`);
 }
 
-async function traduireDocument(doc, { moteurs, memoire = null, glossairePrepare = null, expressionsPreparees = null, options, signal, surAvancement = () => {} }) {
+async function traduireDocument(doc, { moteurs, memoire = null, glossairePrepare = null, expressionsPreparees = null, relecture = null, options, signal, surAvancement = () => {} }) {
   // 1. Segments, réplique par réplique (balises → marqueurs <x/>).
   const preparations = doc.repliques.map((r) => (r.dessin ? null : formats.preparerReplique(r.texte, doc.format)));
   const segments = [];
@@ -67,7 +67,9 @@ async function traduireDocument(doc, { moteurs, memoire = null, glossairePrepare
   // 4. Mémoire de traduction.
   const contexteMemoire = {
     moteur: options.moteur,
-    variante: options.moteur === 'deepl' ? `ton:${options.formalite || 'defaut'}` : `modele:${options.modele || ''}`,
+    // Le tu / vous imposé change la traduction : il fait partie de la clé (« auto » garde l'ancienne clé).
+    variante: (options.moteur === 'deepl' ? `ton:${options.formalite || 'defaut'}` : `modele:${options.modele || ''}`)
+      + (options.registre === 'tu' || options.registre === 'vous' ? `|reg:${options.registre}` : ''),
     source: options.source || 'auto',
     cible: options.cible,
   };
@@ -117,6 +119,16 @@ async function traduireDocument(doc, { moteurs, memoire = null, glossairePrepare
     if (perdus) aVerifier += 1;
     return texte;
   });
+  // 7. Relecture par l'IA (T402) : corrections contrôlées, appliquées avant la recomposition.
+  let bilanRelecture = null;
+  const notes = new Map(); // indice de réplique → { type: 'corrige' | 'doute', raison }
+  if (relecture) {
+    bilanRelecture = await relireDocument({
+      doc, segments, positions, preparations, traductions, valeursGlossaire: avecGlossaire.map((g) => g.valeurs),
+      relecture, notes, signal,
+    });
+  }
+
   doc.repliques.forEach((r, i) => {
     const p = preparations[i];
     if (!p || p.segments.length === 0) return;
@@ -133,7 +145,81 @@ async function traduireDocument(doc, { moteurs, memoire = null, glossairePrepare
     aVerifier,
     erreurMemoire,
     expressions: expressionsVues,
+    relecture: bilanRelecture,
+    notes,
   };
 }
 
-module.exports = { traduireDocument };
+// --- Relecture ------------------------------------------------------------------------
+const SILENCE_SCENE_MS = 6000;
+const LIGNES_PAR_SCENE = 40;
+
+// Scènes : suites de répliques séparées par moins de 6 s de silence, 40 segments au plus.
+function scenes(doc, positions, preparations) {
+  const temps = formats.lireMinutages(doc);
+  const liste = [];
+  let courante = [];
+  let finPrecedente = null;
+  doc.repliques.forEach((r, i) => {
+    const p = preparations[i];
+    if (!p || !p.segments.length) return;
+    const t = temps[i];
+    const coupure = t && finPrecedente !== null && t.debut - finPrecedente > SILENCE_SCENE_MS;
+    if (courante.length && (coupure || courante.length + p.segments.length > LIGNES_PAR_SCENE)) { liste.push(courante); courante = []; }
+    p.segments.forEach((_, k) => courante.push({ segment: positions[i] + k, replique: i }));
+    if (t) finPrecedente = t.fin;
+  });
+  if (courante.length) liste.push(courante);
+  return liste;
+}
+
+const marqueursDe = (t) => (String(t).match(RE_MARQUEURS) || []).map((m) => m.replace(/\s+/g, ' ')).sort().join();
+
+// Une correction n'est gardée que si elle ne casse rien : marqueurs de mise en forme intacts, termes
+// du glossaire présents, pas vide, pas recopiée de l'original, longueur raisonnable.
+function correctionValable(original, actuelle, correction, valeurs) {
+  if (!correction || correction === actuelle) return false;
+  if (marqueursDe(original) !== marqueursDe(correction)) return false;
+  if (valeurs.some((v) => v && actuelle.includes(v) && !correction.includes(v))) return false;
+  if (nonTraduit(original, correction)) return false;
+  return correction.length <= Math.max(actuelle.length, 20) * 2.5;
+}
+
+async function relireDocument({ doc, segments, positions, preparations, traductions, valeursGlossaire, relecture, notes, signal }) {
+  const liste = scenes(doc, positions, preparations);
+  const bilan = { scenes: liste.length, corrigees: 0, refusees: 0, doutes: 0, tuVous: 0, sautees: 0, erreur: null };
+  for (let k = 0; k < liste.length; k++) {
+    if (signal?.aborted) throw erreurAnnulation();
+    relecture.surAvancement?.(k, liste.length);
+    const lignes = liste[k].map(({ segment }) => ({ n: segment, original: segments[segment], traduction: traductions[segment] }));
+    let r;
+    try {
+      r = await relecture.relire(lignes);
+    } catch (e) {
+      if (e.name === 'AbortError' || signal?.aborted) throw e;
+      // IA locale arrêtée en cours de route : la traduction est gardée telle quelle.
+      bilan.erreur = e.message;
+      bilan.sautees += liste.length - k;
+      break;
+    }
+    if (r.illisible) { bilan.sautees += 1; continue; }
+    const repliqueDe = new Map(liste[k].map((x) => [x.segment, x.replique]));
+    for (const c of r.corrections) {
+      if (!correctionValable(segments[c.n], traductions[c.n], c.texte, valeursGlossaire[c.n] || [])) { bilan.refusees += 1; continue; }
+      traductions[c.n] = c.texte;
+      bilan.corrigees += 1;
+      if (c.type === 'address') bilan.tuVous += 1;
+      notes.set(repliqueDe.get(c.n), { type: 'corrige', raison: c.raison || 'corrigée à la relecture' });
+    }
+    for (const d of r.doutes) {
+      const i = repliqueDe.get(d.n);
+      if (notes.has(i)) continue;
+      notes.set(i, { type: 'doute', raison: d.raison || 'à vérifier' });
+      bilan.doutes += 1;
+    }
+  }
+  relecture.surAvancement?.(liste.length, liste.length);
+  return bilan;
+}
+
+module.exports = { traduireDocument, scenes, correctionValable };

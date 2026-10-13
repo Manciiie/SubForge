@@ -33,6 +33,9 @@ fichier on ne sait où. Je veux : glisser le film ou le sous-titre, choisir la l
 | Ajouter au film | Copie MKV du film avec la piste traduite, sans réencoder ; résultat par défaut d'une vidéo depuis la 1.2.1 (un seul fichier) | 1.2.0 | `tasks/v1.2-T201.md` |
 | IA locale simple | Bascule et choix du modèle automatiques, messages clairs | 1.2.0 | `tasks/v1.2-T202.md` |
 | Expressions | Idiomes et argot traduits par leur sens (liste anglaise intégrée + expressions perso) ; écran Expressions | 1.3.0 | `tasks/v1.3-T301.md` |
+| Tu ou vous | Tutoiement / vouvoiement constant (auto, tu, vous) | 1.4.0 | `tasks/v1.4-T401.md` |
+| Relecture IA | Seconde lecture par l'IA locale, scène par scène : sens, genre, noms, tu/vous | 1.4.0 | `tasks/v1.4-T402.md` |
+| Synchronisation | Sous-titre externe recalé sur le son de son film (décalage + vitesse) | 1.4.0 | `tasks/v1.4-T403.md` |
 | En ligne (saison) | Recherche + téléchargement automatiques et sûrs pour toutes les vidéos sans sous-titres | 1.1.0 | `tasks/v1.1-T107.md` |
 
 ### Comportements attendus
@@ -54,13 +57,16 @@ fichier on ne sait où. Je veux : glisser le film ou le sous-titre, choisir la l
 - « Break a leg! » → le moteur reçoit le sens (« good luck », équivalent « Merde ! ») et traduit
   par une tournure française naturelle, pas « Casse-toi une jambe ». Mes propres expressions
   (joker `*`, formes `make|made`) s'ajoutent dans l'écran Expressions.
+- Je pose `Film.en.srt` (décalé de 2 s) à côté de `Film.mkv` et je le dépose → il est recalé sur le son
+  du film, traduit, relu par l'IA locale, puis ajouté au film : `Film.FR.mkv`.
+- « Tu ou vous » imposé ou automatique : un personnage ne passe plus de « tu » à « vous » dans une scène.
 - Annuler arrête la traduction en cours sans laisser de fichier à moitié écrit.
 
 ## 4. Hors périmètre
 - Ré-encoder la vidéo, incruster les sous-titres dans l'image, modifier le film d'origine (la 1.2 crée une copie MKV).
 - OCR des sous-titres en image de DVD (VobSub) et de TNT (DVB) — PGS (Blu-ray) depuis la 1.1.
 - Transcription de l'audio (c'est VoxForge).
-- Synchronisation / décalage des minutages.
+- Synchronisation non linéaire (coupures, scènes en plus) — le décalage simple et la vitesse sont gérés depuis la 1.4.
 
 ## 5. Exigences
 - **Fichiers manipulés** : sous-titres jusqu'à 20 Mo (refus au-delà), vidéos de toute taille

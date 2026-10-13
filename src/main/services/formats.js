@@ -221,6 +221,107 @@ function tempsSrt(t) {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')},${ms.padEnd(3, '0').slice(0, 3)}`;
 }
 
+// --- Minutages en millisecondes (synchronisation) -----------------------------
+// « 0:01:02.50 », « 00:01:02,500 », « 01:02.500 » → ms. null si illisible.
+function versMs(t) {
+  const m = /^\s*(?:(\d{1,3}):)?(\d{1,2}):(\d{1,2})[.,](\d{1,3})\s*$/.exec(String(t || ''));
+  if (!m) return null;
+  const frac = Number(m[4].padEnd(3, '0').slice(0, 3));
+  return ((Number(m[1] || 0) * 60 + Number(m[2])) * 60 + Number(m[3])) * 1000 + frac;
+}
+function depuisMs(ms, style) {
+  const v = Math.max(0, Math.round(ms));
+  const h = Math.floor(v / 3600000);
+  const mn = Math.floor((v % 3600000) / 60000);
+  const sec = Math.floor((v % 60000) / 1000);
+  const mil = v % 1000;
+  const d2 = (n) => String(n).padStart(2, '0');
+  if (style === 'ass') return `${h}:${d2(mn)}:${d2(sec)}.${d2(Math.floor(mil / 10))}`;
+  if (style === 'vtt') return `${d2(h)}:${d2(mn)}:${d2(sec)}.${String(mil).padStart(3, '0')}`;
+  return `${d2(h)}:${d2(mn)}:${d2(sec)},${String(mil).padStart(3, '0')}`;
+}
+
+function colonnesAss(doc) {
+  let colonnes = null;
+  let section = '';
+  doc.lignes.forEach((ligne) => {
+    const s = /^\s*\[([^\]]+)\]\s*$/.exec(ligne);
+    if (s) section = s[1].toLowerCase();
+    const f = /^\s*Format\s*:(.*)$/i.exec(ligne);
+    if (f && section === 'events') colonnes = f[1].split(',').map((c) => c.trim().toLowerCase());
+  });
+  return { iD: colonnes ? colonnes.indexOf('start') : 1, iF: colonnes ? colonnes.indexOf('end') : 2 };
+}
+
+// [{ debut, fin }] en ms pour chaque réplique (null si minutage illisible).
+function lireMinutages(doc) {
+  if (doc.format === 'ass') {
+    const { iD, iF } = colonnesAss(doc);
+    return doc.repliques.map((r) => {
+      const champs = r.prefixe.replace(/^\s*Dialogue\s*:\s*/i, '').split(',');
+      const debut = versMs(champs[iD]);
+      const fin = versMs(champs[iF]);
+      return debut === null || fin === null ? null : { debut, fin };
+    });
+  }
+  const re = doc.format === 'vtt' ? RE_TEMPS_VTT : RE_TEMPS_SRT;
+  return doc.repliques.map((r) => {
+    const m = re.exec(r.minutage || '');
+    if (!m) return null;
+    const debut = versMs(m[1]);
+    const fin = versMs(m[2]);
+    return debut === null || fin === null ? null : { debut, fin };
+  });
+}
+
+// Applique une transformation de temps (ms → ms) à toutes les répliques, en gardant le reste de la
+// ligne de minutage (positions SRT, réglages VTT, autres champs ASS). Les répliques qui finissent
+// avant 0 sont retirées (ASS : ramenées à une durée nulle). Renvoie le nombre de répliques concernées.
+function appliquerMinutages(doc, transformer) {
+  const temps = lireMinutages(doc);
+  if (doc.format === 'ass') {
+    // ASS : une réplique passée avant 0 garde sa ligne (les numéros de ligne restent valables) mais
+    // dure 0 s, donc ne s'affiche jamais.
+    const { iD, iF } = colonnesAss(doc);
+    let retirees = 0;
+    doc.repliques.forEach((r, i) => {
+      const t = temps[i];
+      if (!t) return;
+      let d = transformer(t.debut);
+      let f = transformer(t.fin);
+      if (f <= 0) { d = 0; f = 0; retirees += 1; }
+      const m = /^(\s*Dialogue\s*:\s*)(.*)$/i.exec(r.prefixe);
+      const champs = m[2].split(',');
+      champs[iD] = depuisMs(d, 'ass');
+      champs[iF] = depuisMs(f, 'ass');
+      r.prefixe = `${m[1]}${champs.join(',')}`;
+      r.debut = champs[iD];
+    });
+    preparerConversionAss(doc);
+    return retirees;
+  }
+  const garder = new Array(doc.repliques.length).fill(true);
+  const re = doc.format === 'vtt' ? RE_TEMPS_VTT : RE_TEMPS_SRT;
+  const style = doc.format === 'vtt' ? 'vtt' : 'srt';
+  doc.repliques.forEach((r, i) => {
+    const t = temps[i];
+    if (!t) return;
+    const d = transformer(t.debut);
+    const f = transformer(t.fin);
+    if (f <= 0) { garder[i] = false; return; }
+    const m = re.exec(r.minutage);
+    r.minutage = `${depuisMs(d, style)} --> ${depuisMs(f, style)}${m[3] || ''}`;
+    r.debut = depuisMs(d, style);
+  });
+  const retirees = doc.repliques.length - garder.filter(Boolean).length;
+  if (retirees) {
+    if (doc.format === 'vtt') doc.elements = doc.elements.filter((e) => e.type !== 'replique' || garder[doc.repliques.indexOf(e.r)]);
+    doc.repliques = doc.repliques.filter((_, i) => garder[i]);
+    if (doc.format === 'srt') doc.repliques.forEach((r, n) => { if (r.indice !== null) r.indice = String(n + 1); });
+  }
+  return retirees;
+}
+
 // Minutages ASS (H:MM:SS.cc) → SRT, calculés à l'analyse pour l'option « Toujours SRT ».
 function preparerConversionAss(doc) {
   if (doc.format !== 'ass') return;
@@ -410,4 +511,5 @@ module.exports = {
   TAILLE_MAX, EXTENSIONS, ErreurFormat,
   decoder, formatDepuisChemin, lireFichier, analyser, serialiser, versSrt, preparerConversionAss,
   preparerReplique, restaurerMarqueurs, recouper, texteVisible, nomSortie, ecrireFichier,
+  versMs, depuisMs, lireMinutages, appliquerMinutages,
 };

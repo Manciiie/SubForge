@@ -1,5 +1,22 @@
 # Journal des modifications
 
+## 1.4.0 — 2026-10-14
+### Nouveautés
+- Relecture par l'IA : après la traduction, l'IA locale relit le film scène par scène et corrige
+  contresens, genre des personnages, noms, tu/vous, phrases coupées sur deux sous-titres. Chaque
+  correction est contrôlée avant d'être gardée ; les doutes sont signalés. Marche aussi quand DeepL
+  traduit, dès qu'un modèle Ollama est choisi. L'aperçu montre en couleur les répliques corrigées
+  et à vérifier, avec la raison, et peut n'afficher qu'elles.
+- Synchronisation automatique : un sous-titre posé à côté de son film (ou téléchargé) est recalé
+  sur le son du film avant d'être traduit — décalage jusqu'à 5 minutes et différence de vitesse
+  (23,976 / 24 / 25 images par seconde). Rien n'est touché si la correspondance n'est pas nette.
+- Tu ou vous constant : Automatique (cohérent), Toujours « tu » ou Toujours « vous », pour le
+  français, l'allemand, l'espagnol, l'italien, le portugais, le néerlandais, le polonais et le russe.
+
+### Changement
+- Un sous-titre posé à côté de sa vidéo (Film.en.srt + Film.mkv) donne maintenant lui aussi le film
+  avec la piste traduite (Film.FR.mkv), selon le réglage « Résultat (vidéos) ».
+
 ## 1.3.0 — 2026-10-13
 ### Nouveautés
 - Expressions traduites par leur sens : idiomes, argot et tournures toutes faites ne sont plus

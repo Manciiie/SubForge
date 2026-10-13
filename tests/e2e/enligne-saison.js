@@ -49,6 +49,7 @@ module.exports = async (p) => {
 
   await p.clic('#btn-traduire');
   for (let i = 0; i < 100 && (await p.eval('document.querySelectorAll(".carte-fichier[data-etat=termine]").length')) < 2; i++) await p.pause(200);
-  p.verifier(fs.existsSync(path.join(d, 'Serie.S01E01.fr.srt')) && fs.existsSync(path.join(d, 'Serie.S01E03.fr.srt')), 'puis traduits : E01 et E03 en français');
+  // 1.4 : le sous-titre téléchargé est à côté de sa vidéo → la traduction va dans le film (réglage par défaut).
+  p.verifier(fs.existsSync(path.join(d, 'Serie.S01E01.FR.mkv')) && fs.existsSync(path.join(d, 'Serie.S01E03.FR.mkv')), `puis traduits et ajoutés aux épisodes : E01 et E03 (${fs.readdirSync(d).join(', ')})`);
   serveur.close();
 };

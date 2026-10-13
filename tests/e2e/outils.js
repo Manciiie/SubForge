@@ -8,6 +8,7 @@ const RACINE = path.resolve(__dirname, '..', '..');
 
 // Faux Ollama : « traduit » en préfixant [fr], garde les marqueurs, compte les lignes reçues.
 // Une ligne contenant LENT ralentit la réponse (pour tester l'annulation).
+// Les demandes de relecture (1.4) sont reconnues et notées dans s.relectures.
 function fauxOllama() {
   return new Promise((ok) => {
     const recues = [];
@@ -22,6 +23,16 @@ function fauxOllama() {
           return;
         }
         const msg = JSON.parse(corps);
+        if (/proofreader/.test(msg.messages[0].content)) {
+          // Relecture : rien à corriger, sauf si le scénario fournit s.relire(lignes) → { corrections, doubts }.
+          const lignesRelues = [...msg.messages[1].content.matchAll(/^(\d+)\. original: (".*")\n {3}translation: (".*")$/gm)]
+            .map((m) => ({ line: Number(m[1]), original: JSON.parse(m[2]), translation: JSON.parse(m[3]) }));
+          s.relectures.push({ systeme: msg.messages[0].content, lignes: lignesRelues });
+          const r = s.relire ? s.relire(lignesRelues) : { corrections: [], doubts: [] };
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ message: { role: 'assistant', content: JSON.stringify(r) } }));
+          return;
+        }
         const lignes = lignesDemandees(msg.messages[1].content);
         demandes.push(msg.messages[1].content);
         const sortie = {};
@@ -36,6 +47,7 @@ function fauxOllama() {
     });
     s.recues = recues;
     s.demandes = demandes;
+    s.relectures = [];
     s.listen(0, '127.0.0.1', () => ok(s));
   });
 }

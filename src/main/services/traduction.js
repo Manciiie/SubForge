@@ -21,6 +21,7 @@ const { traduireDocument } = require('./pipeline');
 const dossiers = require('./dossiers');
 const pgs = require('./pgs');
 const { creerOcr, versSrt: ocrVersSrt } = require('./ocr');
+const synchro = require('./synchro');
 const { creerEnLigne, CODES_OS } = require('./enligne');
 
 const SECRET_DEEPL = 'cle_deepl';
@@ -43,7 +44,7 @@ const sortiesProduites = new Set();
 function reglages() {
   const p = parametres.lire();
   return {
-    traduction: { source: 'auto', cible: 'fr', moteur: 'deepl', formatSortie: 'identique', dossierSortie: null, memoire: true, resultatFilm: 'film', ...(p.traduction || {}) },
+    traduction: { source: 'auto', cible: 'fr', moteur: 'deepl', formatSortie: 'identique', dossierSortie: null, memoire: true, resultatFilm: 'film', synchro: true, relecture: true, registre: 'auto', ...(p.traduction || {}) },
     deepl: { formalite: 'defaut', ...(p.deepl || {}) },
     ollama: { adresse: 'http://127.0.0.1:11434', modele: '', ...(p.ollama || {}) },
     enligne: { utilisateur: '', ...(p.enligne || {}) },
@@ -149,20 +150,36 @@ async function traduireElement(el, options, signal) {
       doc = formats.lireFichier(fichier);
     }
     formats.preparerConversionAss(doc);
+
+    // Sous-titre externe : vidéo d'origine à côté (recalage sur son son, puis ajout de la piste).
+    const estFilm = video.estVideo(el.chemin);
+    const filmAssocie = !estFilm && !sup && (options.synchro || options.resultatFilm !== 'fichier') ? dossiers.videoAssociee(el.chemin) : null;
+    let bilanSynchro = null;
+    if (filmAssocie && options.synchro) bilanSynchro = await synchroniser(doc, filmAssocie, signal, rapporter);
+
     const original = doc.repliques.map((r) => formats.texteVisible(r.texte));
 
     rapporter('traduction', { fait: 0, total: 0, message: 'Traduction…' });
     const bilan = await traduireDocument(doc, {
       moteurs, memoire, glossairePrepare: glossaire.pour(options.cible), expressionsPreparees: expressions.pour({ source: options.source, cible: options.cible }), options, signal,
       surAvancement: (fait, total) => rapporter('traduction', { fait, total }),
+      // Relecture par l'IA locale (T402), avec DeepL comme avec l'IA locale, dès qu'un modèle est choisi.
+      relecture: options.relecture && options.modele ? {
+        relire: (lignes) => moteurs.relireScene(lignes, { ...options, signal }),
+        surAvancement: (fait, total) => rapporter('relecture', { fait, total, message: 'Relecture par l\'IA…' }),
+      } : null,
     });
+    if (options.relecture && !options.modele) bilan.relecture = { indisponible: true };
+    const notes = bilan.notes;
+    delete bilan.notes;
+    if (bilan.relecture) journal.info(`[relecture] ${path.basename(el.chemin)} : ${JSON.stringify(bilan.relecture)}`);
 
     rapporter('ecriture', { message: 'Enregistrement…' });
     const docSortie = options.formatSortie === 'srt' ? formats.versSrt(doc) : doc;
     const ext = docSortie.format === 'ass' ? (path.extname(fichier).toLowerCase() === '.ssa' ? '.ssa' : '.ass') : `.${docSortie.format}`;
     const dossier = options.dossierSortie || path.dirname(el.chemin);
-    const estFilm = video.estVideo(el.chemin);
-    const mode = estFilm ? options.resultatFilm : 'fichier';
+    const filmCible = estFilm ? el.chemin : filmAssocie;
+    const mode = filmCible ? options.resultatFilm : 'fichier';
     // « Film seul » : le sous-titre traduit ne passe que par un dossier temporaire, puis va dans le film.
     const cibleAcote = formats.nomSortie(el.chemin, langues.suffixe(options.cible), ext, dossier);
     let cible = cibleAcote;
@@ -173,7 +190,13 @@ async function traduireElement(el, options, signal) {
     formats.ecrireFichier(cible, docSortie);
     if (mode !== 'film') sortiesProduites.add(cible);
 
-    const paires = doc.repliques.slice(0, 400).map((r, i) => ({ debut: r.debut, original: original[i], traduit: formats.texteVisible(r.texte) }));
+    // Aperçu : les 400 premières répliques, plus toutes celles corrigées ou signalées par la relecture.
+    const paires = [];
+    doc.repliques.forEach((r, i) => {
+      if (i >= 400 && !notes.has(i)) return;
+      if (paires.length >= 1500) return;
+      paires.push({ numero: i + 1, debut: r.debut, original: original[i], traduit: formats.texteVisible(r.texte), note: notes.get(i) || null });
+    });
     journal.info(`Traduit : ${path.basename(el.chemin)} → ${path.basename(cibleAcote)} (${bilan.segments} segments, ${bilan.envoyes} envoyés, ${bilan.repris} repris de la mémoire, ${options.moteur})`);
 
     // Film avec la piste traduite. Un échec ici ne perd jamais la traduction : elle est alors
@@ -189,7 +212,7 @@ async function traduireElement(el, options, signal) {
         piste = path.join(dossierPiste, 'piste-film.srt');
         formats.ecrireFichier(piste, formats.versSrt(doc));
       }
-      integration = await integrerAuFilm(el.chemin, piste, options, signal, (part) => rapporter('integration', { fait: Math.round(part * 100), total: 100, message: 'Ajout de la piste au film…' }));
+      integration = await integrerAuFilm(filmCible, piste, options, signal, (part) => rapporter('integration', { fait: Math.round(part * 100), total: 100, message: 'Ajout de la piste au film…' }));
       if (mode === 'film') {
         if (integration.fichier) {
           sortie = integration.fichier;
@@ -203,7 +226,7 @@ async function traduireElement(el, options, signal) {
       }
     }
     resultats.set(el.id, { paires, sortie, total: doc.repliques.length });
-    rapporter('termine', { sortie, nomSortie: path.basename(sortie), repliques: doc.repliques.length, bilan: { ...bilan, ocr: bilanOcr, integration } });
+    rapporter('termine', { sortie, nomSortie: path.basename(sortie), repliques: doc.repliques.length, bilan: { ...bilan, ocr: bilanOcr, integration, synchro: bilanSynchro } });
   } catch (e) {
     if (e.name === 'AbortError' || signal.aborted) {
       rapporter('annule', { message: 'Annulé.' });
@@ -218,6 +241,30 @@ async function traduireElement(el, options, signal) {
     if (dossierPiste) {
       try { fs.rmSync(dossierPiste, { recursive: true, force: true }); } catch (e) { journal.erreur('[traduction] dossier temporaire non supprimé :', e); }
     }
+  }
+}
+
+// Recale les minutages du document sur le son du film. Ne fait jamais échouer la traduction :
+// renvoie un bilan { fait, decalageMs, vitesse } / { raison } / { erreur }.
+async function synchroniser(doc, film, signal, rapporter) {
+  try {
+    rapporter('synchro', { fait: 0, total: 100, message: 'Synchronisation sur le son du film…' });
+    const description = await video.executer(binaireFfmpeg, ['-hide_banner', '-nostdin', '-i', film], { signal, delai: 60000 });
+    const duree = video.lireDuree(description.erreurs);
+    const energies = await synchro.analyserSon(binaireFfmpeg, film, {
+      signal, dureeMs: duree ? duree * 1000 : null,
+      surAvancement: (part) => rapporter('synchro', { fait: Math.round(part * 90), total: 100 }),
+    });
+    rapporter('synchro', { fait: 92, total: 100 });
+    const r = await synchro.trouverDecalage(energies, formats.lireMinutages(doc), { signal });
+    const bilan = { film: path.basename(film), raison: r.raison, decalageMs: r.decalageMs, vitesse: synchro.libelleVitesse(r.vitesse ?? 1) };
+    if (r.applique) bilan.retirees = formats.appliquerMinutages(doc, synchro.transformation(r));
+    journal.info(`[synchro] ${path.basename(film)} : ${r.raison}${r.applique ? ` (décalage ${r.decalageMs} ms, vitesse ${r.vitesse.toFixed(5)}, netteté ${r.nettete.toFixed(1)})` : r.nettete ? ` (netteté ${r.nettete.toFixed(1)})` : ''}`);
+    return bilan;
+  } catch (e) {
+    if (e.name === 'AbortError' || signal.aborted) throw e;
+    journal.erreur(`[synchro] ${path.basename(film)} :`, e);
+    return { film: path.basename(film), erreur: e.message };
   }
 }
 
@@ -296,10 +343,13 @@ function enregistrer({ racineApp }) {
       modeleOllama: { type: 'string', max: 200, optionnel: true },
       memoire: { type: 'boolean', optionnel: true },
       resultatFilm: { type: 'enum', valeurs: ['film', 'film-et-fichier', 'fichier'], optionnel: true },
+      synchro: { type: 'boolean', optionnel: true },
+      relecture: { type: 'boolean', optionnel: true },
+      registre: { type: 'enum', valeurs: ['auto', 'tu', 'vous'], optionnel: true },
     },
   }], (_e, o) => {
     const r = reglages();
-    for (const c of ['source', 'cible', 'moteur', 'formatSortie', 'memoire', 'resultatFilm']) if (o[c] !== undefined) r.traduction[c] = o[c];
+    for (const c of ['source', 'cible', 'moteur', 'formatSortie', 'memoire', 'resultatFilm', 'synchro', 'relecture', 'registre']) if (o[c] !== undefined) r.traduction[c] = o[c];
     if (o.viderDossierSortie) r.traduction.dossierSortie = null;
     if (o.dossierSortie !== undefined && o.dossierSortie !== null) {
       if (!path.isAbsolute(o.dossierSortie) || !fs.existsSync(o.dossierSortie)) throw new ErreurSecurite('Dossier de sortie introuvable.');
@@ -353,6 +403,9 @@ function enregistrer({ racineApp }) {
       cible: r.traduction.cible,
       formatSortie: r.traduction.formatSortie,
       resultatFilm: ['film', 'film-et-fichier', 'fichier'].includes(r.traduction.resultatFilm) ? r.traduction.resultatFilm : 'film',
+      synchro: r.traduction.synchro !== false,
+      relecture: r.traduction.relecture !== false,
+      registre: ['auto', 'tu', 'vous'].includes(r.traduction.registre) ? r.traduction.registre : 'auto',
       dossierSortie: r.traduction.dossierSortie && fs.existsSync(r.traduction.dossierSortie) ? r.traduction.dossierSortie : null,
       formalite: r.deepl.formalite,
       memoire: r.traduction.memoire,

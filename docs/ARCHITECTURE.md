@@ -51,6 +51,7 @@ docs/              mémoire du projet (non embarquée dans l'exe)
 | Moteurs | `services/moteurs.js` (pur, `fetch` injecté) | `moteurs:etat`, `moteurs:enregistrerCleDeepl`, `moteurs:supprimerCleDeepl`, `moteurs:testerDeepl`, `moteurs:modelesOllama`, `moteurs:testerOllama` | Moteurs | clé au coffre jamais renvoyée, HTTP local seulement, réponses bornées |
 | Traitement d'un document | `services/pipeline.js` (pur) | — | — | glossaire → dédoublonnage → mémoire → moteur → restitution |
 | Mémoire | `services/memoire.js` (pur) | `memoire:etat`, `memoire:vider` | Moteurs | JSONL, ajout en fin, compactage atomique, plafond 300 000 |
+| Synchronisation | `services/synchro.js` (calcul pur + `analyserSon` via ffmpeg) | (via `traduction:lancer`) | carte du fichier | ffmpeg sans shell, délai 45 min, tué à l'annulation ; calcul découpé (pauses) |
 | Expressions | `services/expressions.js` (pur) + `expressions-integrees.js` (données) | `expressions:lister`, `expressions:enregistrer`, `expressions:supprimer`, `expressions:regler`, `expressions:tester` | Expressions | `< > { }` refusés, regex construites depuis du texte échappé (joker et `|` seuls interprétés), fichier abîmé mis de côté |
 | Glossaire | `services/glossaire.js` (pur) | `glossaire:lister`, `glossaire:enregistrer`, `glossaire:supprimer`, `glossaire:importer` | Glossaire | `< > { }` refusés, fichier abîmé mis de côté |
 | Saison | `services/dossiers.js` (pur) | `traduction:explorer` | Traduire | liens / jonctions non suivis, 1 000 fichiers, profondeur 6 |

@@ -67,6 +67,18 @@
               <option value="fichier">Fichier de sous-titres seul</option>
             </select>
           </label>
+          <label class="option" title="Garde le même tutoiement ou vouvoiement entre les personnages. Langues concernées : français, allemand, espagnol, italien, portugais, néerlandais, polonais, russe.">Tu ou vous
+            <select id="opt-registre">
+              <option value="auto">Automatique (cohérent)</option>
+              <option value="tu">Toujours « tu »</option>
+              <option value="vous">Toujours « vous »</option>
+            </select>
+          </label>
+          <div class="option">
+            <span>Qualité</span>
+            <label class="ligne-case" title="Après la traduction, l'IA locale relit chaque scène et corrige contresens, genre, noms et tu/vous. Fonctionne aussi avec DeepL, dès qu'un modèle Ollama est choisi."><input type="checkbox" id="opt-relecture"> Relecture IA</label>
+            <label class="ligne-case" title="Un sous-titre posé à côté de son film est recalé sur le son du film avant d'être traduit (décalage et vitesse)."><input type="checkbox" id="opt-synchro"> Synchroniser sur le film</label>
+          </div>
           <div class="option option--large">
             <span>Enregistrer</span>
             <div class="ligne-dossier">
@@ -103,6 +115,7 @@
           <div class="file__entete">
             <h2 id="apercu-titre">Aperçu</h2>
             <span class="espace"></span>
+            <label class="ligne-case" id="apercu-filtre-zone" hidden><input type="checkbox" id="apercu-filtre"> Seulement les répliques relues</label>
             <button class="btn btn--lien" id="btn-fermer-apercu">Fermer</button>
           </div>
           <div class="apercu__table" id="apercu-table" role="table"></div>

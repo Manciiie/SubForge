@@ -267,3 +267,9 @@ input[type="color"] { width: 44px; height: 28px; border: 0; background: none; cu
 .carte-fichier[data-etat="sans-piste"] .carte-fichier__message { background: color-mix(in srgb, var(--alerte) 16%, transparent); }
 .ligne-case { display: flex; align-items: center; gap: 8px; height: 34px; color: var(--texte); font-size: 13px; }
 .pastille--integration { background: color-mix(in srgb, var(--accent) 20%, transparent); color: var(--texte); }
+
+/* Aperçu : répliques relues par l'IA (1.4) */
+.apercu__ligne--corrige { background: color-mix(in srgb, var(--succes, #2bb59a) 10%, transparent); }
+.apercu__ligne--doute { background: color-mix(in srgb, var(--alerte, #e0a030) 12%, transparent); }
+.apercu__note { display: block; margin-top: 3px; font-size: 12px; color: var(--texte-discret); }
+.apercu__note--doute { color: var(--alerte, #c98a1a); }

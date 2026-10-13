@@ -3,7 +3,7 @@
 > Une version = un lot de modules ou d'améliorations, chacun avec sa fiche dans `tasks/`.
 > La liste numérotée d'améliorations proposée à chaque livraison devient la version suivante.
 
-**Version en cours** : 1.3.0
+**Version en cours** : 1.4.0
 
 ---
 
@@ -54,6 +54,16 @@
 
 ---
 
+## 1.4.0 — Relecture IA, synchronisation, tu/vous constant `[x]`
+**Résultat** : demandés le 2026-10-14 (points 1, 2 et 5 de la liste proposée).
+| ID | Tâche | Statut |
+|---|---|---|
+| v1.4-T401 | Tutoiement ou vouvoiement constant | [x] |
+| v1.4-T402 | Relecture par l'IA (scène par scène) | [x] |
+| v1.4-T403 | Synchronisation automatique sur le son du film | [x] |
+
+---
+
 ## Proposé pour la suite (pas encore validé)
 Reprendre ici la liste numérotée envoyée avec la dernière livraison.
 2. Éditeur de répliques : corriger une traduction (ou un texte lu par OCR) à la main avant d'enregistrer
@@ -69,6 +79,7 @@ Reprendre ici la liste numérotée envoyée avec la dernière livraison.
 |---|---|---|
 | 1.0.0 | 2026-10-07 | SRT/ASS/VTT, pistes MKV/MP4, DeepL + Ollama, file, Annuler, aperçu (jamais livrée) |
 | 1.2.0 | 2026-10-11 | Piste traduite ajoutée au film (MKV), IA locale sans manipulation |
+| 1.4.0 | 2026-10-14 | Relecture IA, synchronisation sur le son, tu/vous constant |
 | 1.3.0 | 2026-10-13 | Expressions traduites par leur sens (écran Expressions) ; 1.2.1–1.2.3 : un seul fichier film, piste SRT, IA locale qui recopiait |
 | 1.1.0 | 2026-10-10 | Glossaire, mémoire, saison, OCR Blu-ray, OpenSubtitles (film + saison auto), ffmpeg 7.1 |
 

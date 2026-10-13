@@ -67,6 +67,22 @@
   `scripts/preparer-ffmpeg.js`, extraction du binaire sans dépendance.
 - **Conséquences** : +23 Mo dans l'installeur ; le script D-004 change de source, pas d'usage.
 
+## D-010 — Synchronisation : corrélation énergie / sous-titres, sans dépendance
+- **Date** : 2026-10-14
+- **Choix** : son décodé par le ffmpeg livré (8 kHz, bande voix), parole = énergie au-dessus de la
+  médiane par trame de 20 ms, corrélation par FFT (code maison, ~60 lignes) avec le signal « une
+  réplique est affichée », 7 vitesses (23,976/24/25), appliqué seulement si le pic est net (≥ 7 σ).
+- **Pourquoi** : c'est le principe d'ffsubsync, sans Python ni modèle de détection de voix à livrer.
+- **Écartés** : ffsubsync / alass (Python ou binaire Rust en plus, licences) ; webrtcvad (module natif).
+- **Conséquences** : décalages non linéaires non gérés ; « incertain » plutôt qu'un mauvais recalage.
+
+## D-011 — Relecture par l'IA locale uniquement
+- **Date** : 2026-10-14
+- **Choix** : la relecture (et l'harmonisation tu/vous) passe par Ollama, même quand DeepL traduit.
+- **Pourquoi** : DeepL n'a pas d'API de relecture ; l'IA locale est gratuite et hors ligne.
+- **Conséquences** : sans modèle Ollama, pas de relecture (la carte le dit) ; chaque correction est
+  contrôlée (marqueurs, glossaire, recopie, longueur) avant d'être gardée.
+
 ## D-009 — Expressions : une aide envoyée au moteur, pas un remplacement
 - **Date** : 2026-10-13
 - **Choix** : une expression repérée n'est pas remplacée (contrairement au glossaire) ; son sens et

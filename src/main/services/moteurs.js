@@ -44,6 +44,21 @@ function nonTraduit(original, traduction) {
 }
 // Réponse dans une autre écriture (ex. chinois au lieu de français) : refusée.
 const RE_ASIE = /[\p{Script=Han}\p{Script=Hangul}\p{Script=Hiragana}\p{Script=Katakana}]/u;
+// Tutoiement / vouvoiement (T401) : langues qui distinguent une forme familière et une forme polie.
+const FORMES_ADRESSE = {
+  fr: ['tu', 'vous'], de: ['du', 'Sie'], es: ['tú', 'usted'], it: ['tu', 'Lei'], pt: ['tu/você', 'o senhor/a senhora'],
+  nl: ['jij', 'u'], pl: ['ty', 'Pan/Pani'], ru: ['ты', 'вы'],
+};
+const formesAdresse = (cible) => FORMES_ADRESSE[String(cible).split('-')[0]] || null;
+
+function consigneRegistre(registre, cible) {
+  const f = formesAdresse(cible);
+  if (!f) return null;
+  if (registre === 'tu') return `When a single person is addressed, always use the informal form ("${f[0]}"); use the plural only when several people are addressed.`;
+  if (registre === 'vous') return `Always address people with the formal form ("${f[1]}").`;
+  return `Choose the informal ("${f[0]}") or formal ("${f[1]}") form of address from the relationship between the characters, and keep the same choice every time the same character speaks to the same person.`;
+}
+
 // Aides « expressions » (expressions.js) → texte lu par le moteur. Le moteur juge si l'expression est
 // bien employée au sens figuré dans la réplique.
 function texteAides(aides, vers) {
@@ -144,7 +159,7 @@ function creerMoteurs({ fetch, lireCleDeepl, urlDeeplTest = null, journal = cons
     };
   }
 
-  async function traduireDeepl(segments, { source, cible, formalite = 'defaut', contexte = '', aides = null, signal }) {
+  async function traduireDeepl(segments, { source, cible, formalite = 'defaut', registre = 'auto', contexte = '', aides = null, signal }) {
     const lc = langue(cible);
     if (!lc?.deeplCible) throw new ErreurMoteur(`DeepL ne traduit pas vers ${lc?.nom || cible} : choisissez l'IA locale.`);
     const ls = source && source !== 'auto' ? langue(source) : null;
@@ -157,8 +172,11 @@ function creerMoteurs({ fetch, lireCleDeepl, urlDeeplTest = null, journal = cons
       preserve_formatting: true,
     };
     if (ls) corps.source_lang = ls.deeplSource;
-    if (formalite === 'formel') corps.formality = 'prefer_more';
-    if (formalite === 'informel') corps.formality = 'prefer_less';
+    // Tu / vous imposé (T401) ; sinon le ton choisi dans Moteurs. « prefer_* » est ignoré sans erreur
+    // par DeepL pour les langues sans forme polie.
+    const ton = registre === 'tu' ? 'informel' : registre === 'vous' ? 'formel' : formalite;
+    if (ton === 'formel') corps.formality = 'prefer_more';
+    if (ton === 'informel') corps.formality = 'prefer_less';
     // Expressions : leur sens va dans le contexte (lu par DeepL, jamais traduit ni facturé).
     const lesAides = (aides || []).flat().filter(Boolean);
     const vers = langue(cible)?.anglais || cible;
@@ -208,7 +226,7 @@ function creerMoteurs({ fetch, lireCleDeepl, urlDeeplTest = null, journal = cons
       .map((m) => ({ nom: m.name.slice(0, 200), taille: Number(m.size) || 0 }));
   }
 
-  function consigne(source, cible) {
+  function consigne(source, cible, registre = 'auto') {
     const de = source && source !== 'auto' ? langue(source)?.anglais : null;
     const vers = langue(cible)?.anglais || cible;
     return [
@@ -218,7 +236,8 @@ function creerMoteurs({ fetch, lireCleDeepl, urlDeeplTest = null, journal = cons
       'Keep every marker like <x n="0"/> or <g n="0"/> exactly as written, at the matching place in the sentence. A <g/> marker stands for a name or a fixed term: treat it as a noun.',
       'Write natural spoken dialogue, as short as the original. Keep names unchanged. Never merge or split lines. Never leave a line empty.',
       `Translate idioms, slang, sayings and wordplay by a natural ${vers} expression with the same meaning and tone, never word for word.`,
-    ].join('\n');
+      consigneRegistre(registre, cible),
+    ].filter(Boolean).join('\n');
   }
 
   // Demande en texte simple (une ligne numérotée par réplique, en chaîne JSON) : un objet JSON en
@@ -247,7 +266,7 @@ function creerMoteurs({ fetch, lireCleDeepl, urlDeeplTest = null, journal = cons
     } catch { return null; } // silence-ok: réponse illisible = répliques redemandées par l'appelant
   }
 
-  async function lotOllama(segments, { adresse, modele, source, cible, contexte, aides = [], signal }) {
+  async function lotOllama(segments, { adresse, modele, source, cible, registre, contexte, aides = [], signal }) {
     const d = await appelOllama(adresse, '/api/chat', {
       signal,
       delai: 300000, // premier chargement du modèle en mémoire vidéo : peut être long
@@ -258,7 +277,7 @@ function creerMoteurs({ fetch, lireCleDeepl, urlDeeplTest = null, journal = cons
         keep_alive: '10m',
         options: { temperature: 0.2, num_ctx: 8192 },
         messages: [
-          { role: 'system', content: consigne(source, cible) },
+          { role: 'system', content: consigne(source, cible, registre) },
           { role: 'user', content: demande(segments, contexte, cible, aides) },
         ],
       },
@@ -277,7 +296,7 @@ function creerMoteurs({ fetch, lireCleDeepl, urlDeeplTest = null, journal = cons
   }
 
   // Lots de 20 ; ce qui manque dans la réponse est redemandé en lots plus petits, puis un par un.
-  async function traduireOllama(segments, { adresse, modele, source, cible, contexte = [], aides = null, signal }) {
+  async function traduireOllama(segments, { adresse, modele, source, cible, registre, contexte = [], aides = null, signal }) {
     if (!modele) throw new ErreurMoteur('Aucun modèle d\'IA locale choisi : choisissez-en un dans l\'écran Moteurs.');
     const resultats = new Array(segments.length).fill(null);
     const brouillons = new Map(); // réponses imparfaites (marqueur perdu, recopiée) : gardées en dernier recours
@@ -289,7 +308,7 @@ function creerMoteurs({ fetch, lireCleDeepl, urlDeeplTest = null, journal = cons
         const ctx = contexte.concat(lot[0] > 0 ? resultats.slice(Math.max(0, lot[0] - 4), lot[0]).filter(Boolean) : []).slice(-4);
         let reponses;
         try {
-          reponses = await lotOllama(lot.map((i) => segments[i]), { adresse, modele, source, cible, contexte: ctx, aides: lot.map((i) => aides?.[i] || []), signal });
+          reponses = await lotOllama(lot.map((i) => segments[i]), { adresse, modele, source, cible, registre, contexte: ctx, aides: lot.map((i) => aides?.[i] || []), signal });
         } catch (e) {
           if (e.definitive !== false) throw e;
           reponses = lot.map(() => null);
@@ -319,6 +338,46 @@ function creerMoteurs({ fetch, lireCleDeepl, urlDeeplTest = null, journal = cons
     }
     await traiter(segments.map((_, i) => i), 20);
     return resultats;
+  }
+
+  // ------------------------------------------------------------------ Relecture (T402)
+  // Une scène : [{ n, original, traduction }]. Renvoie { corrections: [{ n, texte, type, raison }],
+  // doutes: [{ n, raison }] } ; les numéros inconnus sont ignorés, la validation fine est faite par
+  // le pipeline. Réponse illisible → { illisible: true }.
+  const TYPES_RELECTURE = new Set(['meaning', 'gender', 'name', 'address', 'split', 'idiom', 'other']);
+  async function relireScene(lignes, { adresse, modele, source, cible, registre = 'auto', signal }) {
+    if (!modele) throw new ErreurMoteur('Aucun modèle d\'IA locale choisi pour la relecture.');
+    const de = source && source !== 'auto' ? langue(source)?.anglais : 'the original language';
+    const vers = langue(cible)?.anglais || cible;
+    const regle = consigneRegistre(registre, cible);
+    const systeme = [
+      `You are a professional film subtitle proofreader. You receive one scene: each numbered line gives the original (${de}) and its ${vers} translation.`,
+      'Fix only real problems in the translations: meaning errors or omissions; wrong gender or number agreement (a character keeps the same gender); names written differently; a sentence split over two subtitles whose halves do not connect; idioms translated word for word.',
+      regle ? `Form of address: ${regle} Within the scene, the same speaker must use the same form with the same person; a plural form addressed to several people is correct.` : null,
+      'Do not touch lines that are fine. Keep the tone, the length and every marker like <x n="0"/> exactly as written.',
+      `Answer ONLY with JSON: {"corrections": [{"line": 3, "text": "corrected ${vers} translation", "type": "meaning|gender|name|address|split|idiom|other", "reason": "short reason in French"}], "doubts": [{"line": 5, "reason": "short reason in French"}]}. Use empty lists if everything is fine.`,
+    ].filter(Boolean).join('\n');
+    const corps = lignes.map((l, i) => `${i + 1}. original: ${JSON.stringify(l.original)}\n   translation: ${JSON.stringify(l.traduction)}`).join('\n');
+    const d = await appelOllama(adresse, '/api/chat', {
+      signal,
+      delai: 300000,
+      corps: {
+        model: modele, stream: false, format: 'json', keep_alive: '10m',
+        options: { temperature: 0.1, num_ctx: 8192 },
+        messages: [{ role: 'system', content: systeme }, { role: 'user', content: `Scene (${lignes.length} lines):\n${corps}` }],
+      },
+    });
+    const brut = String(d?.message?.content || '').replace(/<think>[\s\S]*?<\/think>/g, '');
+    let o;
+    try { o = JSON.parse(brut.slice(brut.indexOf('{'), brut.lastIndexOf('}') + 1)); } catch { return { illisible: true, corrections: [], doutes: [] }; } // silence-ok: scène sautée, comptée dans le bilan
+    const numero = (v) => { const k = Number(v); return Number.isInteger(k) && k >= 1 && k <= lignes.length ? lignes[k - 1].n : null; };
+    const texteCourt = (v, max) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
+    const corrections = (Array.isArray(o?.corrections) ? o.corrections : []).map((c) => ({
+      n: numero(c?.line), texte: typeof c?.text === 'string' ? c.text.trim() : '',
+      type: TYPES_RELECTURE.has(c?.type) ? c.type : 'other', raison: texteCourt(c?.reason, 160),
+    })).filter((c) => c.n !== null && c.texte);
+    const doutes = (Array.isArray(o?.doubts) ? o.doubts : []).map((x) => ({ n: numero(x?.line), raison: texteCourt(x?.reason, 160) })).filter((x) => x.n !== null);
+    return { corrections, doutes };
   }
 
   // ------------------------------------------------------------------ Commun
@@ -354,7 +413,7 @@ function creerMoteurs({ fetch, lireCleDeepl, urlDeeplTest = null, journal = cons
     throw new ErreurMoteur('Moteur de traduction inconnu.');
   }
 
-  return { usageDeepl, traduireDeepl, modelesOllama, traduireOllama, traduireTout };
+  return { usageDeepl, traduireDeepl, modelesOllama, traduireOllama, traduireTout, relireScene };
 }
 
-module.exports = { creerMoteurs, ErreurMoteur, adresseOllamaValide, normaliserAdresse, versXml, depuisXml, nonTraduit, nombreMots };
+module.exports = { creerMoteurs, ErreurMoteur, adresseOllamaValide, normaliserAdresse, versXml, depuisXml, nonTraduit, nombreMots, formesAdresse };

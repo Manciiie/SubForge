@@ -28,7 +28,7 @@ function estVideo(chemin) {
   return EXTENSIONS_VIDEO.has(path.extname(chemin).toLowerCase());
 }
 
-function executer(binaire, args, { delai = 60000, signal, sortieMax = 4 * 1024 * 1024, surSortie = null } = {}) {
+function executer(binaire, args, { delai = 60000, signal, sortieMax = 4 * 1024 * 1024, surSortie = null, surDonnees = null } = {}) {
   return new Promise((ok, ko) => {
     if (!path.isAbsolute(binaire) || !fs.existsSync(binaire)) {
       ko(new Error('ffmpeg est introuvable dans le dossier de l\'application : réinstallez SubForge.'));
@@ -44,7 +44,11 @@ function executer(binaire, args, { delai = 60000, signal, sortieMax = 4 * 1024 *
     const minuteur = setTimeout(() => { p.kill(); terminer(() => ko(new Error('ffmpeg ne répond plus (délai dépassé).'))); }, delai);
     signal?.addEventListener('abort', surAnnulation, { once: true });
     if (signal?.aborted) surAnnulation();
-    p.stdout.on('data', (d) => { if (surSortie) surSortie(String(d)); else if (sortie.length < sortieMax) sortie += d; });
+    p.stdout.on('data', (d) => {
+      if (surDonnees) surDonnees(d); // données brutes (son PCM)
+      else if (surSortie) surSortie(String(d));
+      else if (sortie.length < sortieMax) sortie += d;
+    });
     p.stderr.on('data', (d) => { if (erreurs.length < sortieMax) erreurs += d; });
     p.on('error', (e) => terminer(() => ko(new Error(`Impossible de lancer ffmpeg : ${e.message}`))));
     p.on('close', (code) => terminer(() => ok({ code, sortie, erreurs })));
