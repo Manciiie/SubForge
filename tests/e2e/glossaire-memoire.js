@@ -25,14 +25,14 @@ module.exports = async (p) => {
   await p.clic('#gl-enregistrer');
   await p.attendre('.table-glossaire__ligne:nth-child(3)');
   // Modification : « Garde Nuit » → « Garde de Nuit ».
-  await p.eval('[...document.querySelectorAll(".table-glossaire__ligne")].find((l) => l.textContent.includes("Night")).querySelector(".btn").click()');
+  await p.eval('[...document.querySelectorAll("#gl-table .table-glossaire__ligne")].find((l) => l.textContent.includes("Night")).querySelector(".btn").click()');
   p.verifier((await p.eval('document.getElementById("gl-terme").value')) === "Night's Watch", 'modification : formulaire prérempli');
   await p.saisir('#gl-traduction', 'Garde de Nuit');
   await p.clic('#gl-enregistrer');
   await p.pause(300);
   p.verifier(/Garde de Nuit/.test(await p.texte('#gl-table')) && !/Garde Nuit/.test(await p.texte('#gl-table')), 'terme modifié dans la liste');
   await p.saisir('#gl-recherche', 'snow');
-  p.verifier((await p.eval('document.querySelectorAll(".table-glossaire__ligne").length')) === 2, 'recherche : un seul terme affiché');
+  p.verifier((await p.eval('document.querySelectorAll("#gl-table .table-glossaire__ligne").length')) === 2, 'recherche : un seul terme affiché');
   await p.saisir('#gl-recherche', '');
   await p.capture('e2e-glossaire');
 

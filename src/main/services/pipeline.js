@@ -7,6 +7,7 @@ const formats = require('./formats');
 const glossaire = require('./glossaire');
 const { langue } = require('./langues');
 const { nonTraduit, nombreMots } = require('./moteurs');
+const expressions = require('./expressions');
 
 const RE_MARQUEURS = /<[xg]\s+n="\d+"\s*\/>/g;
 const A_TRADUIRE = /\p{L}/u;
@@ -33,7 +34,7 @@ function verifierTraduit(originaux, traductions, options) {
   throw new Error(`Traduction ratée : ${recopiees} répliques sur ${phrases} sont restées telles quelles. ${conseil} Si ces sous-titres sont déjà en ${nomCible}, il n'y a rien à traduire.`);
 }
 
-async function traduireDocument(doc, { moteurs, memoire = null, glossairePrepare = null, options, signal, surAvancement = () => {} }) {
+async function traduireDocument(doc, { moteurs, memoire = null, glossairePrepare = null, expressionsPreparees = null, options, signal, surAvancement = () => {} }) {
   // 1. Segments, réplique par réplique (balises → marqueurs <x/>).
   const preparations = doc.repliques.map((r) => (r.dessin ? null : formats.preparerReplique(r.texte, doc.format)));
   const segments = [];
@@ -57,6 +58,12 @@ async function traduireDocument(doc, { moteurs, memoire = null, glossairePrepare
     if (!indexUnique.has(t)) { indexUnique.set(t, uniques.length); uniques.push(t); }
   });
 
+  // 3 bis. Expressions (idiomes, argot) : leur sens accompagne la réplique jusqu'au moteur. La clé de
+  // mémoire en tient compte : une réplique traduite autrefois sans cette aide est retraduite avec.
+  const aides = uniques.map((u) => expressions.trouver(u, expressionsPreparees));
+  const clesMemoire = uniques.map((u, i) => (aides[i].length ? `${u}\u0001${expressions.signature(aides[i])}` : u));
+  const expressionsVues = [...new Set(aides.flat().map((a) => a.expression))];
+
   // 4. Mémoire de traduction.
   const contexteMemoire = {
     moteur: options.moteur,
@@ -69,7 +76,7 @@ async function traduireDocument(doc, { moteurs, memoire = null, glossairePrepare
   let repris = 0;
   let caracteresEconomises = 0;
   if (memoire && options.memoire !== false && uniques.length) {
-    const { trouves, manquants } = memoire.chercher(contexteMemoire, uniques);
+    const { trouves, manquants } = memoire.chercher(contexteMemoire, clesMemoire);
     // Une « traduction » mémorisée identique à l'original (IA locale qui avait recopié) est ignorée.
     const aRefaire = [];
     for (const [i, t] of trouves) {
@@ -90,12 +97,12 @@ async function traduireDocument(doc, { moteurs, memoire = null, glossairePrepare
     if (signal?.aborted) throw erreurAnnulation();
     const envoyes = aEnvoyer.map((i) => uniques[i]);
     caracteresEnvoyes = envoyes.reduce((n, t) => n + t.replace(RE_MARQUEURS, '').length, 0);
-    const resultats = await moteurs.traduireTout(envoyes, { ...options, signal }, (fait) => surAvancement(repris + fait, total));
+    const resultats = await moteurs.traduireTout(envoyes, { ...options, aides: aEnvoyer.map((i) => aides[i]), signal }, (fait) => surAvancement(repris + fait, total));
     if (signal?.aborted) throw erreurAnnulation();
     resultats.forEach((t, j) => { traduitsUniques[aEnvoyer[j]] = t; });
     verifierTraduit(uniques, traduitsUniques, options);
     if (memoire && options.memoire !== false) {
-      const paires = aEnvoyer.map((i, j) => [uniques[i], resultats[j]]).filter(([o, t]) => !nonTraduit(o, t));
+      const paires = aEnvoyer.map((i, j) => [clesMemoire[i], resultats[j], uniques[i]]).filter(([, t, o]) => !nonTraduit(o, t)).map(([k, t]) => [k, t]);
       const r = memoire.ajouter(contexteMemoire, paires);
       if (!r.ok) erreurMemoire = r.erreur;
     }
@@ -125,6 +132,7 @@ async function traduireDocument(doc, { moteurs, memoire = null, glossairePrepare
     caracteresEconomises,
     aVerifier,
     erreurMemoire,
+    expressions: expressionsVues,
   };
 }
 

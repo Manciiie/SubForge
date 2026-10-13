@@ -67,6 +67,18 @@
   `scripts/preparer-ffmpeg.js`, extraction du binaire sans dépendance.
 - **Conséquences** : +23 Mo dans l'installeur ; le script D-004 change de source, pas d'usage.
 
+## D-009 — Expressions : une aide envoyée au moteur, pas un remplacement
+- **Date** : 2026-10-13
+- **Choix** : une expression repérée n'est pas remplacée (contrairement au glossaire) ; son sens et
+  l'équivalent voulu partent avec la réplique (demande de l'IA locale, `context` de DeepL).
+- **Pourquoi** : remplacer « break a leg » par « Merde ! » avant traduction casse la phrase et l'accord
+  (« Break a leg tonight, kid » → le moteur doit reformuler toute la phrase). Le moteur juge aussi si
+  l'expression est employée au sens figuré (« he broke a leg skiing »).
+- **Écartés** : glossaires DeepL (forme exacte imposée, comptes payants pour certaines paires) ;
+  `custom_instructions` DeepL (réservé à certains modèles/offres) ; dépendance de lemmatisation
+  (formes conjuguées écrites dans les motifs, suffisant pour l'anglais des films).
+- **Conséquences** : une aide n'est qu'une aide ; la clé de mémoire inclut les expressions repérées.
+
 ## D-008 — OCR des sous-titres Blu-ray
 - **Contexte** : les Blu-ray ont des sous-titres en image (PGS) : pas de texte à traduire.
 - **Options** : OCR de Windows (sans téléchargement mais dépend des packs de langue installés,

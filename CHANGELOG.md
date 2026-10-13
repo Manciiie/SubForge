@@ -1,5 +1,21 @@
 # Journal des modifications
 
+## 1.3.0 — 2026-10-13
+### Nouveautés
+- Expressions traduites par leur sens : idiomes, argot et tournures toutes faites ne sont plus
+  traduits mot à mot (« Break a leg! » → « Merde ! », pas « Casse-toi une jambe ! »).
+  - 110 expressions anglaises courantes intégrées (formes conjuguées reconnues : spill / spilled /
+    spilling the beans), avec leur sens et un équivalent français ; pour une autre langue
+    d'arrivée, le moteur part du sens.
+  - Vos propres expressions, dans n'importe quelle langue : sens, équivalent voulu, langues ;
+    joker `*` (un à trois mots) et formes au choix (`make|made * day`).
+  - Nouvel écran « Expressions » : tester une phrase, gérer vos expressions, activer ou désactiver
+    la liste intégrée (en entier ou une par une).
+  - Fonctionne avec DeepL (le sens passe dans le contexte, non facturé) et avec l'IA locale ; la
+    carte du fichier indique les expressions adaptées.
+  - L'IA locale reçoit aussi une consigne générale : argot, dictons et jeux de mots traduits par
+    une tournure naturelle de même sens et même ton.
+
 ## 1.2.3 — 2026-10-12
 ### Corrections
 - IA locale : la piste « Français » pouvait contenir le texte anglais d'origine. Certains modèles

@@ -40,6 +40,11 @@ const CANAUX = [
   'moteurs:testerOllama',
   'memoire:etat',
   'memoire:vider',
+  'expressions:lister',
+  'expressions:enregistrer',
+  'expressions:supprimer',
+  'expressions:regler',
+  'expressions:tester',
   'glossaire:lister',
   'glossaire:enregistrer',
   'glossaire:supprimer',
@@ -102,6 +107,13 @@ contextBridge.exposeInMainWorld('forge', {
   memoire: {
     etat: () => appeler('memoire:etat'),
     vider: () => appeler('memoire:vider'),
+  },
+  expressions: {
+    lister: () => appeler('expressions:lister'),
+    enregistrer: (entree) => appeler('expressions:enregistrer', entree),
+    supprimer: (id) => appeler('expressions:supprimer', id),
+    regler: (o) => appeler('expressions:regler', o),
+    tester: (texte, source, cible) => appeler('expressions:tester', texte, source, cible),
   },
   glossaire: {
     lister: () => appeler('glossaire:lister'),

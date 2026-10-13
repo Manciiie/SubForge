@@ -32,6 +32,7 @@ fichier on ne sait où. Je veux : glisser le film ou le sous-titre, choisir la l
 | En ligne | Sous-titres trouvés sur OpenSubtitles quand le film n'en a pas | 1.1.0 | `tasks/v1.1-T106.md` |
 | Ajouter au film | Copie MKV du film avec la piste traduite, sans réencoder ; résultat par défaut d'une vidéo depuis la 1.2.1 (un seul fichier) | 1.2.0 | `tasks/v1.2-T201.md` |
 | IA locale simple | Bascule et choix du modèle automatiques, messages clairs | 1.2.0 | `tasks/v1.2-T202.md` |
+| Expressions | Idiomes et argot traduits par leur sens (liste anglaise intégrée + expressions perso) ; écran Expressions | 1.3.0 | `tasks/v1.3-T301.md` |
 | En ligne (saison) | Recherche + téléchargement automatiques et sûrs pour toutes les vidéos sans sous-titres | 1.1.0 | `tasks/v1.1-T107.md` |
 
 ### Comportements attendus
@@ -50,6 +51,9 @@ fichier on ne sait où. Je veux : glisser le film ou le sous-titre, choisir la l
   traduite ; pas de sous-titre séparé. Choix « Résultat (vidéos) » : film / film + fichier /
   fichier seul. Ajout au film impossible → la traduction est enregistrée à part.
   La piste ajoutée au film est toujours en SRT (1.2.2 : le lecteur Windows n'affiche pas l'ASS).
+- « Break a leg! » → le moteur reçoit le sens (« good luck », équivalent « Merde ! ») et traduit
+  par une tournure française naturelle, pas « Casse-toi une jambe ». Mes propres expressions
+  (joker `*`, formes `make|made`) s'ajoutent dans l'écran Expressions.
 - Annuler arrête la traduction en cours sans laisser de fichier à moitié écrit.
 
 ## 4. Hors périmètre

@@ -44,6 +44,17 @@ function nonTraduit(original, traduction) {
 }
 // Réponse dans une autre écriture (ex. chinois au lieu de français) : refusée.
 const RE_ASIE = /[\p{Script=Han}\p{Script=Hangul}\p{Script=Hiragana}\p{Script=Katakana}]/u;
+// Aides « expressions » (expressions.js) → texte lu par le moteur. Le moteur juge si l'expression est
+// bien employée au sens figuré dans la réplique.
+function texteAides(aides, vers) {
+  return aides.map((a) => {
+    const parts = [`"${a.texte}"`];
+    if (a.sens) parts.push(`is an idiom meaning "${a.sens}"`);
+    else parts.push('is an idiom');
+    if (a.equivalent) parts.push(`(natural ${vers} equivalent: "${a.equivalent}")`);
+    return `${parts.join(' ')}.`;
+  }).join(' ');
+}
 function mauvaiseEcriture(original, traduction, cible) {
   return !['zh', 'ja', 'ko'].includes(String(cible).split('-')[0]) && RE_ASIE.test(traduction) && !RE_ASIE.test(original);
 }
@@ -133,7 +144,7 @@ function creerMoteurs({ fetch, lireCleDeepl, urlDeeplTest = null, journal = cons
     };
   }
 
-  async function traduireDeepl(segments, { source, cible, formalite = 'defaut', contexte = '', signal }) {
+  async function traduireDeepl(segments, { source, cible, formalite = 'defaut', contexte = '', aides = null, signal }) {
     const lc = langue(cible);
     if (!lc?.deeplCible) throw new ErreurMoteur(`DeepL ne traduit pas vers ${lc?.nom || cible} : choisissez l'IA locale.`);
     const ls = source && source !== 'auto' ? langue(source) : null;
@@ -148,7 +159,12 @@ function creerMoteurs({ fetch, lireCleDeepl, urlDeeplTest = null, journal = cons
     if (ls) corps.source_lang = ls.deeplSource;
     if (formalite === 'formel') corps.formality = 'prefer_more';
     if (formalite === 'informel') corps.formality = 'prefer_less';
-    if (contexte) corps.context = contexte.slice(-2000);
+    // Expressions : leur sens va dans le contexte (lu par DeepL, jamais traduit ni facturé).
+    const lesAides = (aides || []).flat().filter(Boolean);
+    const vers = langue(cible)?.anglais || cible;
+    const noteAides = lesAides.length ? `Translate idioms by their meaning, not word for word: ${texteAides(lesAides, vers)}` : '';
+    const leContexte = [contexte.slice(-(2000 - Math.min(1500, noteAides.length))), noteAides.slice(0, 1500)].filter(Boolean).join('\n');
+    if (leContexte) corps.context = leContexte;
     const d = await appelDeepl('/v2/translate', { methode: 'POST', corps, signal });
     if (!Array.isArray(d.translations) || d.translations.length !== segments.length) {
       throw new ErreurMoteur('Réponse DeepL incomplète.', { definitive: false });
@@ -201,17 +217,20 @@ function creerMoteurs({ fetch, lireCleDeepl, urlDeeplTest = null, journal = cons
       'Answer ONLY with a JSON object mapping each line number to its translation, for example {"1": "...", "2": "..."}. Same numbers, no extra keys, no comments.',
       'Keep every marker like <x n="0"/> or <g n="0"/> exactly as written, at the matching place in the sentence. A <g/> marker stands for a name or a fixed term: treat it as a noun.',
       'Write natural spoken dialogue, as short as the original. Keep names unchanged. Never merge or split lines. Never leave a line empty.',
+      `Translate idioms, slang, sayings and wordplay by a natural ${vers} expression with the same meaning and tone, never word for word.`,
     ].join('\n');
   }
 
   // Demande en texte simple (une ligne numérotée par réplique, en chaîne JSON) : un objet JSON en
   // entrée était parfois recopié tel quel par les petits modèles, donc renvoyé sans traduction.
-  function demande(segments, contexte, cible) {
+  function demande(segments, contexte, cible, aides = []) {
     const vers = langue(cible)?.anglais || cible;
     const parties = [];
     if (contexte.length) parties.push('Previous lines, for context only (do not translate them):', ...contexte.map((c) => `- ${JSON.stringify(c)}`), '');
     parties.push(`Translate these ${segments.length} subtitle line(s) into ${vers}:`);
     segments.forEach((t, i) => parties.push(`${i + 1}. ${JSON.stringify(t)}`));
+    const notes = segments.map((_, i) => (aides[i]?.length ? `- line ${i + 1}: ${texteAides(aides[i], vers)}` : null)).filter(Boolean);
+    if (notes.length) parties.push('', 'Idioms in these lines (translate them by their meaning if used figuratively here):', ...notes);
     parties.push('', `Answer with the JSON object of the ${vers} translations only.`);
     return parties.join('\n');
   }
@@ -228,7 +247,7 @@ function creerMoteurs({ fetch, lireCleDeepl, urlDeeplTest = null, journal = cons
     } catch { return null; } // silence-ok: réponse illisible = répliques redemandées par l'appelant
   }
 
-  async function lotOllama(segments, { adresse, modele, source, cible, contexte, signal }) {
+  async function lotOllama(segments, { adresse, modele, source, cible, contexte, aides = [], signal }) {
     const d = await appelOllama(adresse, '/api/chat', {
       signal,
       delai: 300000, // premier chargement du modèle en mémoire vidéo : peut être long
@@ -240,7 +259,7 @@ function creerMoteurs({ fetch, lireCleDeepl, urlDeeplTest = null, journal = cons
         options: { temperature: 0.2, num_ctx: 8192 },
         messages: [
           { role: 'system', content: consigne(source, cible) },
-          { role: 'user', content: demande(segments, contexte, cible) },
+          { role: 'user', content: demande(segments, contexte, cible, aides) },
         ],
       },
     });
@@ -258,7 +277,7 @@ function creerMoteurs({ fetch, lireCleDeepl, urlDeeplTest = null, journal = cons
   }
 
   // Lots de 20 ; ce qui manque dans la réponse est redemandé en lots plus petits, puis un par un.
-  async function traduireOllama(segments, { adresse, modele, source, cible, contexte = [], signal }) {
+  async function traduireOllama(segments, { adresse, modele, source, cible, contexte = [], aides = null, signal }) {
     if (!modele) throw new ErreurMoteur('Aucun modèle d\'IA locale choisi : choisissez-en un dans l\'écran Moteurs.');
     const resultats = new Array(segments.length).fill(null);
     const brouillons = new Map(); // réponses imparfaites (marqueur perdu, recopiée) : gardées en dernier recours
@@ -270,7 +289,7 @@ function creerMoteurs({ fetch, lireCleDeepl, urlDeeplTest = null, journal = cons
         const ctx = contexte.concat(lot[0] > 0 ? resultats.slice(Math.max(0, lot[0] - 4), lot[0]).filter(Boolean) : []).slice(-4);
         let reponses;
         try {
-          reponses = await lotOllama(lot.map((i) => segments[i]), { adresse, modele, source, cible, contexte: ctx, signal });
+          reponses = await lotOllama(lot.map((i) => segments[i]), { adresse, modele, source, cible, contexte: ctx, aides: lot.map((i) => aides?.[i] || []), signal });
         } catch (e) {
           if (e.definitive !== false) throw e;
           reponses = lot.map(() => null);
@@ -315,7 +334,7 @@ function creerMoteurs({ fetch, lireCleDeepl, urlDeeplTest = null, journal = cons
         while (fin < segments.length && fin - i < 50 && taille + segments[fin].length < 30000) { taille += segments[fin].length; fin += 1; }
         if (fin === i) fin = i + 1;
         const contexte = segments.slice(Math.max(0, i - 3), i).join('\n');
-        const t = await traduireDeepl(segments.slice(i, fin), { ...options, contexte });
+        const t = await traduireDeepl(segments.slice(i, fin), { ...options, contexte, aides: options.aides?.slice(i, fin) });
         t.forEach((v, j) => { sortie[i + j] = v; });
         i = fin;
         surAvancement(i, segments.length);
@@ -326,7 +345,7 @@ function creerMoteurs({ fetch, lireCleDeepl, urlDeeplTest = null, journal = cons
       const pas = 20; // un lot à la fois : la progression avance à chaque réponse du modèle
       for (let i = 0; i < segments.length; i += pas) {
         const contexte = sortie.slice(Math.max(0, i - 3), i).filter(Boolean);
-        const t = await traduireOllama(segments.slice(i, i + pas), { ...options, contexte });
+        const t = await traduireOllama(segments.slice(i, i + pas), { ...options, contexte, aides: options.aides?.slice(i, i + pas) });
         t.forEach((v, j) => { sortie[i + j] = v; });
         surAvancement(Math.min(i + pas, segments.length), segments.length);
       }

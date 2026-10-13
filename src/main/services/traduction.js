@@ -16,6 +16,7 @@ const langues = require('./langues');
 const { creerMoteurs, adresseOllamaValide, normaliserAdresse } = require('./moteurs');
 const { creerMemoire } = require('./memoire');
 const { creerGlossaire } = require('./glossaire');
+const { creerExpressions, trouver: trouverExpressions } = require('./expressions');
 const { traduireDocument } = require('./pipeline');
 const dossiers = require('./dossiers');
 const pgs = require('./pgs');
@@ -33,6 +34,7 @@ let ocr = null;
 let enLigne = null;
 const telechargementsEnCours = new Set();
 let glossaire = null;
+let expressions = null;
 let binaireFfmpeg = null;
 let tache = null;              // { controleur, expediteur }
 const resultats = new Map();   // id d'élément → { paires, sortie }
@@ -151,7 +153,7 @@ async function traduireElement(el, options, signal) {
 
     rapporter('traduction', { fait: 0, total: 0, message: 'Traduction…' });
     const bilan = await traduireDocument(doc, {
-      moteurs, memoire, glossairePrepare: glossaire.pour(options.cible), options, signal,
+      moteurs, memoire, glossairePrepare: glossaire.pour(options.cible), expressionsPreparees: expressions.pour({ source: options.source, cible: options.cible }), options, signal,
       surAvancement: (fait, total) => rapporter('traduction', { fait, total }),
     });
 
@@ -256,6 +258,7 @@ function enregistrer({ racineApp }) {
   const donnees = app.getPath('userData');
   memoire = creerMemoire({ fichier: path.join(donnees, 'memoire-traduction.jsonl'), journal });
   glossaire = creerGlossaire({ fichier: path.join(donnees, 'glossaire.json'), journal });
+  expressions = creerExpressions({ fichier: path.join(donnees, 'expressions.json'), codesLangues: CODES, journal });
   // OCR : données de langue hors de app.asar, travailleur Tesseract dans app.asar.unpacked (fichiers réels).
   const dossierLangues = app.isPackaged ? path.join(process.resourcesPath, 'tessdata') : path.join(racineApp, 'vendor', 'tessdata');
   const cheminTravailleur = app.isPackaged
@@ -399,6 +402,34 @@ function enregistrer({ racineApp }) {
     journal.info('Mémoire de traduction vidée.');
     return memoire.etat();
   });
+
+  // --- Expressions (traduites par leur sens) ---
+  canal('expressions:lister', [], () => expressions.lister());
+  canal('expressions:enregistrer', [{
+    type: 'objet',
+    champs: {
+      id: { type: 'string', max: 32, optionnel: true },
+      expression: { type: 'string', max: 200 },
+      sens: { type: 'string', max: 300 },
+      equivalent: { type: 'string', max: 200 },
+      source: { type: 'enum', valeurs: ['*', ...CODES] },
+      cible: { type: 'enum', valeurs: ['*', ...CODES] },
+    },
+  }], (_e, entree) => expressions.enregistrer(entree));
+  canal('expressions:supprimer', [{ type: 'string', max: 32 }], (_e, id) => expressions.supprimer(id));
+  canal('expressions:regler', [{
+    type: 'objet',
+    champs: {
+      integrees: { type: 'boolean', optionnel: true },
+      id: { type: 'string', max: 16, optionnel: true },
+      active: { type: 'boolean', optionnel: true },
+    },
+  }], (_e, o) => expressions.regler(o));
+  canal('expressions:tester', [
+    { type: 'string', max: 1000 },
+    { type: 'enum', valeurs: ['auto', ...CODES] },
+    { type: 'enum', valeurs: CODES },
+  ], (_e, texte, source, cible) => trouverExpressions(texte, expressions.pour({ source, cible })));
 
   // --- Glossaire ---
   canal('glossaire:lister', [], () => glossaire.lister());

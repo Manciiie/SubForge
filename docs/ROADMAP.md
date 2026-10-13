@@ -3,7 +3,7 @@
 > Une version = un lot de modules ou d'améliorations, chacun avec sa fiche dans `tasks/`.
 > La liste numérotée d'améliorations proposée à chaque livraison devient la version suivante.
 
-**Version en cours** : 1.2.0
+**Version en cours** : 1.3.0
 
 ---
 
@@ -46,6 +46,14 @@
 
 ---
 
+## 1.3.0 — Expressions traduites par leur sens `[x]`
+**Résultat** : demandé le 2026-10-13 (« interpréter certains mots ou groupes de mots, adaptés à la langue »).
+| ID | Tâche | Statut |
+|---|---|---|
+| v1.3-T301 | Expressions (idiomes, argot) : liste intégrée anglaise + expressions perso, sens envoyé au moteur | [x] |
+
+---
+
 ## Proposé pour la suite (pas encore validé)
 Reprendre ici la liste numérotée envoyée avec la dernière livraison.
 2. Éditeur de répliques : corriger une traduction (ou un texte lu par OCR) à la main avant d'enregistrer
@@ -61,6 +69,7 @@ Reprendre ici la liste numérotée envoyée avec la dernière livraison.
 |---|---|---|
 | 1.0.0 | 2026-10-07 | SRT/ASS/VTT, pistes MKV/MP4, DeepL + Ollama, file, Annuler, aperçu (jamais livrée) |
 | 1.2.0 | 2026-10-11 | Piste traduite ajoutée au film (MKV), IA locale sans manipulation |
+| 1.3.0 | 2026-10-13 | Expressions traduites par leur sens (écran Expressions) ; 1.2.1–1.2.3 : un seul fichier film, piste SRT, IA locale qui recopiait |
 | 1.1.0 | 2026-10-10 | Glossaire, mémoire, saison, OCR Blu-ray, OpenSubtitles (film + saison auto), ffmpeg 7.1 |
 
 **Statuts** : `[ ]` à faire · `[~]` en cours · `[x]` fait · `[-]` abandonné · `[!]` bloqué

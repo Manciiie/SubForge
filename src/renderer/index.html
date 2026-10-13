@@ -23,6 +23,7 @@
     <nav class="navigation" aria-label="Navigation principale">
       <button class="nav-item actif" data-ecran="traduire">Traduire</button>
       <button class="nav-item" data-ecran="glossaire">Glossaire</button>
+      <button class="nav-item" data-ecran="expressions">Expressions</button>
       <button class="nav-item" data-ecran="moteurs">Moteurs</button>
       <div class="navigation__bas">
         <button class="nav-item" data-ecran="parametres">Paramètres</button>
@@ -146,6 +147,68 @@
           <div class="table-glossaire" id="gl-table" role="table"></div>
           <p class="discret" id="gl-vide">Aucun terme pour l'instant. Ajoutez les noms des personnages et des lieux de votre série : ils resteront identiques dans tous les épisodes.</p>
           <p class="discret">Import : une ligne par terme, <span class="code">terme;traduction;langue</span> (traduction et langue facultatives).</p>
+        </div>
+      </section>
+
+      <section class="ecran" id="ecran-expressions">
+        <h1>Expressions</h1>
+        <p class="sous-titre">Expressions toutes faites, argot et tournures : traduites par leur sens, avec une tournure naturelle de la langue d'arrivée, jamais mot à mot. Pour DeepL comme pour l'IA locale.</p>
+        <p class="avertissement-moteur discret" id="ex-avertissement"></p>
+
+        <div class="carte">
+          <h2>Tester une phrase</h2>
+          <div class="ligne-test">
+            <input type="text" id="ex-test" maxlength="1000" placeholder="ex. Break a leg tonight, and don't spill the beans!" spellcheck="false">
+            <button class="btn" id="ex-tester">Tester</button>
+          </div>
+          <div id="ex-test-resultat" class="discret"></div>
+        </div>
+
+        <div class="carte">
+          <h2 id="ex-titre-form">Ajouter une expression</h2>
+          <div class="formulaire-expression">
+            <label class="option">Expression
+              <input type="text" id="ex-expression" maxlength="120" placeholder="ex. make|made * day" spellcheck="false">
+            </label>
+            <label class="option">Sens
+              <input type="text" id="ex-sens" maxlength="200" placeholder="ex. rendre quelqu'un très heureux" spellcheck="false">
+            </label>
+            <label class="option">Équivalent voulu (facultatif)
+              <input type="text" id="ex-equivalent" maxlength="120" placeholder="ex. illuminer la journée" spellcheck="false">
+            </label>
+            <label class="option">Langue d'origine
+              <select id="ex-source"><option value="*">Toutes</option></select>
+            </label>
+            <label class="option">Langue d'arrivée
+              <select id="ex-cible"><option value="*">Toutes</option></select>
+            </label>
+            <div class="formulaire-glossaire__actions">
+              <button class="btn btn--lien" id="ex-annuler" hidden>Annuler</button>
+              <button class="btn btn--principal" id="ex-enregistrer">Ajouter</button>
+            </div>
+          </div>
+          <p class="discret">Joker <span class="code">*</span> : un à trois mots quelconques. Plusieurs formes d'un mot : <span class="code">make|made</span>. Indiquez au moins le sens ou l'équivalent.</p>
+        </div>
+
+        <div class="carte">
+          <div class="file__entete">
+            <h2 id="ex-compte">Vos expressions</h2>
+            <span class="espace"></span>
+            <input type="text" id="ex-recherche" placeholder="Rechercher…" spellcheck="false">
+          </div>
+          <div class="table-glossaire table-expressions" id="ex-table" role="table"></div>
+          <p class="discret" id="ex-vide">Aucune expression personnelle pour l'instant.</p>
+        </div>
+
+        <div class="carte">
+          <div class="file__entete">
+            <h2 id="ex-integrees-titre">Expressions anglaises courantes</h2>
+            <span class="espace"></span>
+            <label class="ligne-case"><input type="checkbox" id="ex-integrees-actives"> Utiliser cette liste</label>
+          </div>
+          <p class="discret">Utilisée quand la langue d'origine est l'anglais (ou détectée automatiquement). Décochez une expression pour ne plus l'employer.</p>
+          <input type="text" id="ex-integrees-recherche" placeholder="Rechercher dans la liste…" spellcheck="false">
+          <div class="table-glossaire table-expressions" id="ex-integrees-table" role="table"></div>
         </div>
       </section>
 
@@ -351,6 +414,7 @@
   <script src="js/traduire.js"></script>
   <script src="js/moteurs.js"></script>
   <script src="js/glossaire.js"></script>
+  <script src="js/expressions.js"></script>
   <script src="js/enligne.js"></script>
   <script src="js/maj.js"></script>
 </body>

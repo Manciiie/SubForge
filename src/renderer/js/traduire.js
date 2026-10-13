@@ -253,6 +253,10 @@ window.__modules.push((async () => {
       if (b.caracteresEconomises && reglages.traduction.moteur === 'deepl') morceaux.push(`${b.caracteresEconomises.toLocaleString('fr-FR')} caractères DeepL économisés`);
       if (b.envoyes) morceaux.push(`${b.envoyes.toLocaleString('fr-FR')} phrase${b.envoyes > 1 ? 's' : ''} envoyée${b.envoyes > 1 ? 's' : ''} au moteur`);
       if (morceaux.length) corps.push(el('span', { classe: 'discret', texte: morceaux.join(' · ') }));
+      if (b.expressions?.length) {
+        const n = b.expressions.length;
+        corps.push(el('span', { classe: 'discret', texte: `${n} expression${n > 1 ? 's' : ''} traduite${n > 1 ? 's' : ''} par le sens : ${b.expressions.slice(0, 6).join(', ')}${n > 6 ? '…' : ''}` }));
+      }
       if (b.aVerifier) corps.push(el('p', { classe: 'carte-fichier__message carte-fichier__message--alerte', texte: `${b.aVerifier} réplique${b.aVerifier > 1 ? 's' : ''} à vérifier : le moteur a perdu un terme du glossaire.` }));
       if (b.integration?.fichier && !b.integration.seul) {
         corps.push(el('div', { classe: 'carte-fichier__actions' }, [

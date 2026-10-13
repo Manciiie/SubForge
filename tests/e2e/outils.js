@@ -11,6 +11,7 @@ const RACINE = path.resolve(__dirname, '..', '..');
 function fauxOllama() {
   return new Promise((ok) => {
     const recues = [];
+    const demandes = [];
     const s = http.createServer((req, res) => {
       let corps = '';
       req.on('data', (d) => { corps += d; });
@@ -22,6 +23,7 @@ function fauxOllama() {
         }
         const msg = JSON.parse(corps);
         const lignes = lignesDemandees(msg.messages[1].content);
+        demandes.push(msg.messages[1].content);
         const sortie = {};
         for (const [k, v] of Object.entries(lignes)) { sortie[k] = s.recopier ? v : `[fr] ${v}`; recues.push(v); } // s.recopier : imite un modèle qui ne traduit pas
         const lent = Object.values(lignes).some((v) => v.includes('LENT'));
@@ -33,6 +35,7 @@ function fauxOllama() {
       });
     });
     s.recues = recues;
+    s.demandes = demandes;
     s.listen(0, '127.0.0.1', () => ok(s));
   });
 }
