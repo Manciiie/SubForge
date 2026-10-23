@@ -4,6 +4,7 @@
 // La clé DeepL reste dans le processus principal : jamais renvoyée à l'interface ni écrite au journal.
 
 const { langue } = require('./langues');
+const { enParallele } = require('./limite');
 
 class ErreurMoteur extends Error {
   constructor(message, { definitive = true } = {}) {
@@ -300,7 +301,7 @@ function creerMoteurs({ fetch, lireCleDeepl, urlDeeplTest = null, journal = cons
   }
 
   // Lots de 20 ; ce qui manque dans la réponse est redemandé en lots plus petits, puis un par un.
-  async function traduireOllama(segments, { adresse, modele, source, cible, registre, contexteFilm, contexte = [], aides = null, signal }) {
+  async function traduireOllama(segments, { adresse, modele, source, cible, registre, contexteFilm, contexte = [], aides = null, limite = null, signal }) {
     if (!modele) throw new ErreurMoteur('Aucun modèle d\'IA locale choisi : choisissez-en un dans l\'écran Moteurs.');
     const resultats = new Array(segments.length).fill(null);
     const brouillons = new Map(); // réponses imparfaites (marqueur perdu, recopiée) : gardées en dernier recours
@@ -312,7 +313,8 @@ function creerMoteurs({ fetch, lireCleDeepl, urlDeeplTest = null, journal = cons
         const ctx = contexte.concat(lot[0] > 0 ? resultats.slice(Math.max(0, lot[0] - 4), lot[0]).filter(Boolean) : []).slice(-4);
         let reponses;
         try {
-          reponses = await lotOllama(lot.map((i) => segments[i]), { adresse, modele, source, cible, registre, contexteFilm, contexte: ctx, aides: lot.map((i) => aides?.[i] || []), signal });
+          const demander = () => lotOllama(lot.map((i) => segments[i]), { adresse, modele, source, cible, registre, contexteFilm, contexte: ctx, aides: lot.map((i) => aides?.[i] || []), signal });
+          reponses = await (limite ? limite.prendre(demander) : demander());
         } catch (e) {
           if (e.definitive !== false) throw e;
           reponses = lot.map(() => null);
@@ -400,19 +402,30 @@ function creerMoteurs({ fetch, lireCleDeepl, urlDeeplTest = null, journal = cons
         const contexte = segments.slice(Math.max(0, i - 3), i).join('\n');
         const t = await traduireDeepl(segments.slice(i, fin), { ...options, contexte, aides: options.aides?.slice(i, fin) });
         t.forEach((v, j) => { sortie[i + j] = v; });
+        options.surLot?.(i, t);
         i = fin;
         surAvancement(i, segments.length);
       }
       return sortie;
     }
     if (options.moteur === 'ollama') {
-      const pas = 20; // un lot à la fois : la progression avance à chaque réponse du modèle
-      for (let i = 0; i < segments.length; i += pas) {
-        const contexte = sortie.slice(Math.max(0, i - 3), i).filter(Boolean);
+      // Lots de 20, jusqu'à N en même temps (T602). Un lot dont les précédents ne sont pas encore traduits
+      // reçoit comme contexte les répliques d'origine qui le précèdent.
+      const pas = 20;
+      const debuts = [];
+      for (let i = 0; i < segments.length; i += pas) debuts.push(i);
+      let faits = 0;
+      await enParallele(debuts, Math.max(1, Math.min(4, options.parallele || 1)), async (i) => {
+        if (options.signal?.aborted) throw erreurAnnulation();
+        // Array.from : les cases encore vides du tableau sont de vrais « undefined » (every() les sauterait).
+        const precedents = Array.from(sortie.slice(Math.max(0, i - 3), i));
+        const contexte = precedents.every((t) => typeof t === 'string') ? precedents : segments.slice(Math.max(0, i - 3), i);
         const t = await traduireOllama(segments.slice(i, i + pas), { ...options, contexte, aides: options.aides?.slice(i, i + pas) });
         t.forEach((v, j) => { sortie[i + j] = v; });
-        surAvancement(Math.min(i + pas, segments.length), segments.length);
-      }
+        faits += t.length;
+        surAvancement(faits, segments.length);
+        options.surLot?.(i, t);
+      });
       return sortie;
     }
     throw new ErreurMoteur('Moteur de traduction inconnu.');

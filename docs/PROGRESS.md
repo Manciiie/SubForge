@@ -4,10 +4,10 @@
 > Garder court : 5 dernières sessions en détail, les plus anciennes résumées en une ligne.
 
 ## 📍 État actuel
-- **Version livrée** : 1.5.0 (2026-10-23)
-- **Dépôt** : `Manciiie/SubForge` — dernier envoi : version 1.5.0 (2026-10-23)
+- **Version livrée** : 1.6.0 (2026-10-23)
+- **Dépôt** : `Manciiie/SubForge` — dernier envoi : version 1.6.0 (2026-10-23)
 - **Testé sur Windows réel** : non (PC non joignable) ; `ffmpeg.exe` 7.1 vérifié sous wine
-- **Version en cours** : 1.5.0
+- **Version en cours** : 1.6.0
 - **Prochaine tâche** : — mises à jour automatiques toujours inactives (dépôt -releases + jeton à créer)
 - **Ce qui marche** : tout le périmètre 1.0 + glossaire, mémoire, saison, OCR Blu-ray (version compilée comprise), recherche en ligne (faux serveur), ffmpeg 7
 - **Fragile / non vérifié** : vrais DeepL / Ollama / OpenSubtitles jamais appelés depuis la session ; OCR testé sur un .sup fabriqué (police DejaVu), pas sur un vrai Blu-ray ; mises à jour automatiques inactives (pas de jeton)
@@ -28,6 +28,12 @@ Gravité : 🔴 crash / perte de données · 🟠 fonction cassée · 🟡 gêna
 ---
 
 ## 📓 Journal des sessions
+
+### 2026-10-23 — Version 1.6.0
+- **Demande** : optimisations 4, 5, 6 (synchronisation en parallèle, demandes simultanées, relecture pendant la traduction).
+- **Fait** : T601, T602, T603. Bug corrigé en route : contexte « undefined » pour un lot parallèle.
+- **Vérifié** : 111 tests, 13 scénarios e2e (dont `v16.js`), scan 0 bloquant. Faux Ollama (2 demandes à la fois possibles, 300 ms/lot) : 400 répliques en 6,1 s → 3,0 s avec 2 demandes.
+- **Pas vérifié** : gain réel sur la RTX 4060 (dépend de la mémoire vidéo et du réglage OLLAMA_NUM_PARALLEL) → bouton « Mesurer sur ce PC ».
 
 ### 2026-10-23 — Version 1.5.0
 - **Demande** : contexte du film (point 2 de la liste).

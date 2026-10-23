@@ -20,6 +20,7 @@ window.__modules.push((async () => {
       $('ollama-modele').append(el('option', { value: etat.ollama.modele, texte: etat.ollama.modele }));
     }
     $('ollama-modele').value = etat.ollama.modele || '';
+    $('ollama-parallele').value = String(etat.ollama.parallele || 2);
     await window.SubForge.rafraichirOptions?.();
     return etat;
   }
@@ -125,6 +126,29 @@ window.__modules.push((async () => {
     } catch (e) { erreur(e); $('ollama-statut').textContent = ''; } finally { b.disabled = false; }
   });
   $('btn-ollama-site').addEventListener('click', () => window.forge.ouvrirLien('https://ollama.com/download'));
+
+  // --- Demandes simultanées (1.6) ---
+  $('ollama-parallele').addEventListener('change', () => T.modifierReglages({ paralleleOllama: Number($('ollama-parallele').value) }).catch(erreur));
+  M.surMesure((texte) => { $('ollama-mesure').textContent = texte; });
+  $('btn-ollama-mesurer').addEventListener('click', async () => {
+    const b = $('btn-ollama-mesurer');
+    b.disabled = true;
+    $('btn-ollama-annuler-mesure').hidden = false;
+    $('ollama-mesure').textContent = 'Mesure en cours (une à trois minutes)…';
+    try {
+      const r = await M.mesurerOllama();
+      const s = (ms) => `${(ms / 1000).toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} s`;
+      $('ollama-mesure').textContent = `40 répliques : ${s(r.t1)} avec 1 demande, ${s(r.t2)} avec 2 demandes à la fois → réglé sur ${r.conseil}${r.conseil === 2 ? ` (${Math.round((1 - r.t2 / r.t1) * 100)} % plus rapide)` : ' (pas plus rapide en parallèle sur ce PC)'}.`;
+      $('ollama-parallele').value = String(r.conseil);
+    } catch (e) {
+      const m = (e?.message || String(e)).replace(/^Error invoking remote method '[^']+': (\w*Error: )?/, '');
+      $('ollama-mesure').textContent = /annulée/i.test(m) ? 'Mesure annulée.' : m;
+    } finally {
+      b.disabled = false;
+      $('btn-ollama-annuler-mesure').hidden = true;
+    }
+  });
+  $('btn-ollama-annuler-mesure').addEventListener('click', () => M.annulerMesure().catch(erreur));
 
   // --- Mémoire de traduction ---
   async function majMemoire() {

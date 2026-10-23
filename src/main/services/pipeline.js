@@ -8,6 +8,7 @@ const glossaire = require('./glossaire');
 const { langue } = require('./langues');
 const { nonTraduit, nombreMots } = require('./moteurs');
 const expressions = require('./expressions');
+const { creerLimite } = require('./limite');
 
 const RE_MARQUEURS = /<[xg]\s+n="\d+"\s*\/>/g;
 const A_TRADUIRE = /\p{L}/u;
@@ -90,44 +91,73 @@ async function traduireDocument(doc, { moteurs, memoire = null, glossairePrepare
     aEnvoyer = manquants.concat(aRefaire).sort((a, b) => a - b);
   }
 
-  // 5. Moteur, pour les seuls textes nouveaux.
+  // 5. Relecture préparée avant la traduction (T603) : chaque scène part en relecture dès que toutes
+  //    ses répliques sont traduites ; un limiteur commun borne les demandes simultanées à l'IA (T602).
+  const limite = creerLimite(Math.max(1, Math.min(4, options.parallele || 1)));
+  const valeursGlossaire = avecGlossaire.map((g) => g.valeurs);
+  const traductionSegment = (i) => {
+    const u = indexUnique.get(textes[i]);
+    const brut = u === undefined ? textes[i] : (traduitsUniques[u] ?? textes[i]);
+    return glossaire.restituer(brut, valeursGlossaire[i]);
+  };
+  const segmentsDuUnique = new Map();
+  textes.forEach((t, i) => {
+    const u = indexUnique.get(t);
+    if (u === undefined) return;
+    if (!segmentsDuUnique.has(u)) segmentsDuUnique.set(u, []);
+    segmentsDuUnique.get(u).push(i);
+  });
+  const relecteur = relecture
+    ? demarrerRelecture({ liste: scenes(doc, positions, preparations), segments, textes, indexUnique, traductionSegment, relecture, limite, signal })
+    : null;
+  const pret = new Array(uniques.length).fill(false);
+  const marquerPret = (u) => {
+    if (pret[u]) return;
+    pret[u] = true;
+    for (const i of segmentsDuUnique.get(u) || []) relecteur?.segmentPret(i);
+  };
+  traduitsUniques.forEach((t, u) => { if (t !== null) marquerPret(u); });
+  relecteur?.lancerPretes();
+
+  // 6. Moteur, pour les seuls textes nouveaux.
   const total = uniques.length;
   surAvancement(repris, total);
   let caracteresEnvoyes = 0;
   let erreurMemoire = null;
-  if (aEnvoyer.length) {
-    if (signal?.aborted) throw erreurAnnulation();
-    const envoyes = aEnvoyer.map((i) => uniques[i]);
-    caracteresEnvoyes = envoyes.reduce((n, t) => n + t.replace(RE_MARQUEURS, '').length, 0);
-    const resultats = await moteurs.traduireTout(envoyes, { ...options, aides: aEnvoyer.map((i) => aides[i]), signal }, (fait) => surAvancement(repris + fait, total));
-    if (signal?.aborted) throw erreurAnnulation();
-    resultats.forEach((t, j) => { traduitsUniques[aEnvoyer[j]] = t; });
-    verifierTraduit(uniques, traduitsUniques, options);
-    if (memoire && options.memoire !== false) {
-      const paires = aEnvoyer.map((i, j) => [clesMemoire[i], resultats[j], uniques[i]]).filter(([, t, o]) => !nonTraduit(o, t)).map(([k, t]) => [k, t]);
-      const r = memoire.ajouter(contexteMemoire, paires);
-      if (!r.ok) erreurMemoire = r.erreur;
+  try {
+    if (aEnvoyer.length) {
+      if (signal?.aborted) throw erreurAnnulation();
+      const envoyes = aEnvoyer.map((i) => uniques[i]);
+      caracteresEnvoyes = envoyes.reduce((n, t) => n + t.replace(RE_MARQUEURS, '').length, 0);
+      const resultats = await moteurs.traduireTout(envoyes, {
+        ...options, aides: aEnvoyer.map((i) => aides[i]), limite, signal,
+        // Lot traduit : ses répliques sont prêtes pour la relecture.
+        surLot: (debut, lot) => lot.forEach((t, j) => { const u = aEnvoyer[debut + j]; traduitsUniques[u] = t; marquerPret(u); }),
+      }, (fait) => surAvancement(repris + fait, total));
+      if (signal?.aborted) throw erreurAnnulation();
+      resultats.forEach((t, j) => { traduitsUniques[aEnvoyer[j]] = t; marquerPret(aEnvoyer[j]); });
+      verifierTraduit(uniques, traduitsUniques, options);
+      if (memoire && options.memoire !== false) {
+        const paires = aEnvoyer.map((i, j) => [clesMemoire[i], resultats[j], uniques[i]]).filter(([, t, o]) => !nonTraduit(o, t)).map(([k, t]) => [k, t]);
+        const r = memoire.ajouter(contexteMemoire, paires);
+        if (!r.ok) erreurMemoire = r.erreur;
+      }
     }
+  } catch (e) {
+    // Traduction ratée ou annulée : les relectures déjà parties sont arrêtées avant de rendre la main.
+    if (relecteur) await relecteur.abandonner();
+    throw e;
   }
 
-  // 6. Glossaire restitué, puis répliques recomposées.
+  // 7. Glossaire restitué ; corrections de la relecture appliquées avant la recomposition.
   let aVerifier = 0;
-  const traductions = textes.map((t, i) => {
-    const u = indexUnique.get(t);
-    const brut = u === undefined ? t : (traduitsUniques[u] ?? t);
-    const { texte, perdus } = glossaire.restituer(brut, avecGlossaire[i].valeurs);
+  const traductions = textes.map((_, i) => {
+    const { texte, perdus } = traductionSegment(i);
     if (perdus) aVerifier += 1;
     return texte;
   });
-  // 7. Relecture par l'IA (T402) : corrections contrôlées, appliquées avant la recomposition.
-  let bilanRelecture = null;
   const notes = new Map(); // indice de réplique → { type: 'corrige' | 'doute', raison }
-  if (relecture) {
-    bilanRelecture = await relireDocument({
-      doc, segments, positions, preparations, traductions, valeursGlossaire: avecGlossaire.map((g) => g.valeurs),
-      relecture, notes, signal,
-    });
-  }
+  const bilanRelecture = relecteur ? await relecteur.terminer({ traductions, valeursGlossaire, notes }) : null;
 
   doc.repliques.forEach((r, i) => {
     const p = preparations[i];
@@ -185,41 +215,86 @@ function correctionValable(original, actuelle, correction, valeurs) {
   return correction.length <= Math.max(actuelle.length, 20) * 2.5;
 }
 
-async function relireDocument({ doc, segments, positions, preparations, traductions, valeursGlossaire, relecture, notes, signal }) {
-  const liste = scenes(doc, positions, preparations);
-  const bilan = { scenes: liste.length, corrigees: 0, refusees: 0, doutes: 0, tuVous: 0, sautees: 0, erreur: null };
-  for (let k = 0; k < liste.length; k++) {
-    if (signal?.aborted) throw erreurAnnulation();
-    relecture.surAvancement?.(k, liste.length);
-    const lignes = liste[k].map(({ segment }) => ({ n: segment, original: segments[segment], traduction: traductions[segment] }));
-    let r;
-    try {
-      r = await relecture.relire(lignes);
-    } catch (e) {
-      if (e.name === 'AbortError' || signal?.aborted) throw e;
-      // IA locale arrêtée en cours de route : la traduction est gardée telle quelle.
-      bilan.erreur = e.message;
-      bilan.sautees += liste.length - k;
-      break;
+// Relecture progressive : scenes[k] part dès que tous ses segments traduisibles sont prêts.
+function demarrerRelecture({ liste, segments, textes, indexUnique, traductionSegment, relecture, limite, signal }) {
+  const sceneDe = new Map();
+  const attente = liste.map((sc, k) => {
+    let n = 0;
+    for (const { segment } of sc) {
+      sceneDe.set(segment, k);
+      if (indexUnique.has(textes[segment])) n += 1; // les segments sans texte à traduire sont prêts d'office
     }
-    if (r.illisible) { bilan.sautees += 1; continue; }
-    const repliqueDe = new Map(liste[k].map((x) => [x.segment, x.replique]));
-    for (const c of r.corrections) {
-      if (!correctionValable(segments[c.n], traductions[c.n], c.texte, valeursGlossaire[c.n] || [])) { bilan.refusees += 1; continue; }
-      traductions[c.n] = c.texte;
-      bilan.corrigees += 1;
-      if (c.type === 'address') bilan.tuVous += 1;
-      notes.set(repliqueDe.get(c.n), { type: 'corrige', raison: c.raison || 'corrigée à la relecture' });
-    }
-    for (const d of r.doutes) {
-      const i = repliqueDe.get(d.n);
-      if (notes.has(i)) continue;
-      notes.set(i, { type: 'doute', raison: d.raison || 'à vérifier' });
-      bilan.doutes += 1;
-    }
+    return n;
+  });
+  const lancees = new Array(liste.length).fill(false);
+  const resultats = new Array(liste.length).fill(null); // { lignes, r } une fois relue
+  const promesses = [];
+  const interne = new AbortController();
+  const surAnnulation = () => interne.abort();
+  signal?.addEventListener('abort', surAnnulation, { once: true });
+  let arret = null; // message de la première erreur (IA arrêtée…) : plus rien ne démarre
+  let faites = 0;
+
+  function lancer(k) {
+    if (lancees[k]) return;
+    lancees[k] = true;
+    promesses.push((async () => {
+      try {
+        const r = await limite.prendre(async () => {
+          if (arret || interne.signal.aborted) return null;
+          // Texte lu au moment du départ : la scène est complète, il ne changera plus.
+          const lignes = liste[k].map(({ segment }) => ({ n: segment, original: segments[segment], traduction: traductionSegment(segment).texte }));
+          return { lignes, r: await relecture.relire(lignes, interne.signal) };
+        });
+        if (r) resultats[k] = r;
+      } catch (e) {
+        if (!(e.name === 'AbortError' || interne.signal.aborted) && !arret) arret = e.message;
+      }
+      faites += 1;
+      relecture.surAvancement?.(faites, liste.length);
+    })());
   }
-  relecture.surAvancement?.(liste.length, liste.length);
-  return bilan;
+
+  return {
+    segmentPret(i) {
+      const k = sceneDe.get(i);
+      if (k === undefined || lancees[k]) return;
+      attente[k] -= 1;
+      if (attente[k] <= 0) lancer(k);
+    },
+    lancerPretes() { attente.forEach((n, k) => { if (n <= 0) lancer(k); }); },
+    async abandonner() {
+      interne.abort();
+      await Promise.allSettled(promesses);
+      signal?.removeEventListener('abort', surAnnulation);
+    },
+    async terminer({ traductions, valeursGlossaire, notes }) {
+      attente.forEach((_, k) => lancer(k)); // filet de sécurité : toute scène restante part maintenant
+      await Promise.all(promesses);
+      signal?.removeEventListener('abort', surAnnulation);
+      if (signal?.aborted) throw erreurAnnulation();
+      const bilan = { scenes: liste.length, corrigees: 0, refusees: 0, doutes: 0, tuVous: 0, sautees: 0, erreur: arret };
+      resultats.forEach((res, k) => {
+        if (!res || res.r.illisible) { bilan.sautees += 1; return; }
+        const repliqueDe = new Map(liste[k].map((x) => [x.segment, x.replique]));
+        for (const c of res.r.corrections) {
+          if (!repliqueDe.has(c.n)) continue;
+          if (!correctionValable(segments[c.n], traductions[c.n], c.texte, valeursGlossaire[c.n] || [])) { bilan.refusees += 1; continue; }
+          traductions[c.n] = c.texte;
+          bilan.corrigees += 1;
+          if (c.type === 'address') bilan.tuVous += 1;
+          notes.set(repliqueDe.get(c.n), { type: 'corrige', raison: c.raison || 'corrigée à la relecture' });
+        }
+        for (const d of res.r.doutes) {
+          const i = repliqueDe.get(d.n);
+          if (i === undefined || notes.has(i)) continue;
+          notes.set(i, { type: 'doute', raison: d.raison || 'à vérifier' });
+          bilan.doutes += 1;
+        }
+      });
+      return bilan;
+    },
+  };
 }
 
 module.exports = { traduireDocument, scenes, correctionValable };

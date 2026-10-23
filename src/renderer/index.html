@@ -343,6 +343,17 @@
             </span>
           </div>
           <div class="ligne-param">
+            <span>Demandes simultanées <span class="discret">(traduction et relecture en même temps sur la carte graphique)</span></span>
+            <span class="actions">
+              <select id="ollama-parallele" aria-label="Demandes simultanées à l'IA locale">
+                <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option>
+              </select>
+              <button class="btn" id="btn-ollama-mesurer">Mesurer sur ce PC</button>
+              <button class="btn btn--danger" id="btn-ollama-annuler-mesure" hidden>Annuler</button>
+            </span>
+          </div>
+          <p class="discret" id="ollama-mesure" aria-live="polite"></p>
+          <div class="ligne-param">
             <span id="ollama-statut" class="discret"></span>
             <span class="actions">
               <button class="btn btn--lien" id="btn-ollama-site">Télécharger Ollama</button>

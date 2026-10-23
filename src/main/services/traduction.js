@@ -22,6 +22,7 @@ const dossiers = require('./dossiers');
 const pgs = require('./pgs');
 const { creerOcr, versSrt: ocrVersSrt } = require('./ocr');
 const synchro = require('./synchro');
+const { creerLimite } = require('./limite');
 const { creerContexte, texteContexte, formeJeton } = require('./contexte');
 const { creerEnLigne, CODES_OS } = require('./enligne');
 
@@ -49,7 +50,7 @@ function reglages() {
   return {
     traduction: { source: 'auto', cible: 'fr', moteur: 'deepl', formatSortie: 'identique', dossierSortie: null, memoire: true, resultatFilm: 'film', synchro: true, relecture: true, registre: 'auto', contexte: true, ...(p.traduction || {}) },
     deepl: { formalite: 'defaut', ...(p.deepl || {}) },
-    ollama: { adresse: 'http://127.0.0.1:11434', modele: '', ...(p.ollama || {}) },
+    ollama: { adresse: 'http://127.0.0.1:11434', modele: '', parallele: 2, ...(p.ollama || {}) },
     enligne: { utilisateur: '', ...(p.enligne || {}) },
   };
 }
@@ -109,6 +110,10 @@ async function traduireElement(el, options, signal) {
   const rapporter = (etat, extra = {}) => envoyer({ id: el.id, etat, ...extra });
   let extraction = null;
   let dossierPiste = null; // dossier temporaire du sous-titre quand il ne va que dans le film
+  // Arrête l'analyse du son si la traduction échoue ou est annulée.
+  const synchroSignal = new AbortController();
+  const relaisAnnulation = () => synchroSignal.abort();
+  signal.addEventListener('abort', relaisAnnulation, { once: true });
   try {
     let fichier = el.chemin;
     let sup = path.extname(el.chemin).toLowerCase() === '.sup' ? el.chemin : null;
@@ -157,8 +162,26 @@ async function traduireElement(el, options, signal) {
     // Sous-titre externe : vidéo d'origine à côté (recalage sur son son, puis ajout de la piste).
     const estFilm = video.estVideo(el.chemin);
     const filmAssocie = !estFilm && !sup && (options.synchro || options.resultatFilm !== 'fichier') ? dossiers.videoAssociee(el.chemin) : null;
+    // Progression de la carte : traduction, relecture et synchronisation avancent en même temps (1.6).
+    const progression = { trad: { fait: 0, total: 0 }, relu: null, tradFinie: false, synchroPct: null, attenteSynchro: false };
+    const publier = () => {
+      if (!progression.tradFinie) {
+        rapporter('traduction', { ...progression.trad, relu: progression.relu, synchroPct: progression.synchroPct !== null && progression.synchroPct < 100 ? progression.synchroPct : null });
+      } else if (progression.relu && progression.relu.fait < progression.relu.total) {
+        rapporter('relecture', { ...progression.relu, message: 'Relecture par l\'IA…', synchroPct: progression.synchroPct !== null && progression.synchroPct < 100 ? progression.synchroPct : null });
+      } else if (progression.attenteSynchro) {
+        rapporter('synchro', { fait: progression.synchroPct || 0, total: 100, message: 'Synchronisation sur le son du film…' });
+      }
+    };
+    // Synchronisation (T601) : le son du film est analysé pendant la traduction ; les minutages sont
+    // appliqués ensuite, avant l'écriture.
     let bilanSynchro = null;
-    if (filmAssocie && options.synchro) bilanSynchro = await synchroniser(doc, filmAssocie, signal, rapporter);
+    let synchroPromesse = null;
+    if (filmAssocie && options.synchro) {
+      progression.synchroPct = 0;
+      synchroPromesse = calculerSynchro(formats.lireMinutages(doc), filmAssocie, synchroSignal.signal, (pct) => { progression.synchroPct = pct; publier(); });
+      synchroPromesse.catch(() => {}); // silence-ok: le résultat (ou l'erreur) est attendu juste après la traduction
+    }
 
     const original = doc.repliques.map((r) => formats.texteVisible(r.texte));
 
@@ -181,13 +204,21 @@ async function traduireElement(el, options, signal) {
     rapporter('traduction', { fait: 0, total: 0, message: 'Traduction…' });
     const bilan = await traduireDocument(doc, {
       moteurs, memoire, glossairePrepare: glossaire.pour(options.cible), expressionsPreparees: expressions.pour({ source: options.source, cible: options.cible }), options, signal,
-      surAvancement: (fait, total) => rapporter('traduction', { fait, total }),
+      surAvancement: (fait, total) => { progression.trad = { fait, total }; if (fait >= total) progression.tradFinie = true; publier(); },
       // Relecture par l'IA locale (T402), avec DeepL comme avec l'IA locale, dès qu'un modèle est choisi.
       relecture: options.relecture && options.modele ? {
-        relire: (lignes) => moteurs.relireScene(lignes, { ...options, signal }),
-        surAvancement: (fait, total) => rapporter('relecture', { fait, total, message: 'Relecture par l\'IA…' }),
+        relire: (lignes, sig) => moteurs.relireScene(lignes, { ...options, signal: sig || signal }),
+        surAvancement: (fait, total) => { progression.relu = { fait, total }; publier(); },
       } : null,
     });
+    progression.tradFinie = true;
+    if (synchroPromesse) {
+      progression.attenteSynchro = true;
+      publier();
+      const sy = await synchroPromesse;
+      bilanSynchro = sy.bilan;
+      if (sy.recalage) bilanSynchro.retirees = formats.appliquerMinutages(doc, synchro.transformation(sy.recalage));
+    }
     if (options.relecture && !options.modele) bilan.relecture = { indisponible: true };
     const notes = bilan.notes;
     delete bilan.notes;
@@ -256,6 +287,8 @@ async function traduireElement(el, options, signal) {
       rapporter('erreur', { message });
     }
   } finally {
+    synchroSignal.abort();
+    signal.removeEventListener('abort', relaisAnnulation);
     extraction?.nettoyer();
     if (dossierPiste) {
       try { fs.rmSync(dossierPiste, { recursive: true, force: true }); } catch (e) { journal.erreur('[traduction] dossier temporaire non supprimé :', e); }
@@ -263,27 +296,29 @@ async function traduireElement(el, options, signal) {
   }
 }
 
-// Recale les minutages du document sur le son du film. Ne fait jamais échouer la traduction :
-// renvoie un bilan { fait, decalageMs, vitesse } / { raison } / { erreur }.
-async function synchroniser(doc, film, signal, rapporter) {
+// Calcule le recalage des minutages sur le son du film, sans toucher au document (T601 : tourne
+// pendant la traduction). Ne fait jamais échouer la traduction : renvoie { bilan, recalage }.
+async function calculerSynchro(minutages, film, signal, surPct) {
   try {
-    rapporter('synchro', { fait: 0, total: 100, message: 'Synchronisation sur le son du film…' });
+    surPct(0);
     const description = await video.executer(binaireFfmpeg, ['-hide_banner', '-nostdin', '-i', film], { signal, delai: 60000 });
     const duree = video.lireDuree(description.erreurs);
     const energies = await synchro.analyserSon(binaireFfmpeg, film, {
       signal, dureeMs: duree ? duree * 1000 : null,
-      surAvancement: (part) => rapporter('synchro', { fait: Math.round(part * 90), total: 100 }),
+      surAvancement: (part) => surPct(Math.round(part * 90)),
     });
-    rapporter('synchro', { fait: 92, total: 100 });
-    const r = await synchro.trouverDecalage(energies, formats.lireMinutages(doc), { signal });
-    const bilan = { film: path.basename(film), raison: r.raison, decalageMs: r.decalageMs, vitesse: synchro.libelleVitesse(r.vitesse ?? 1) };
-    if (r.applique) bilan.retirees = formats.appliquerMinutages(doc, synchro.transformation(r));
+    surPct(92);
+    const r = await synchro.trouverDecalage(energies, minutages, { signal });
+    surPct(100);
     journal.info(`[synchro] ${path.basename(film)} : ${r.raison}${r.applique ? ` (décalage ${r.decalageMs} ms, vitesse ${r.vitesse.toFixed(5)}, netteté ${r.nettete.toFixed(1)})` : r.nettete ? ` (netteté ${r.nettete.toFixed(1)})` : ''}`);
-    return bilan;
+    return {
+      bilan: { film: path.basename(film), raison: r.raison, decalageMs: r.decalageMs, vitesse: synchro.libelleVitesse(r.vitesse ?? 1) },
+      recalage: r.applique ? r : null,
+    };
   } catch (e) {
     if (e.name === 'AbortError' || signal.aborted) throw e;
     journal.erreur(`[synchro] ${path.basename(film)} :`, e);
-    return { film: path.basename(film), erreur: e.message };
+    return { bilan: { film: path.basename(film), erreur: e.message }, recalage: null };
   }
 }
 
@@ -369,6 +404,7 @@ function enregistrer({ racineApp }) {
       formalite: { type: 'enum', valeurs: ['defaut', 'formel', 'informel'], optionnel: true },
       adresseOllama: { type: 'string', max: 300, optionnel: true },
       modeleOllama: { type: 'string', max: 200, optionnel: true },
+      paralleleOllama: { type: 'enum', valeurs: [1, 2, 3, 4], optionnel: true },
       memoire: { type: 'boolean', optionnel: true },
       resultatFilm: { type: 'enum', valeurs: ['film', 'film-et-fichier', 'fichier'], optionnel: true },
       synchro: { type: 'boolean', optionnel: true },
@@ -391,6 +427,7 @@ function enregistrer({ racineApp }) {
       r.ollama.adresse = a;
     }
     if (o.modeleOllama !== undefined) r.ollama.modele = o.modeleOllama;
+    if (o.paralleleOllama !== undefined) r.ollama.parallele = o.paralleleOllama;
     parametres.modifier(r);
     return reglages();
   });
@@ -441,6 +478,7 @@ function enregistrer({ racineApp }) {
       memoire: r.traduction.memoire,
       adresse: r.ollama.adresse,
       modele: r.ollama.modele,
+      parallele: [1, 2, 3, 4].includes(r.ollama.parallele) ? r.ollama.parallele : 2,
     };
     if (options.source !== 'auto' && options.source === options.cible) throw new Error('La langue source et la langue cible sont identiques.');
     if (options.moteur === 'deepl' && !parametres.secretExiste(SECRET_DEEPL)) throw new Error('Aucune clé DeepL : ajoutez-la dans l\'écran Moteurs, ou choisissez l\'IA locale.');
@@ -686,6 +724,51 @@ function enregistrer({ racineApp }) {
     const [t] = await moteurs.traduireOllama(['Good morning, how are you?'], { adresse: r.ollama.adresse, modele: r.ollama.modele, source: 'en', cible: 'fr' });
     return { exemple: String(t).slice(0, 300) };
   });
+
+  // Mesure sur ce PC (T602) : 40 répliques d'exemple avec 1 puis 2 demandes simultanées.
+  let mesure = null;
+  canal('moteurs:mesurerOllama', [], async (event) => {
+    const r = reglages();
+    if (!r.ollama.modele) throw new Error('Choisissez d\'abord un modèle d\'IA locale.');
+    if (mesure) throw new Error('Une mesure est déjà en cours.');
+    if (tache) throw new Error('Une traduction est en cours : mesurez une fois qu\'elle est finie.');
+    mesure = new AbortController();
+    const etape = (texte) => { if (!event.sender.isDestroyed()) event.sender.send('moteurs:mesure', texte); };
+    try {
+      const o = { moteur: 'ollama', adresse: r.ollama.adresse, modele: r.ollama.modele, source: 'en', cible: 'fr', signal: mesure.signal };
+      etape('Chargement du modèle…');
+      await moteurs.traduireOllama(['Hello.'], o);
+      const temps = {};
+      for (const n of [1, 2]) {
+        etape(`Mesure avec ${n} demande${n > 1 ? 's' : ''} à la fois…`);
+        const debut = Date.now();
+        await moteurs.traduireTout(PHRASES_MESURE.map((p) => `${p} (${n})`), { ...o, parallele: n, limite: creerLimite(n) });
+        temps[n] = Date.now() - debut;
+      }
+      const conseil = temps[2] < temps[1] * 0.85 ? 2 : 1;
+      r.ollama.parallele = conseil;
+      parametres.modifier({ ollama: r.ollama });
+      journal.info(`[mesure] ${r.ollama.modele} : 1 demande ${temps[1]} ms, 2 demandes ${temps[2]} ms → ${conseil}`);
+      return { t1: temps[1], t2: temps[2], conseil };
+    } finally {
+      mesure = null;
+    }
+  });
+  canal('moteurs:annulerMesure', [], () => { mesure?.abort(); return true; });
 }
+
+// 40 répliques d'exemple pour la mesure (dialogue courant, longueurs variées).
+const PHRASES_MESURE = [
+  'Where were you last night?', 'I told you not to call me here.', 'We need to leave before sunrise.', 'Is anyone there?',
+  'You have no idea what you are talking about.', 'Give me the keys, now.', 'I am sorry, I did not mean that.', 'How long have you known?',
+  'The train leaves at six.', 'Stop! Put your hands where I can see them.', 'She never came back.', 'Why would he lie to us?',
+  'Let us get out of here.', 'Do you trust me?', 'It was an accident, I swear.', 'Take care of yourself.',
+  'Nobody leaves this room.', 'I will be right back.', 'What happened to your face?', 'We were friends once.',
+  'Call the doctor, quickly!', 'That is not what I asked.', 'You look tired.', 'They are coming for us.',
+  'I can explain everything.', 'Keep your voice down.', 'This is my house.', 'Thank you for coming.',
+  'I have been waiting for hours.', 'Do not touch that.', 'He is not who you think he is.', 'Everything will be fine.',
+  'Open the door.', 'I lost my job today.', 'Are you hungry?', 'Just tell me the truth.',
+  'We should have stayed home.', 'Where is the money?', 'Good night, sweetheart.', 'See you tomorrow.',
+];
 
 module.exports = { enregistrer };

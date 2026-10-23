@@ -298,6 +298,9 @@ window.__modules.push((async () => {
       else if (e.etat === 'relecture') corps.push(el('span', { classe: 'discret', texte: `Relecture par l'IA : scène ${Math.min((e.fait || 0) + 1, e.total || 1)} sur ${e.total || 1}` }));
       else if (e.etat === 'integration') corps.push(el('span', { classe: 'discret', texte: `Copie du film avec la piste traduite : ${e.fait || 0} %` }));
       else if (e.total) corps.push(el('span', { classe: 'discret', texte: `${(e.fait || 0).toLocaleString('fr-FR')} / ${e.total.toLocaleString('fr-FR')} ${e.etat === 'ocr' ? 'images lues (OCR)' : 'répliques'}` }));
+      // Travaux menés en parallèle (1.6) : relecture et écoute du son pendant la traduction.
+      if (e.etat === 'traduction' && e.relu?.total) corps.push(el('span', { classe: 'discret', texte: `Relecture en parallèle : ${e.relu.fait} / ${e.relu.total} scènes` }));
+      if (['traduction', 'relecture'].includes(e.etat) && e.synchroPct !== null && e.synchroPct !== undefined) corps.push(el('span', { classe: 'discret', texte: `Synchronisation en parallèle : ${e.synchroPct} %` }));
     }
     if (e.message && ['erreur', 'annule', 'sans-piste'].includes(e.etat)) corps.push(el('p', { classe: 'carte-fichier__message', texte: e.message }));
     if (e.etat === 'termine' && e.bilan) {
@@ -513,6 +516,8 @@ window.__modules.push((async () => {
     if (ev.fait !== undefined) e.fait = ev.fait;
     if (ev.total !== undefined) e.total = ev.total;
     if (ev.message !== undefined) e.message = ev.message;
+    e.relu = ev.relu ?? null;
+    e.synchroPct = ev.synchroPct ?? null;
     if (ev.sortie) { e.sortie = ev.sortie; e.nomSortie = ev.nomSortie; }
     if (ev.bilan) e.bilan = ev.bilan;
     dessiner(e);

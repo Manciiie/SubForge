@@ -38,6 +38,8 @@ const CANAUX = [
   'moteurs:testerDeepl',
   'moteurs:modelesOllama',
   'moteurs:testerOllama',
+  'moteurs:mesurerOllama',
+  'moteurs:annulerMesure',
   'memoire:etat',
   'memoire:vider',
   'contexte:etat',
@@ -64,7 +66,7 @@ const CANAUX = [
 ];
 
 // Événements envoyés par le processus principal vers l'interface (lecture seule).
-const EVENEMENTS = ['maj:changement', 'traduction:progression'];
+const EVENEMENTS = ['maj:changement', 'traduction:progression', 'moteurs:mesure'];
 
 function ecouter(evenement, rappel) {
   if (!EVENEMENTS.includes(evenement) || typeof rappel !== 'function') return () => {};
@@ -150,6 +152,9 @@ contextBridge.exposeInMainWorld('forge', {
     testerDeepl: () => appeler('moteurs:testerDeepl'),
     modelesOllama: (adresse) => appeler('moteurs:modelesOllama', adresse),
     testerOllama: () => appeler('moteurs:testerOllama'),
+    mesurerOllama: () => appeler('moteurs:mesurerOllama'),
+    annulerMesure: () => appeler('moteurs:annulerMesure'),
+    surMesure: (rappel) => ecouter('moteurs:mesure', rappel),
   },
   majs: {
     etat: () => appeler('maj:etat'),

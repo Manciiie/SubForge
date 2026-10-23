@@ -1,5 +1,16 @@
 # Journal des modifications
 
+## 1.6.0 — 2026-10-23
+### Optimisations
+- La synchronisation sur le son du film se fait pendant la traduction, plus avant : 1 à 3 minutes
+  gagnées par film de 2 h.
+- L'IA locale reçoit plusieurs demandes à la fois (traduction et relecture) : nouveau réglage
+  « Demandes simultanées » dans Moteurs (2 par défaut), avec un bouton « Mesurer sur ce PC » qui
+  compare 1 et 2 demandes sur 40 répliques et garde la plus rapide.
+- La relecture IA commence dès qu'une scène est traduite, sans attendre la fin du film.
+- La carte du fichier montre ce qui avance en même temps (« Relecture en parallèle : 3 / 12
+  scènes », « Synchronisation en parallèle : 45 % »).
+
 ## 1.5.0 — 2026-10-23
 ### Nouveauté
 - Contexte du film : SubForge reconnaît le film ou l'épisode d'après le nom du fichier et récupère
