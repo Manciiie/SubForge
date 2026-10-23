@@ -40,6 +40,8 @@ window.__modules.push((async () => {
     $('opt-resultat').value = r.traduction.resultatFilm || 'film';
     $('opt-registre').value = r.traduction.registre || 'auto';
     $('opt-relecture').checked = r.traduction.relecture !== false;
+    $('opt-relecture-ciblee').checked = r.traduction.relectureCiblee === true;
+    $('opt-relecture-ciblee').disabled = enCours || r.traduction.relecture === false;
     $('opt-synchro').checked = r.traduction.synchro !== false;
     majRegistre();
     const d = r.traduction.dossierSortie;
@@ -59,6 +61,7 @@ window.__modules.push((async () => {
   $('opt-resultat').addEventListener('change', () => modifier({ resultatFilm: $('opt-resultat').value }));
   $('opt-registre').addEventListener('change', () => modifier({ registre: $('opt-registre').value }));
   $('opt-relecture').addEventListener('change', () => modifier({ relecture: $('opt-relecture').checked }));
+  $('opt-relecture-ciblee').addEventListener('change', () => modifier({ relectureCiblee: $('opt-relecture-ciblee').checked }));
   $('opt-synchro').addEventListener('change', () => modifier({ synchro: $('opt-synchro').checked }));
   // Tu / vous : seulement pour les langues qui ont une forme polie.
   function majRegistre() {
@@ -311,9 +314,14 @@ window.__modules.push((async () => {
       else if (e.total) corps.push(el('span', { classe: 'discret', texte: `${(e.fait || 0).toLocaleString('fr-FR')} / ${e.total.toLocaleString('fr-FR')} ${e.etat === 'ocr' ? 'images lues (OCR)' : 'répliques'}` }));
       // Travaux menés en parallèle (1.6) : relecture et écoute du son pendant la traduction.
       if (e.etat === 'traduction' && e.relu?.total) corps.push(el('span', { classe: 'discret', texte: `Relecture en parallèle : ${e.relu.fait} / ${e.relu.total} scènes` }));
-      if (['traduction', 'relecture'].includes(e.etat) && e.synchroPct !== null && e.synchroPct !== undefined) corps.push(el('span', { classe: 'discret', texte: `Synchronisation en parallèle : ${e.synchroPct} %` }));
+      if (['traduction', 'relecture', 'ecriture'].includes(e.etat) && e.synchroPct !== null && e.synchroPct !== undefined) corps.push(el('span', { classe: 'discret', texte: `Synchronisation en parallèle : ${e.synchroPct} %` }));
     }
     if (e.message && ['erreur', 'annule', 'sans-piste'].includes(e.etat)) corps.push(el('p', { classe: 'carte-fichier__message', texte: e.message }));
+    // Saison à la chaîne (1.8) : fichier déjà préparé pendant la traduction du précédent.
+    if (e.etat === 'attente' && enCours && e.message) {
+      corps.push(el('span', { classe: 'discret', texte: e.message }));
+      if (e.synchroPct !== null && e.synchroPct !== undefined) corps.push(el('span', { classe: 'discret', texte: `Synchronisation en parallèle : ${e.synchroPct} %` }));
+    }
     if (e.etat === 'termine' && e.bilan) {
       const b = e.bilan;
       if (b.ocr) {
@@ -342,7 +350,11 @@ window.__modules.push((async () => {
           const morceauxR = [`${rl.corrigees} réplique${rl.corrigees > 1 ? 's' : ''} corrigée${rl.corrigees > 1 ? 's' : ''}`];
           if (rl.tuVous) morceauxR.push(`dont ${rl.tuVous} tu/vous`);
           if (rl.doutes) morceauxR.push(`${rl.doutes} à vérifier`);
-          corps.push(el('span', { classe: 'discret', texte: `Relecture IA : ${morceauxR.join(', ')} (${rl.scenes} scène${rl.scenes > 1 ? 's' : ''}).` }));
+          const relues = rl.scenes - (rl.sansRisque || 0);
+          const scenesTexte = rl.sansRisque !== undefined
+            ? `${relues} scène${relues > 1 ? 's' : ''} relue${relues > 1 ? 's' : ''}, ${rl.sansRisque} sans risque sautée${rl.sansRisque > 1 ? 's' : ''}`
+            : `${rl.scenes} scène${rl.scenes > 1 ? 's' : ''}`;
+          corps.push(el('span', { classe: 'discret', texte: `Relecture IA : ${morceauxR.join(', ')} (${scenesTexte}).` }));
           if (rl.erreur) corps.push(el('p', { classe: 'carte-fichier__message carte-fichier__message--alerte', texte: `Relecture interrompue (${rl.erreur}) : le reste est gardé tel que traduit.` }));
         }
       }
@@ -421,6 +433,7 @@ window.__modules.push((async () => {
     $('btn-annuler').hidden = !enCours;
     $('btn-vider').hidden = enCours;
     for (const s of [selSource, selCible, selMoteur, selFormat, $('opt-resultat'), $('opt-relecture'), $('opt-synchro'), $('btn-dossier'), $('btn-dossier-defaut')]) s.disabled = enCours;
+    $('opt-relecture-ciblee').disabled = enCours || !$('opt-relecture').checked;
     majRegistre();
   }
 

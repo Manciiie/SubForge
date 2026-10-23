@@ -22,7 +22,7 @@ const dossiers = require('./dossiers');
 const pgs = require('./pgs');
 const { creerOcr, versSrt: ocrVersSrt } = require('./ocr');
 const synchro = require('./synchro');
-const { creerLimite } = require('./limite');
+const { creerLimite, aLaChaine } = require('./limite');
 const { creerContexte, texteContexte, formeJeton } = require('./contexte');
 const { creerEnLigne, CODES_OS } = require('./enligne');
 
@@ -48,7 +48,7 @@ const sortiesProduites = new Set();
 function reglages() {
   const p = parametres.lire();
   return {
-    traduction: { source: 'auto', cible: 'fr', moteur: 'deepl', formatSortie: 'identique', dossierSortie: null, memoire: true, resultatFilm: 'film', synchro: true, relecture: true, registre: 'auto', contexte: true, ...(p.traduction || {}) },
+    traduction: { source: 'auto', cible: 'fr', moteur: 'deepl', formatSortie: 'identique', dossierSortie: null, memoire: true, resultatFilm: 'film', synchro: true, relecture: true, relectureCiblee: false, registre: 'auto', contexte: true, ...(p.traduction || {}) },
     deepl: { formalite: 'defaut', ...(p.deepl || {}) },
     ollama: { adresse: 'http://127.0.0.1:11434', modele: '', parallele: 2, garderCharge: true, ...(p.ollama || {}) },
     enligne: { utilisateur: '', ...(p.enligne || {}) },
@@ -106,178 +106,51 @@ async function analyserUn(chemin) {
 
 // --- Traduction d'un élément --------------------------------------------------------
 
-async function traduireElement(el, options, signal) {
+// Un fichier de la file, en trois étapes (1.8) : préparer (extraction, OCR, lecture, contexte, écoute
+// du son lancée), traduire (moteur + relecture), finaliser (minutages, écriture, ajout au film). Dans
+// une saison, l'étape « préparer » du fichier suivant et « finaliser » du précédent tournent pendant
+// la traduction du fichier en cours (voir enchainer()). Une erreur arrête ce fichier seulement.
+function creerTravail(el, optionsBase, signal) {
   const rapporter = (etat, extra = {}) => envoyer({ id: el.id, etat, ...extra });
+  let options = { ...optionsBase };
   let extraction = null;
   let dossierPiste = null; // dossier temporaire du sous-titre quand il ne va que dans le film
-  // Arrête l'analyse du son si la traduction échoue ou est annulée.
+  // Arrête l'analyse du son si ce fichier échoue ou si tout est annulé.
   const synchroSignal = new AbortController();
   const relaisAnnulation = () => synchroSignal.abort();
   signal.addEventListener('abort', relaisAnnulation, { once: true });
-  try {
-    let fichier = el.chemin;
-    let sup = path.extname(el.chemin).toLowerCase() === '.sup' ? el.chemin : null;
-    let langueOcr = sup ? langueDuNom(el.chemin)?.code : null;
-    if (video.estVideo(el.chemin)) {
-      rapporter('extraction', { message: 'Extraction de la piste…' });
-      const pistes = await video.listerPistes(binaireFfmpeg, el.chemin, { signal });
-      const piste = pistes.find((p) => p.indice === el.piste);
-      if (!piste) throw new Error('Piste de sous-titres introuvable dans cette vidéo.');
-      extraction = await video.extrairePiste(binaireFfmpeg, el.chemin, piste, { signal });
-      fichier = extraction.fichier;
-      if (video.estPgs(piste)) { sup = fichier; langueOcr = piste.langue; }
+  let fini = false;
+  let fichier = el.chemin;
+  let sup = null;
+  let doc = null;
+  let bilanOcr = null;
+  let estFilm = false;
+  let filmAssocie = null;
+  let synchroPromesse = null;
+  let bilanContexte = null;
+  let original = null;
+  let bilan = null;
+
+  // Progression de la carte : préparation, traduction, relecture et synchronisation peuvent avancer en
+  // même temps (1.6, 1.8).
+  const progression = { phase: 'preparation', trad: { fait: 0, total: 0 }, relu: null, tradFinie: false, synchroPct: null, attenteSynchro: false };
+  const synchroAffichee = () => (progression.synchroPct !== null && progression.synchroPct < 100 ? progression.synchroPct : null);
+  const publier = () => {
+    if (fini) return;
+    if (progression.phase === 'attente') {
+      rapporter('attente', { message: 'Préparé : attend son tour.', synchroPct: synchroAffichee() });
+    } else if (progression.phase !== 'traduction') {
+      // Préparation ou finalisation : l'étape en cours a déjà envoyé son propre état.
+    } else if (!progression.tradFinie) {
+      rapporter('traduction', { ...progression.trad, relu: progression.relu, synchroPct: synchroAffichee() });
+    } else if (progression.relu && progression.relu.fait < progression.relu.total) {
+      rapporter('relecture', { ...progression.relu, message: 'Relecture par l\'IA…', synchroPct: synchroAffichee() });
     }
+  };
 
-    let doc;
-    let bilanOcr = null;
-    if (sup) {
-      // Blu-ray : images → texte (OCR), enregistré à côté du film, puis traduit comme un sous-titre normal.
-      langueOcr = langueOcr || sourceOuAnglais();
-      const lu = pgs.lireSup(fs.readFileSync(sup));
-      if (!lu.repliques.length) throw new Error('Aucune image lisible dans ces sous-titres Blu-ray.');
-      rapporter('ocr', { fait: 0, total: lu.repliques.length, message: 'Lecture des images (OCR)…' });
-      const textes = await ocr.lire(lu.repliques.map((r) => r.image), {
-        langue: langueOcr, signal, surAvancement: (fait, total) => rapporter('ocr', { fait, total }),
-      });
-      doc = ocrVersSrt(lu.repliques, textes);
-      if (!doc.repliques.length) throw new Error('Aucun texte n\'a pu être lu dans ces images.');
-      const dossierOcr = options.dossierSortie || path.dirname(el.chemin);
-      const fichierOcr = formats.nomSortie(el.chemin, langues.suffixe(langueOcr), '.srt', dossierOcr);
-      formats.ecrireFichier(fichierOcr, doc);
-      sortiesProduites.add(fichierOcr);
-      bilanOcr = {
-        images: lu.repliques.length,
-        lues: doc.repliques.length,
-        douteuses: textes.filter((x) => x.texte && x.confiance < 60).length,
-        illisibles: lu.abimes + (lu.repliques.length - doc.repliques.length),
-        fichier: path.basename(fichierOcr),
-      };
-      journal.info(`[ocr] ${path.basename(el.chemin)} : ${bilanOcr.lues}/${bilanOcr.images} images lues → ${bilanOcr.fichier}`);
-      if (options.source === 'auto') options = { ...options, source: langueOcr };
-    } else {
-      doc = formats.lireFichier(fichier);
-    }
-    formats.preparerConversionAss(doc);
-
-    // Sous-titre externe : vidéo d'origine à côté (recalage sur son son, puis ajout de la piste).
-    const estFilm = video.estVideo(el.chemin);
-    const filmAssocie = !estFilm && !sup && (options.synchro || options.resultatFilm !== 'fichier') ? dossiers.videoAssociee(el.chemin) : null;
-    // Progression de la carte : traduction, relecture et synchronisation avancent en même temps (1.6).
-    const progression = { trad: { fait: 0, total: 0 }, relu: null, tradFinie: false, synchroPct: null, attenteSynchro: false };
-    const publier = () => {
-      if (!progression.tradFinie) {
-        rapporter('traduction', { ...progression.trad, relu: progression.relu, synchroPct: progression.synchroPct !== null && progression.synchroPct < 100 ? progression.synchroPct : null });
-      } else if (progression.relu && progression.relu.fait < progression.relu.total) {
-        rapporter('relecture', { ...progression.relu, message: 'Relecture par l\'IA…', synchroPct: progression.synchroPct !== null && progression.synchroPct < 100 ? progression.synchroPct : null });
-      } else if (progression.attenteSynchro) {
-        rapporter('synchro', { fait: progression.synchroPct || 0, total: 100, message: 'Synchronisation sur le son du film…' });
-      }
-    };
-    // Synchronisation (T601) : le son du film est analysé pendant la traduction ; les minutages sont
-    // appliqués ensuite, avant l'écriture.
-    let bilanSynchro = null;
-    let synchroPromesse = null;
-    if (filmAssocie && options.synchro) {
-      progression.synchroPct = 0;
-      synchroPromesse = calculerSynchro(formats.lireMinutages(doc), filmAssocie, synchroSignal.signal, (pct) => { progression.synchroPct = pct; publier(); });
-      synchroPromesse.catch(() => {}); // silence-ok: le résultat (ou l'erreur) est attendu juste après la traduction
-    }
-
-    const original = doc.repliques.map((r) => formats.texteVisible(r.texte));
-
-    // Contexte du film (T501) : titre, résumé, personnages et genre, pour le moteur et la relecture.
-    let bilanContexte = null;
-    if (options.contexte) {
-      try {
-        const c = await contexteFilms.pour(el.chemin, { signal });
-        if (c.etat === 'trouve') {
-          options = { ...options, contexteFilm: texteContexte(c.contexte) };
-          bilanContexte = { titre: c.contexte.titre, annee: c.contexte.annee, personnages: c.contexte.personnages.length, episode: c.contexte.episode };
-        }
-      } catch (e) {
-        if (e.name === 'AbortError' || signal.aborted) throw e;
-        journal.avertissement(`[contexte] ${path.basename(el.chemin)} : ${e.message}`);
-        bilanContexte = { erreur: e.message };
-      }
-    }
-
-    rapporter('traduction', { fait: 0, total: 0, message: 'Traduction…' });
-    const bilan = await traduireDocument(doc, {
-      moteurs, memoire, glossairePrepare: glossaire.pour(options.cible), expressionsPreparees: expressions.pour({ source: options.source, cible: options.cible }), options, signal,
-      surAvancement: (fait, total) => { progression.trad = { fait, total }; if (fait >= total) progression.tradFinie = true; publier(); },
-      // Relecture par l'IA locale (T402), avec DeepL comme avec l'IA locale, dès qu'un modèle est choisi.
-      relecture: options.relecture && options.modele ? {
-        relire: (lignes, sig, extra = {}) => moteurs.relireScene(lignes, { ...options, ...extra, signal: sig || signal }),
-        surAvancement: (fait, total) => { progression.relu = { fait, total }; publier(); },
-      } : null,
-    });
-    progression.tradFinie = true;
-    if (synchroPromesse) {
-      progression.attenteSynchro = true;
-      publier();
-      const sy = await synchroPromesse;
-      bilanSynchro = sy.bilan;
-      if (sy.recalage) bilanSynchro.retirees = formats.appliquerMinutages(doc, synchro.transformation(sy.recalage));
-    }
-    if (options.relecture && !options.modele) bilan.relecture = { indisponible: true };
-    const notes = bilan.notes;
-    delete bilan.notes;
-    if (bilan.relecture) journal.info(`[relecture] ${path.basename(el.chemin)} : ${JSON.stringify(bilan.relecture)}`);
-
-    rapporter('ecriture', { message: 'Enregistrement…' });
-    const docSortie = options.formatSortie === 'srt' ? formats.versSrt(doc) : doc;
-    const ext = docSortie.format === 'ass' ? (path.extname(fichier).toLowerCase() === '.ssa' ? '.ssa' : '.ass') : `.${docSortie.format}`;
-    const dossier = options.dossierSortie || path.dirname(el.chemin);
-    const filmCible = estFilm ? el.chemin : filmAssocie;
-    const mode = filmCible ? options.resultatFilm : 'fichier';
-    // « Film seul » : le sous-titre traduit ne passe que par un dossier temporaire, puis va dans le film.
-    const cibleAcote = formats.nomSortie(el.chemin, langues.suffixe(options.cible), ext, dossier);
-    let cible = cibleAcote;
-    if (mode === 'film') {
-      dossierPiste = fs.mkdtempSync(path.join(os.tmpdir(), 'subforge-piste-'));
-      cible = path.join(dossierPiste, path.basename(cibleAcote));
-    }
-    formats.ecrireFichier(cible, docSortie);
-    if (mode !== 'film') sortiesProduites.add(cible);
-
-    // Aperçu : les 400 premières répliques, plus toutes celles corrigées ou signalées par la relecture.
-    const paires = [];
-    doc.repliques.forEach((r, i) => {
-      if (i >= 400 && !notes.has(i)) return;
-      if (paires.length >= 1500) return;
-      paires.push({ numero: i + 1, debut: r.debut, original: original[i], traduit: formats.texteVisible(r.texte), note: notes.get(i) || null });
-    });
-    journal.info(`Traduit : ${path.basename(el.chemin)} → ${path.basename(cibleAcote)} (${bilan.segments} segments, ${bilan.envoyes} envoyés, ${bilan.repris} repris de la mémoire, ${options.moteur})`);
-
-    // Film avec la piste traduite. Un échec ici ne perd jamais la traduction : elle est alors
-    // enregistrée à côté du film comme un sous-titre normal.
-    let integration = null;
-    let sortie = cible;
-    if (mode !== 'fichier') {
-      // La piste ajoutée au film est toujours en SRT : le Lecteur multimédia de Windows et
-      // Films et TV n'affichent pas les pistes ASS d'un MKV (VLC, lui, lit les deux).
-      let piste = cible;
-      if (docSortie.format !== 'srt') {
-        if (!dossierPiste) dossierPiste = fs.mkdtempSync(path.join(os.tmpdir(), 'subforge-piste-'));
-        piste = path.join(dossierPiste, 'piste-film.srt');
-        formats.ecrireFichier(piste, formats.versSrt(doc));
-      }
-      integration = await integrerAuFilm(filmCible, piste, options, signal, (part) => rapporter('integration', { fait: Math.round(part * 100), total: 100, message: 'Ajout de la piste au film…' }));
-      if (mode === 'film') {
-        if (integration.fichier) {
-          sortie = integration.fichier;
-          integration.seul = true;
-        } else {
-          fs.copyFileSync(cible, cibleAcote, fs.constants.COPYFILE_EXCL);
-          sortiesProduites.add(cibleAcote);
-          sortie = cibleAcote;
-          integration.secours = path.basename(cibleAcote);
-        }
-      }
-    }
-    resultats.set(el.id, { paires, sortie, total: doc.repliques.length });
-    rapporter('termine', { sortie, nomSortie: path.basename(sortie), repliques: doc.repliques.length, bilan: { ...bilan, ocr: bilanOcr, integration, synchro: bilanSynchro, contexte: bilanContexte } });
-  } catch (e) {
+  function echouer(e) {
+    if (fini) return;
+    fini = true;
     if (e.name === 'AbortError' || signal.aborted) {
       rapporter('annule', { message: 'Annulé.' });
     } else {
@@ -286,14 +159,214 @@ async function traduireElement(el, options, signal) {
       journal.erreur(`[traduction] échec pour ${path.basename(el.chemin)} :`, e);
       rapporter('erreur', { message });
     }
-  } finally {
+    nettoyer();
+  }
+
+  function nettoyer() {
     synchroSignal.abort();
     signal.removeEventListener('abort', relaisAnnulation);
     extraction?.nettoyer();
+    extraction = null;
     if (dossierPiste) {
       try { fs.rmSync(dossierPiste, { recursive: true, force: true }); } catch (e) { journal.erreur('[traduction] dossier temporaire non supprimé :', e); }
+      dossierPiste = null;
     }
   }
+
+  // Étape 1 : préparer.
+  async function preparer() {
+    if (fini) return;
+    try {
+      if (signal.aborted) throw Object.assign(new Error('Annulé.'), { name: 'AbortError' });
+      sup = path.extname(el.chemin).toLowerCase() === '.sup' ? el.chemin : null;
+      let langueOcr = sup ? langueDuNom(el.chemin)?.code : null;
+      if (video.estVideo(el.chemin)) {
+        rapporter('extraction', { message: 'Extraction de la piste…' });
+        const pistes = await video.listerPistes(binaireFfmpeg, el.chemin, { signal });
+        const piste = pistes.find((p) => p.indice === el.piste);
+        if (!piste) throw new Error('Piste de sous-titres introuvable dans cette vidéo.');
+        extraction = await video.extrairePiste(binaireFfmpeg, el.chemin, piste, { signal });
+        fichier = extraction.fichier;
+        if (video.estPgs(piste)) { sup = fichier; langueOcr = piste.langue; }
+      }
+
+      if (sup) {
+        // Blu-ray : images → texte (OCR), enregistré à côté du film, puis traduit comme un sous-titre normal.
+        langueOcr = langueOcr || sourceOuAnglais();
+        const lu = pgs.lireSup(fs.readFileSync(sup));
+        if (!lu.repliques.length) throw new Error('Aucune image lisible dans ces sous-titres Blu-ray.');
+        rapporter('ocr', { fait: 0, total: lu.repliques.length, message: 'Lecture des images (OCR)…' });
+        const textes = await ocr.lire(lu.repliques.map((r) => r.image), {
+          langue: langueOcr, signal, surAvancement: (fait, total) => rapporter('ocr', { fait, total }),
+        });
+        doc = ocrVersSrt(lu.repliques, textes);
+        if (!doc.repliques.length) throw new Error('Aucun texte n\'a pu être lu dans ces images.');
+        const dossierOcr = options.dossierSortie || path.dirname(el.chemin);
+        const fichierOcr = formats.nomSortie(el.chemin, langues.suffixe(langueOcr), '.srt', dossierOcr);
+        formats.ecrireFichier(fichierOcr, doc);
+        sortiesProduites.add(fichierOcr);
+        bilanOcr = {
+          images: lu.repliques.length,
+          lues: doc.repliques.length,
+          douteuses: textes.filter((x) => x.texte && x.confiance < 60).length,
+          illisibles: lu.abimes + (lu.repliques.length - doc.repliques.length),
+          fichier: path.basename(fichierOcr),
+        };
+        journal.info(`[ocr] ${path.basename(el.chemin)} : ${bilanOcr.lues}/${bilanOcr.images} images lues → ${bilanOcr.fichier}`);
+        if (options.source === 'auto') options = { ...options, source: langueOcr };
+      } else {
+        doc = formats.lireFichier(fichier);
+      }
+      formats.preparerConversionAss(doc);
+
+      // Sous-titre externe : vidéo d'origine à côté (recalage sur son son, puis ajout de la piste).
+      estFilm = video.estVideo(el.chemin);
+      filmAssocie = !estFilm && !sup && (options.synchro || options.resultatFilm !== 'fichier') ? dossiers.videoAssociee(el.chemin) : null;
+      // Synchronisation (T601) : le son du film est analysé pendant la suite ; les minutages sont
+      // appliqués à la finalisation, avant l'écriture.
+      if (filmAssocie && options.synchro) {
+        progression.synchroPct = 0;
+        synchroPromesse = calculerSynchro(formats.lireMinutages(doc), filmAssocie, synchroSignal.signal, (pct) => { progression.synchroPct = pct; publier(); });
+        synchroPromesse.catch(() => {}); // silence-ok: le résultat (ou l'erreur) est attendu à la finalisation
+      }
+
+      original = doc.repliques.map((r) => formats.texteVisible(r.texte));
+
+      // Contexte du film (T501) : titre, résumé, personnages et genre, pour le moteur et la relecture.
+      if (options.contexte) {
+        try {
+          const c = await contexteFilms.pour(el.chemin, { signal });
+          if (c.etat === 'trouve') {
+            options = { ...options, contexteFilm: texteContexte(c.contexte), personnages: c.contexte.personnages.map((x) => x.personnage) };
+            bilanContexte = { titre: c.contexte.titre, annee: c.contexte.annee, personnages: c.contexte.personnages.length, episode: c.contexte.episode };
+          }
+        } catch (e) {
+          if (e.name === 'AbortError' || signal.aborted) throw e;
+          journal.avertissement(`[contexte] ${path.basename(el.chemin)} : ${e.message}`);
+          bilanContexte = { erreur: e.message };
+        }
+      }
+      progression.phase = 'attente';
+      publier();
+    } catch (e) {
+      echouer(e);
+    }
+  }
+
+  // Étape 2 : traduire (moteur + relecture).
+  async function traduire() {
+    if (fini) return;
+    try {
+      if (signal.aborted) throw Object.assign(new Error('Annulé.'), { name: 'AbortError' });
+      progression.phase = 'traduction';
+      rapporter('traduction', { fait: 0, total: 0, message: 'Traduction…', synchroPct: synchroAffichee() });
+      bilan = await traduireDocument(doc, {
+        moteurs, memoire, glossairePrepare: glossaire.pour(options.cible), expressionsPreparees: expressions.pour({ source: options.source, cible: options.cible }), options, signal,
+        surAvancement: (fait, total) => { progression.trad = { fait, total }; if (fait >= total) progression.tradFinie = true; publier(); },
+        // Relecture par l'IA locale (T402), avec DeepL comme avec l'IA locale, dès qu'un modèle est choisi.
+        relecture: options.relecture && options.modele ? {
+          relire: (lignes, sig, extra = {}) => moteurs.relireScene(lignes, { ...options, ...extra, signal: sig || signal }),
+          surAvancement: (fait, total) => { progression.relu = { fait, total }; publier(); },
+          ciblee: options.relectureCiblee === true,
+        } : null,
+      });
+      progression.tradFinie = true;
+      progression.phase = 'finalisation';
+      if (options.relecture && !options.modele) bilan.relecture = { indisponible: true };
+      if (bilan.relecture) journal.info(`[relecture] ${path.basename(el.chemin)} : ${JSON.stringify(bilan.relecture)}`);
+      rapporter('ecriture', { message: 'En attente de l\'enregistrement…', synchroPct: synchroAffichee() });
+    } catch (e) {
+      echouer(e);
+    }
+  }
+
+  // Étape 3 : finaliser (minutages recalés, écriture, ajout au film).
+  async function finaliser() {
+    if (fini) return;
+    try {
+      if (signal.aborted) throw Object.assign(new Error('Annulé.'), { name: 'AbortError' });
+      let bilanSynchro = null;
+      if (synchroPromesse) {
+        if (progression.synchroPct !== null && progression.synchroPct < 100) {
+          rapporter('synchro', { fait: progression.synchroPct || 0, total: 100, message: 'Synchronisation sur le son du film…' });
+        }
+        progression.phase = 'synchro';
+        const finSynchro = (pct) => rapporter('synchro', { fait: pct, total: 100, message: 'Synchronisation sur le son du film…' });
+        const attente = setInterval(() => { if (progression.synchroPct !== null && progression.synchroPct < 100) finSynchro(progression.synchroPct); }, 500);
+        let sy;
+        try { sy = await synchroPromesse; } finally { clearInterval(attente); }
+        bilanSynchro = sy.bilan;
+        if (sy.recalage) bilanSynchro.retirees = formats.appliquerMinutages(doc, synchro.transformation(sy.recalage));
+      }
+      const notes = bilan.notes;
+      delete bilan.notes;
+
+      rapporter('ecriture', { message: 'Enregistrement…' });
+      const docSortie = options.formatSortie === 'srt' ? formats.versSrt(doc) : doc;
+      const ext = docSortie.format === 'ass' ? (path.extname(fichier).toLowerCase() === '.ssa' ? '.ssa' : '.ass') : `.${docSortie.format}`;
+      const dossier = options.dossierSortie || path.dirname(el.chemin);
+      const filmCible = estFilm ? el.chemin : filmAssocie;
+      const mode = filmCible ? options.resultatFilm : 'fichier';
+      // « Film seul » : le sous-titre traduit ne passe que par un dossier temporaire, puis va dans le film.
+      const cibleAcote = formats.nomSortie(el.chemin, langues.suffixe(options.cible), ext, dossier);
+      let cible = cibleAcote;
+      if (mode === 'film') {
+        dossierPiste = fs.mkdtempSync(path.join(os.tmpdir(), 'subforge-piste-'));
+        cible = path.join(dossierPiste, path.basename(cibleAcote));
+      }
+      formats.ecrireFichier(cible, docSortie);
+      if (mode !== 'film') sortiesProduites.add(cible);
+
+      // Aperçu : les 400 premières répliques, plus toutes celles corrigées ou signalées par la relecture.
+      const paires = [];
+      doc.repliques.forEach((r, i) => {
+        if (i >= 400 && !notes.has(i)) return;
+        if (paires.length >= 1500) return;
+        paires.push({ numero: i + 1, debut: r.debut, original: original[i], traduit: formats.texteVisible(r.texte), note: notes.get(i) || null });
+      });
+      journal.info(`Traduit : ${path.basename(el.chemin)} → ${path.basename(cibleAcote)} (${bilan.segments} segments, ${bilan.envoyes} envoyés, ${bilan.repris} repris de la mémoire, ${options.moteur})`);
+
+      // Film avec la piste traduite. Un échec ici ne perd jamais la traduction : elle est alors
+      // enregistrée à côté du film comme un sous-titre normal.
+      let integration = null;
+      let sortie = cible;
+      if (mode !== 'fichier') {
+        // La piste ajoutée au film est toujours en SRT : le Lecteur multimédia de Windows et
+        // Films et TV n'affichent pas les pistes ASS d'un MKV (VLC, lui, lit les deux).
+        let piste = cible;
+        if (docSortie.format !== 'srt') {
+          if (!dossierPiste) dossierPiste = fs.mkdtempSync(path.join(os.tmpdir(), 'subforge-piste-'));
+          piste = path.join(dossierPiste, 'piste-film.srt');
+          formats.ecrireFichier(piste, formats.versSrt(doc));
+        }
+        integration = await integrerAuFilm(filmCible, piste, options, signal, (part) => rapporter('integration', { fait: Math.round(part * 100), total: 100, message: 'Ajout de la piste au film…' }));
+        if (mode === 'film') {
+          if (integration.fichier) {
+            sortie = integration.fichier;
+            integration.seul = true;
+          } else {
+            fs.copyFileSync(cible, cibleAcote, fs.constants.COPYFILE_EXCL);
+            sortiesProduites.add(cibleAcote);
+            sortie = cibleAcote;
+            integration.secours = path.basename(cibleAcote);
+          }
+        }
+      }
+      resultats.set(el.id, { paires, sortie, total: doc.repliques.length });
+      fini = true;
+      rapporter('termine', { sortie, nomSortie: path.basename(sortie), repliques: doc.repliques.length, bilan: { ...bilan, ocr: bilanOcr, integration, synchro: bilanSynchro, contexte: bilanContexte } });
+      nettoyer();
+    } catch (e) {
+      echouer(e);
+    }
+  }
+
+  return { preparer, traduire, finaliser };
+}
+
+// File de traduction (1.8, « saisons à la chaîne ») : voir limite.aLaChaine.
+function enchainer(elements, options, signal) {
+  return aLaChaine(elements.map((el) => creerTravail(el, options, signal)));
 }
 
 // Calcule le recalage des minutages sur le son du film, sans toucher au document (T601 : tourne
@@ -419,10 +492,11 @@ function enregistrer({ racineApp }) {
       relecture: { type: 'boolean', optionnel: true },
       registre: { type: 'enum', valeurs: ['auto', 'tu', 'vous'], optionnel: true },
       contexte: { type: 'boolean', optionnel: true },
+      relectureCiblee: { type: 'boolean', optionnel: true },
     },
   }], (_e, o) => {
     const r = reglages();
-    for (const c of ['source', 'cible', 'moteur', 'formatSortie', 'memoire', 'resultatFilm', 'synchro', 'relecture', 'registre', 'contexte']) if (o[c] !== undefined) r.traduction[c] = o[c];
+    for (const c of ['source', 'cible', 'moteur', 'formatSortie', 'memoire', 'resultatFilm', 'synchro', 'relecture', 'registre', 'contexte', 'relectureCiblee']) if (o[c] !== undefined) r.traduction[c] = o[c];
     if (o.viderDossierSortie) r.traduction.dossierSortie = null;
     if (o.dossierSortie !== undefined && o.dossierSortie !== null) {
       if (!path.isAbsolute(o.dossierSortie) || !fs.existsSync(o.dossierSortie)) throw new ErreurSecurite('Dossier de sortie introuvable.');
@@ -486,6 +560,7 @@ function enregistrer({ racineApp }) {
       synchro: r.traduction.synchro !== false,
       relecture: r.traduction.relecture !== false,
       registre: ['auto', 'tu', 'vous'].includes(r.traduction.registre) ? r.traduction.registre : 'auto',
+      relectureCiblee: r.traduction.relectureCiblee === true,
       contexte: r.traduction.contexte !== false && parametres.secretExiste(SECRET_TMDB),
       dossierSortie: r.traduction.dossierSortie && fs.existsSync(r.traduction.dossierSortie) ? r.traduction.dossierSortie : null,
       formalite: r.deepl.formalite,
@@ -504,10 +579,7 @@ function enregistrer({ racineApp }) {
     tache = { controleur: new AbortController(), expediteur: event.sender };
     const { signal } = tache.controleur;
     (async () => {
-      for (const el of elements) {
-        if (signal.aborted) { envoyer({ id: el.id, etat: 'annule', message: 'Annulé.' }); continue; }
-        await traduireElement(el, options, signal);
-      }
+      await enchainer(elements, options, signal);
       envoyer({ etat: 'fin' });
       tache = null;
     })().catch((e) => { journal.erreur('File de traduction :', e); envoyer({ etat: 'fin' }); tache = null; });

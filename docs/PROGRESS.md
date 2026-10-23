@@ -4,10 +4,10 @@
 > Garder court : 5 dernières sessions en détail, les plus anciennes résumées en une ligne.
 
 ## 📍 État actuel
-- **Version livrée** : 1.7.0 (2026-10-23)
-- **Dépôt** : `Manciiie/SubForge` — dernier envoi : version 1.7.0 (2026-10-23)
+- **Version livrée** : 1.8.0 (2026-10-23)
+- **Dépôt** : `Manciiie/SubForge` — dernier envoi : version 1.8.0 (2026-10-23)
 - **Testé sur Windows réel** : non (PC non joignable) ; `ffmpeg.exe` 7.1 vérifié sous wine
-- **Version en cours** : 1.7.0
+- **Version en cours** : 1.8.0
 - **Prochaine tâche** : — mises à jour automatiques toujours inactives (dépôt -releases + jeton à créer)
 - **Ce qui marche** : tout le périmètre 1.0 + glossaire, mémoire, saison, OCR Blu-ray (version compilée comprise), recherche en ligne (faux serveur), ffmpeg 7
 - **Fragile / non vérifié** : vrais DeepL / Ollama / OpenSubtitles jamais appelés depuis la session ; OCR testé sur un .sup fabriqué (police DejaVu), pas sur un vrai Blu-ray ; mises à jour automatiques inactives (pas de jeton)
@@ -28,6 +28,12 @@ Gravité : 🔴 crash / perte de données · 🟠 fonction cassée · 🟡 gêna
 ---
 
 ## 📓 Journal des sessions
+
+### 2026-10-23 — Version 1.8.0
+- **Demande** : optimisations 4 et 6 (saisons à la chaîne, relecture ciblée).
+- **Fait** : T801 (traitement en 3 étapes + `aLaChaine`), T802 (`scenesARisque`, option décochée par défaut).
+- **Vérifié** : 119 tests, 15 scénarios e2e (dont `v18.js`), scan 0 bloquant.
+- **Pas vérifié** : proportion réelle de scènes sautées sur un vrai film (dépend du film ; beaucoup de « you » dans les dialogues), gain réel sur une vraie saison.
 
 ### 2026-10-23 — Version 1.7.0
 - **Demande** : optimisations 5, 6, 8 (mémoire de travail de l'IA, modèle gardé chargé, mémoire préchargée).

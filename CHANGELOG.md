@@ -1,5 +1,14 @@
 # Journal des modifications
 
+## 1.8.0 — 2026-10-23
+### Optimisations
+- Saisons à la chaîne : pendant qu'un épisode se traduit, le suivant se prépare (extraction de la
+  piste, lecture des images, écoute du son, contexte) et le précédent s'enregistre et s'ajoute à
+  sa vidéo. Les traductions restent une à la fois. Gain : 20 à 40 % sur une saison entière.
+- Relecture ciblée (case sous « Relecture IA », décochée par défaut) : l'IA ne relit que les scènes
+  où une erreur est plausible (pronoms et accords, personnages, expressions, phrases coupées) et
+  saute les autres (« Yes. », « Thank you. »). Le bilan dit combien ont été sautées.
+
 ## 1.7.0 — 2026-10-23
 ### Optimisations
 - IA locale : chaque fichier réserve la mémoire de travail dont il a besoin (le plus souvent la

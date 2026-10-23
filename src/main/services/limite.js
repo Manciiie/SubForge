@@ -40,4 +40,21 @@ async function enParallele(elements, n, f) {
   if (echec) throw echec;
 }
 
-module.exports = { creerLimite, enParallele };
+// File « à la chaîne » (1.8) : chaque travail a trois étapes, preparer → traduire → finaliser.
+// Pendant que le travail N traduit, le N+1 se prépare et le N−1 se finalise. Les traductions se font
+// une à la fois, les finalisations aussi. Les étapes ne rejettent jamais (elles gèrent leurs erreurs).
+async function aLaChaine(travaux) {
+  let finalisations = Promise.resolve();
+  let preparation = travaux.length ? travaux[0].preparer() : null;
+  for (let i = 0; i < travaux.length; i++) {
+    await preparation;
+    preparation = i + 1 < travaux.length ? travaux[i + 1].preparer() : null;
+    await travaux[i].traduire();
+    const t = travaux[i];
+    finalisations = finalisations.then(() => t.finaliser());
+  }
+  await preparation;
+  await finalisations;
+}
+
+module.exports = { creerLimite, enParallele, aLaChaine };

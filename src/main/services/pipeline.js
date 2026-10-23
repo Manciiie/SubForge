@@ -122,8 +122,12 @@ async function traduireDocument(doc, { moteurs, memoire = null, glossairePrepare
     }
     numCtx = moteurs.tailleContexte({ lots, aidesLots, scenes: listeScenes.map((sc) => sc.map(({ segment }) => ({ original: segments[segment] }))), options });
   }
+  // Relecture ciblée (1.8) : seules les scènes où une erreur est plausible sont relues.
+  const aRelire = relecture?.ciblee
+    ? scenesARisque(listeScenes, { segments, textes, indexUnique, aides, options })
+    : null;
   const relecteur = relecture
-    ? demarrerRelecture({ liste: listeScenes, segments, textes, indexUnique, traductionSegment, relecture, limite, numCtx, signal })
+    ? demarrerRelecture({ liste: listeScenes, aRelire, segments, textes, indexUnique, traductionSegment, relecture, limite, numCtx, signal })
     : null;
   const pret = new Array(uniques.length).fill(false);
   const marquerPret = (u) => {
@@ -231,8 +235,42 @@ function correctionValable(original, actuelle, correction, valeurs) {
   return correction.length <= Math.max(actuelle.length, 20) * 2.5;
 }
 
+// --- Relecture ciblée (1.8) -------------------------------------------------------------
+// Une scène vaut d'être relue si une erreur y est plausible : pronoms et accords (he/she/you, « I'm »),
+// personnage nommé, expression toute faite, phrase coupée sur deux sous-titres. Analyse faite sur
+// l'anglais seulement : pour une autre langue d'origine, toutes les scènes sont relues.
+const RE_RISQUE_EN = /\b(?:he|she|him|her|his|hers|himself|herself|you|your|yours|yourself|yourselves|y'all|they|them|their|i'm|i am|i was|i've been|i'll be|we're|we are|we were|guy|guys|girl|boy|man|woman|lady|sir|ma'am|mister|miss)\b/i;
+// Formules figées sans accord ni tutoiement à choisir (« Thank you » → « Merci »).
+const FORMULES_SANS_RISQUE = /\b(?:thank you(?: (?:so|very) much)?|thank you all|see you(?: later| soon| tomorrow)?|bless you|you know|mind your own business)\b/gi;
+const MOTS_ANGLAIS = /\b(?:the|and|is|are|to|you|of|it|that|what|this|i|a|not|we|have|do)\b/i;
+const TITRES = new Set(['dr', 'mr', 'mrs', 'ms', 'miss', 'sir', 'the', 'young', 'old', 'detective', 'officer', 'sergeant', 'captain', 'doctor', 'professor']);
+const ponctuationFinale = /[.!?…"»”)\]♪-]\s*$/;
+
+function scenesARisque(liste, { segments, textes, indexUnique, aides, options }) {
+  const sansMarqueurs = (t) => String(t).replace(RE_MARQUEURS, ' ');
+  const source = options.source || 'auto';
+  let anglais = source === 'en' || source.startsWith('en-');
+  if (source === 'auto') {
+    const echantillon = segments.slice(0, 400);
+    anglais = echantillon.length > 0 && echantillon.filter((t) => MOTS_ANGLAIS.test(sansMarqueurs(t))).length / echantillon.length > 0.3;
+  }
+  if (!anglais) return liste.map(() => true);
+  const noms = new Set((options.personnages || [])
+    .flatMap((n) => String(n).toLowerCase().split(/[^\p{L}'-]+/u))
+    .filter((m) => m.length >= 3 && !TITRES.has(m)));
+  const reNoms = noms.size ? new RegExp(`(?<![\\p{L}])(?:${[...noms].map((m) => m.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})(?![\\p{L}])`, 'iu') : null;
+  return liste.map((scene) => scene.some(({ segment }, j) => {
+    const t = sansMarqueurs(segments[segment]).trim();
+    if (RE_RISQUE_EN.test(t.replace(FORMULES_SANS_RISQUE, ' '))) return true;
+    if (reNoms && reNoms.test(t)) return true;
+    const u = indexUnique.get(textes[segment]);
+    if (u !== undefined && aides[u]?.length) return true;
+    return j < scene.length - 1 && t && !ponctuationFinale.test(t); // phrase coupée sur deux sous-titres
+  }));
+}
+
 // Relecture progressive : scenes[k] part dès que tous ses segments traduisibles sont prêts.
-function demarrerRelecture({ liste, segments, textes, indexUnique, traductionSegment, relecture, limite, numCtx, signal }) {
+function demarrerRelecture({ liste, aRelire = null, segments, textes, indexUnique, traductionSegment, relecture, limite, numCtx, signal }) {
   const sceneDe = new Map();
   const attente = liste.map((sc, k) => {
     let n = 0;
@@ -250,10 +288,12 @@ function demarrerRelecture({ liste, segments, textes, indexUnique, traductionSeg
   signal?.addEventListener('abort', surAnnulation, { once: true });
   let arret = null; // message de la première erreur (IA arrêtée…) : plus rien ne démarre
   let faites = 0;
+  const aFaire = aRelire ? aRelire.filter(Boolean).length : liste.length;
 
   function lancer(k) {
     if (lancees[k]) return;
     lancees[k] = true;
+    if (aRelire && !aRelire[k]) return; // scène sans risque : pas relue
     promesses.push((async () => {
       try {
         const r = await limite.prendre(async () => {
@@ -267,7 +307,7 @@ function demarrerRelecture({ liste, segments, textes, indexUnique, traductionSeg
         if (!(e.name === 'AbortError' || interne.signal.aborted) && !arret) arret = e.message;
       }
       faites += 1;
-      relecture.surAvancement?.(faites, liste.length);
+      relecture.surAvancement?.(faites, aFaire);
     })());
   }
 
@@ -290,7 +330,9 @@ function demarrerRelecture({ liste, segments, textes, indexUnique, traductionSeg
       signal?.removeEventListener('abort', surAnnulation);
       if (signal?.aborted) throw erreurAnnulation();
       const bilan = { scenes: liste.length, corrigees: 0, refusees: 0, doutes: 0, tuVous: 0, sautees: 0, erreur: arret };
+      if (aRelire) bilan.sansRisque = aRelire.filter((x) => !x).length;
       resultats.forEach((res, k) => {
+        if (aRelire && !aRelire[k]) return;
         if (!res || res.r.illisible) { bilan.sautees += 1; return; }
         const repliqueDe = new Map(liste[k].map((x) => [x.segment, x.replique]));
         for (const c of res.r.corrections) {
@@ -313,4 +355,4 @@ function demarrerRelecture({ liste, segments, textes, indexUnique, traductionSeg
   };
 }
 
-module.exports = { traduireDocument, scenes, correctionValable };
+module.exports = { traduireDocument, scenes, correctionValable, scenesARisque };
