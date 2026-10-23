@@ -107,8 +107,23 @@ async function traduireDocument(doc, { moteurs, memoire = null, glossairePrepare
     if (!segmentsDuUnique.has(u)) segmentsDuUnique.set(u, []);
     segmentsDuUnique.get(u).push(i);
   });
+  const listeScenes = relecture ? scenes(doc, positions, preparations) : [];
+  // Mémoire de travail de l'IA locale (1.7) : une seule taille pour tout le fichier (traduction et
+  // relecture), sinon Ollama rechargerait le modèle à chaque changement.
+  let numCtx = null;
+  if (moteurs.tailleContexte && (options.moteur === 'ollama' || relecture)) {
+    const lots = [];
+    const aidesLots = [];
+    if (options.moteur === 'ollama') {
+      for (let i = 0; i < aEnvoyer.length; i += 20) {
+        lots.push(aEnvoyer.slice(i, i + 20).map((u) => uniques[u]));
+        aidesLots.push(aEnvoyer.slice(i, i + 20).map((u) => aides[u]));
+      }
+    }
+    numCtx = moteurs.tailleContexte({ lots, aidesLots, scenes: listeScenes.map((sc) => sc.map(({ segment }) => ({ original: segments[segment] }))), options });
+  }
   const relecteur = relecture
-    ? demarrerRelecture({ liste: scenes(doc, positions, preparations), segments, textes, indexUnique, traductionSegment, relecture, limite, signal })
+    ? demarrerRelecture({ liste: listeScenes, segments, textes, indexUnique, traductionSegment, relecture, limite, numCtx, signal })
     : null;
   const pret = new Array(uniques.length).fill(false);
   const marquerPret = (u) => {
@@ -130,7 +145,7 @@ async function traduireDocument(doc, { moteurs, memoire = null, glossairePrepare
       const envoyes = aEnvoyer.map((i) => uniques[i]);
       caracteresEnvoyes = envoyes.reduce((n, t) => n + t.replace(RE_MARQUEURS, '').length, 0);
       const resultats = await moteurs.traduireTout(envoyes, {
-        ...options, aides: aEnvoyer.map((i) => aides[i]), limite, signal,
+        ...options, aides: aEnvoyer.map((i) => aides[i]), limite, numCtx, signal,
         // Lot traduit : ses répliques sont prêtes pour la relecture.
         surLot: (debut, lot) => lot.forEach((t, j) => { const u = aEnvoyer[debut + j]; traduitsUniques[u] = t; marquerPret(u); }),
       }, (fait) => surAvancement(repris + fait, total));
@@ -176,6 +191,7 @@ async function traduireDocument(doc, { moteurs, memoire = null, glossairePrepare
     erreurMemoire,
     expressions: expressionsVues,
     relecture: bilanRelecture,
+    numCtx,
     notes,
   };
 }
@@ -216,7 +232,7 @@ function correctionValable(original, actuelle, correction, valeurs) {
 }
 
 // Relecture progressive : scenes[k] part dès que tous ses segments traduisibles sont prêts.
-function demarrerRelecture({ liste, segments, textes, indexUnique, traductionSegment, relecture, limite, signal }) {
+function demarrerRelecture({ liste, segments, textes, indexUnique, traductionSegment, relecture, limite, numCtx, signal }) {
   const sceneDe = new Map();
   const attente = liste.map((sc, k) => {
     let n = 0;
@@ -244,7 +260,7 @@ function demarrerRelecture({ liste, segments, textes, indexUnique, traductionSeg
           if (arret || interne.signal.aborted) return null;
           // Texte lu au moment du départ : la scène est complète, il ne changera plus.
           const lignes = liste[k].map(({ segment }) => ({ n: segment, original: segments[segment], traduction: traductionSegment(segment).texte }));
-          return { lignes, r: await relecture.relire(lignes, interne.signal) };
+          return { lignes, r: await relecture.relire(lignes, interne.signal, { numCtx }) };
         });
         if (r) resultats[k] = r;
       } catch (e) {

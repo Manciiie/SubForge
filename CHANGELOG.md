@@ -1,5 +1,16 @@
 # Journal des modifications
 
+## 1.7.0 — 2026-10-23
+### Optimisations
+- IA locale : chaque fichier réserve la mémoire de travail dont il a besoin (le plus souvent la
+  moitié d'avant) ; la même taille sert à la traduction et à la relecture, pour ne jamais
+  recharger le modèle en cours de route. Ollama peut ainsi traiter plus de demandes à la fois.
+- Modèle gardé chargé tant que SubForge est ouvert (case dans Moteurs, cochée par défaut) : il est
+  chargé dès que des fichiers attendent, sans attendre le clic sur « Traduire », et libéré à la
+  fermeture de SubForge pour rendre la carte graphique aux autres logiciels.
+- Mémoire de traduction lue en arrière-plan à l'ouverture : le premier fichier ne l'attend plus et
+  la fenêtre ne se fige jamais pendant cette lecture.
+
 ## 1.6.0 — 2026-10-23
 ### Optimisations
 - La synchronisation sur le son du film se fait pendant la traduction, plus avant : 1 à 3 minutes

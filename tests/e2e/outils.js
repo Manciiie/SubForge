@@ -23,6 +23,14 @@ function fauxOllama() {
           return;
         }
         const msg = JSON.parse(corps);
+        if (req.url === '/api/generate') {
+          // Chargement à l'avance (prompt vide) ou libération (keep_alive: 0) du modèle (1.7).
+          s.generes.push(msg);
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ model: msg.model, done: true }));
+          return;
+        }
+        s.options.push({ num_ctx: msg.options?.num_ctx, keep_alive: msg.keep_alive });
         if (/proofreader/.test(msg.messages[0].content)) {
           // Relecture : rien à corriger, sauf si le scénario fournit s.relire(lignes) → { corrections, doubts }.
           const lignesRelues = [...msg.messages[1].content.matchAll(/^(\d+)\. original: (".*")\n {3}translation: (".*")$/gm)]
@@ -50,6 +58,8 @@ function fauxOllama() {
     s.demandes = demandes;
     s.relectures = [];
     s.systemes = [];
+    s.generes = [];
+    s.options = [];
     s.listen(0, '127.0.0.1', () => ok(s));
   });
 }

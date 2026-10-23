@@ -168,8 +168,19 @@ window.__modules.push((async () => {
         chargerContexte(e);
       });
       majFile();
+      prechaufferModele();
     }
   }
+
+  // Modèle d'IA locale chargé à l'avance dès que des fichiers attendent (1.7) : une fois par session.
+  let prechauffage = null;
+  function prechaufferModele() {
+    if (prechauffage) return;
+    prechauffage = window.forge.moteurs.prechauffer()
+      .then((r) => { if (!r.charge) prechauffage = null; }) // pas chargé (IA non utilisée, erreur) : on réessaiera
+      .catch(() => { prechauffage = null; }); // silence-ok: simple anticipation, l'erreur réelle apparaîtra à la traduction
+  }
+  window.SubForge.prechaufferModele = () => { prechauffage = null; prechaufferModele(); };
 
   // Contexte du film (TMDB), chargé en arrière-plan, un fichier après l'autre (les épisodes suivants
   // d'une série viennent du cache).

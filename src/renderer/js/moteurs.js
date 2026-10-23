@@ -21,6 +21,7 @@ window.__modules.push((async () => {
     }
     $('ollama-modele').value = etat.ollama.modele || '';
     $('ollama-parallele').value = String(etat.ollama.parallele || 2);
+    $('ollama-garder').checked = etat.ollama.garderCharge !== false;
     await window.SubForge.rafraichirOptions?.();
     return etat;
   }
@@ -128,6 +129,7 @@ window.__modules.push((async () => {
   $('btn-ollama-site').addEventListener('click', () => window.forge.ouvrirLien('https://ollama.com/download'));
 
   // --- Demandes simultanées (1.6) ---
+  $('ollama-garder').addEventListener('change', () => T.modifierReglages({ garderChargeOllama: $('ollama-garder').checked }).catch(erreur));
   $('ollama-parallele').addEventListener('change', () => T.modifierReglages({ paralleleOllama: Number($('ollama-parallele').value) }).catch(erreur));
   M.surMesure((texte) => { $('ollama-mesure').textContent = texte; });
   $('btn-ollama-mesurer').addEventListener('click', async () => {
@@ -156,6 +158,13 @@ window.__modules.push((async () => {
       const m = await window.forge.memoire.etat();
       $('memoire-active').checked = m.active;
       const mo = (m.taille / 1024 / 1024).toLocaleString('fr-FR', { maximumFractionDigits: 1 });
+      if (m.chargement && m.taille) {
+        // Préchargement en cours (1.7) : on repasse dans une seconde.
+        $('memoire-etat').textContent = `Mémoire de ${mo} Mo : lecture en cours…`;
+        $('btn-memoire-vider').disabled = true;
+        setTimeout(majMemoire, 1000);
+        return;
+      }
       $('memoire-etat').textContent = m.entrees ? `${nombre(m.entrees)} répliques en mémoire (${mo} Mo)` : 'Mémoire vide';
       $('btn-memoire-vider').disabled = !m.entrees;
     } catch (e) { erreur(e); $('memoire-etat').textContent = 'État de la mémoire illisible.'; }

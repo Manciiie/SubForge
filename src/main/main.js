@@ -151,3 +151,14 @@ app.whenReady().then(() => {
 }).catch((e) => signalerErreur('Échec du démarrage', e));
 
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
+
+// Fermeture : le modèle d'IA locale gardé chargé par SubForge est libéré (2,5 s au plus).
+let fermetureFaite = false;
+app.on('will-quit', (e) => {
+  if (fermetureFaite) return;
+  fermetureFaite = true;
+  e.preventDefault();
+  Promise.race([require('./services/traduction').fermer(), new Promise((ok) => { setTimeout(ok, 2500); })])
+    .catch((err) => signalerErreur('Libération du modèle d\'IA locale', err))
+    .finally(() => app.quit());
+});

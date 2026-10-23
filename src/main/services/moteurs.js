@@ -19,6 +19,17 @@ const pause = (ms, signal) => new Promise((ok, ko) => {
   const t = setTimeout(ok, ms);
   signal?.addEventListener('abort', () => { clearTimeout(t); ko(erreurAnnulation()); }, { once: true });
 });
+// Mémoire de travail de l'IA locale (1.7) : une taille par fichier, la même pour la traduction, la
+// relecture et le préchargement — Ollama recharge le modèle à chaque changement de taille.
+const CTX_STANDARD = 4096;
+const CTX_GRAND = 8192;
+// Estimation prudente du nombre de « jetons » : ~3,3 caractères latins par jeton, 1 par caractère sinon.
+function jetons(t) {
+  let n = 0;
+  for (const c of String(t)) n += c.charCodeAt(0) < 128 ? 0.3 : 1;
+  return Math.ceil(n);
+}
+
 const erreurAnnulation = () => Object.assign(new Error('Traduction annulée.'), { name: 'AbortError' });
 
 function signalAvecDelai(signal, ms) {
@@ -271,7 +282,7 @@ function creerMoteurs({ fetch, lireCleDeepl, urlDeeplTest = null, journal = cons
     } catch { return null; } // silence-ok: réponse illisible = répliques redemandées par l'appelant
   }
 
-  async function lotOllama(segments, { adresse, modele, source, cible, registre, contexteFilm, contexte, aides = [], signal }) {
+  async function lotOllama(segments, { adresse, modele, source, cible, registre, contexteFilm, contexte, aides = [], numCtx, garderCharge, signal }) {
     const d = await appelOllama(adresse, '/api/chat', {
       signal,
       delai: 300000, // premier chargement du modèle en mémoire vidéo : peut être long
@@ -279,14 +290,15 @@ function creerMoteurs({ fetch, lireCleDeepl, urlDeeplTest = null, journal = cons
         model: modele,
         stream: false,
         format: 'json',
-        keep_alive: '10m',
-        options: { temperature: 0.2, num_ctx: 8192 },
+        keep_alive: garderCharge === false ? '10m' : -1,
+        options: { temperature: 0.2, num_ctx: numCtx || CTX_STANDARD },
         messages: [
           { role: 'system', content: consigne(source, cible, registre, contexteFilm) },
           { role: 'user', content: demande(segments, contexte, cible, aides) },
         ],
       },
     });
+    noterCharge(adresse, modele, numCtx, garderCharge);
     const objet = extraireObjet(d?.message?.content);
     return segments.map((s, i) => {
       const v = objet?.[String(i + 1)];
@@ -301,7 +313,7 @@ function creerMoteurs({ fetch, lireCleDeepl, urlDeeplTest = null, journal = cons
   }
 
   // Lots de 20 ; ce qui manque dans la réponse est redemandé en lots plus petits, puis un par un.
-  async function traduireOllama(segments, { adresse, modele, source, cible, registre, contexteFilm, contexte = [], aides = null, limite = null, signal }) {
+  async function traduireOllama(segments, { adresse, modele, source, cible, registre, contexteFilm, contexte = [], aides = null, limite = null, numCtx, garderCharge, signal }) {
     if (!modele) throw new ErreurMoteur('Aucun modèle d\'IA locale choisi : choisissez-en un dans l\'écran Moteurs.');
     const resultats = new Array(segments.length).fill(null);
     const brouillons = new Map(); // réponses imparfaites (marqueur perdu, recopiée) : gardées en dernier recours
@@ -313,7 +325,7 @@ function creerMoteurs({ fetch, lireCleDeepl, urlDeeplTest = null, journal = cons
         const ctx = contexte.concat(lot[0] > 0 ? resultats.slice(Math.max(0, lot[0] - 4), lot[0]).filter(Boolean) : []).slice(-4);
         let reponses;
         try {
-          const demander = () => lotOllama(lot.map((i) => segments[i]), { adresse, modele, source, cible, registre, contexteFilm, contexte: ctx, aides: lot.map((i) => aides?.[i] || []), signal });
+          const demander = () => lotOllama(lot.map((i) => segments[i]), { adresse, modele, source, cible, registre, contexteFilm, contexte: ctx, aides: lot.map((i) => aides?.[i] || []), numCtx, garderCharge, signal });
           reponses = await (limite ? limite.prendre(demander) : demander());
         } catch (e) {
           if (e.definitive !== false) throw e;
@@ -351,8 +363,7 @@ function creerMoteurs({ fetch, lireCleDeepl, urlDeeplTest = null, journal = cons
   // doutes: [{ n, raison }] } ; les numéros inconnus sont ignorés, la validation fine est faite par
   // le pipeline. Réponse illisible → { illisible: true }.
   const TYPES_RELECTURE = new Set(['meaning', 'gender', 'name', 'address', 'split', 'idiom', 'other']);
-  async function relireScene(lignes, { adresse, modele, source, cible, registre = 'auto', contexteFilm = '', signal }) {
-    if (!modele) throw new ErreurMoteur('Aucun modèle d\'IA locale choisi pour la relecture.');
+  function promptRelecture(lignes, { source, cible, registre = 'auto', contexteFilm = '' }) {
     const de = source && source !== 'auto' ? langue(source)?.anglais : 'the original language';
     const vers = langue(cible)?.anglais || cible;
     const regle = consigneRegistre(registre, cible);
@@ -365,15 +376,22 @@ function creerMoteurs({ fetch, lireCleDeepl, urlDeeplTest = null, journal = cons
       `Answer ONLY with JSON: {"corrections": [{"line": 3, "text": "corrected ${vers} translation", "type": "meaning|gender|name|address|split|idiom|other", "reason": "short reason in French"}], "doubts": [{"line": 5, "reason": "short reason in French"}]}. Use empty lists if everything is fine.`,
     ].filter(Boolean).join('\n');
     const corps = lignes.map((l, i) => `${i + 1}. original: ${JSON.stringify(l.original)}\n   translation: ${JSON.stringify(l.traduction)}`).join('\n');
+    return { systeme, utilisateur: `Scene (${lignes.length} lines):\n${corps}` };
+  }
+
+  async function relireScene(lignes, { adresse, modele, source, cible, registre = 'auto', contexteFilm = '', numCtx, garderCharge, signal }) {
+    if (!modele) throw new ErreurMoteur('Aucun modèle d\'IA locale choisi pour la relecture.');
+    const { systeme, utilisateur } = promptRelecture(lignes, { source, cible, registre, contexteFilm });
     const d = await appelOllama(adresse, '/api/chat', {
       signal,
       delai: 300000,
       corps: {
-        model: modele, stream: false, format: 'json', keep_alive: '10m',
-        options: { temperature: 0.1, num_ctx: 8192 },
-        messages: [{ role: 'system', content: systeme }, { role: 'user', content: `Scene (${lignes.length} lines):\n${corps}` }],
+        model: modele, stream: false, format: 'json', keep_alive: garderCharge === false ? '10m' : -1,
+        options: { temperature: 0.1, num_ctx: numCtx || CTX_STANDARD },
+        messages: [{ role: 'system', content: systeme }, { role: 'user', content: utilisateur }],
       },
     });
+    noterCharge(adresse, modele, numCtx, garderCharge);
     const brut = String(d?.message?.content || '').replace(/<think>[\s\S]*?<\/think>/g, '');
     let o;
     try { o = JSON.parse(brut.slice(brut.indexOf('{'), brut.lastIndexOf('}') + 1)); } catch { return { illisible: true, corrections: [], doutes: [] }; } // silence-ok: scène sautée, comptée dans le bilan
@@ -386,6 +404,57 @@ function creerMoteurs({ fetch, lireCleDeepl, urlDeeplTest = null, journal = cons
     const doutes = (Array.isArray(o?.doubts) ? o.doubts : []).map((x) => ({ n: numero(x?.line), raison: texteCourt(x?.reason, 160) })).filter((x) => x.n !== null);
     return { corrections, doutes };
   }
+
+  // ------------------------------------------------------------------ Mémoire de travail et chargement (1.7)
+  // Taille pour un fichier : la plus grosse demande prévue (lots de traduction et scènes de relecture,
+  // réponse comprise) ; 4 096 si elle tient largement, sinon 8 192.
+  function tailleContexte({ lots = [], aidesLots = [], scenes = [], options = {} }) {
+    const { source, cible, registre = 'auto', contexteFilm = '' } = options;
+    let besoin = 0;
+    const systeme = jetons(consigne(source, cible, registre, contexteFilm));
+    lots.forEach((lot, k) => {
+      const entree = jetons(demande(lot, lot.slice(0, 3), cible, aidesLots[k] || []));
+      const sortie = Math.ceil(lot.reduce((n, t) => n + jetons(t), 0) * 1.6) + 8 * lot.length;
+      besoin = Math.max(besoin, systeme + entree + sortie);
+    });
+    for (const sc of scenes) {
+      const lignes = sc.map((l) => ({ original: l.original, traduction: `${l.original}${l.original.slice(0, Math.ceil(l.original.length * 0.4))}` }));
+      const p = promptRelecture(lignes, { source, cible, registre, contexteFilm });
+      const sortie = Math.ceil(jetons(p.utilisateur) * 0.35) + 200;
+      besoin = Math.max(besoin, jetons(p.systeme) + jetons(p.utilisateur) + sortie);
+    }
+    return besoin <= CTX_STANDARD * 0.85 ? CTX_STANDARD : CTX_GRAND;
+  }
+
+  // Modèle chargé par SubForge et gardé en mémoire : déchargé à la fermeture ou au changement de modèle.
+  let charge = null; // { adresse, modele }
+  function noterCharge(adresse, modele, numCtx, garderCharge) {
+    if (garderCharge !== false) charge = { adresse, modele };
+  }
+  // Charge le modèle à l'avance (prompt vide = chargement seul), avec la taille standard.
+  async function prechauffer({ adresse, modele, garderCharge = true }) {
+    if (!modele) return false;
+    await appelOllama(adresse, '/api/generate', {
+      delai: 300000,
+      corps: { model: modele, prompt: '', stream: false, keep_alive: garderCharge === false ? '10m' : -1, options: { num_ctx: CTX_STANDARD } },
+    });
+    noterCharge(adresse, modele, CTX_STANDARD, garderCharge);
+    return true;
+  }
+  // Libère la carte graphique (keep_alive: 0). Sans erreur si Ollama est déjà arrêté.
+  async function decharger({ sauf = null } = {}) {
+    const c = charge;
+    if (!c || c.modele === sauf) return false;
+    charge = null;
+    try {
+      await appelOllama(c.adresse, '/api/generate', { delai: 3000, corps: { model: c.modele, keep_alive: 0 } });
+      return true;
+    } catch (e) {
+      journal.avertissement?.(`[ollama] déchargement de ${c.modele} impossible : ${e.message}`);
+      return false;
+    }
+  }
+  const modeleCharge = () => charge?.modele || null;
 
   // ------------------------------------------------------------------ Commun
   // Traduit tous les segments d'un fichier, par lots, en signalant l'avancement.
@@ -431,7 +500,7 @@ function creerMoteurs({ fetch, lireCleDeepl, urlDeeplTest = null, journal = cons
     throw new ErreurMoteur('Moteur de traduction inconnu.');
   }
 
-  return { usageDeepl, traduireDeepl, modelesOllama, traduireOllama, traduireTout, relireScene };
+  return { usageDeepl, traduireDeepl, modelesOllama, traduireOllama, traduireTout, relireScene, tailleContexte, prechauffer, decharger, modeleCharge };
 }
 
-module.exports = { creerMoteurs, ErreurMoteur, adresseOllamaValide, normaliserAdresse, versXml, depuisXml, nonTraduit, nombreMots, formesAdresse };
+module.exports = { CTX_STANDARD, CTX_GRAND, jetons, creerMoteurs, ErreurMoteur, adresseOllamaValide, normaliserAdresse, versXml, depuisXml, nonTraduit, nombreMots, formesAdresse };

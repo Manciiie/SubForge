@@ -19,33 +19,78 @@ function creerMemoire({ fichier, journal = console }) {
     return crypto.createHash('sha256').update(`${moteur}\u0001${variante}\u0001${source}\u0001${cible}\u0001${segment}`).digest('base64url').slice(0, 32);
   }
 
+  // Lecture du fichier JSONL → Map (les lignes les plus récentes l'emportent). Avance de `position` à
+  // la fin de la tranche (au plus `max` lignes) sans découper tout le texte d'un coup.
+  function analyser(texte, etat = { map: new Map(), lignes: 0, abimees: 0, position: 0 }, max = Infinity) {
+    let n = 0;
+    while (etat.position < texte.length && n < max) {
+      let fin = texte.indexOf('\n', etat.position);
+      if (fin < 0) fin = texte.length;
+      const ligne = texte.slice(etat.position, fin);
+      etat.position = fin + 1;
+      if (!ligne) continue;
+      n += 1;
+      etat.lignes += 1;
+      try {
+        const o = JSON.parse(ligne);
+        if (typeof o.k !== 'string' || typeof o.t !== 'string') throw new Error('entrée invalide');
+        etat.map.delete(o.k);
+        etat.map.set(o.k, o.t);
+      } catch {
+        etat.abimees += 1; // compté et journalisé à l'installation
+      }
+    }
+    return etat;
+  }
+
+  function installer(etat) {
+    entrees = etat.map;
+    lignesFichier = etat.lignes;
+    if (etat.abimees) journal.avertissement(`[mémoire] ${etat.abimees} ligne(s) abîmée(s) ignorée(s) dans ${path.basename(fichier)}`);
+    while (entrees.size > MAX_ENTREES) entrees.delete(entrees.keys().next().value);
+    if (lignesFichier > entrees.size * 1.5 + 1000) compacter();
+  }
+
   function charger() {
     if (entrees) return;
-    entrees = new Map();
-    lignesFichier = 0;
     let texte;
     try {
       texte = fs.readFileSync(fichier, 'utf8');
     } catch (e) {
+      entrees = new Map();
+      lignesFichier = 0;
       if (e.code !== 'ENOENT') journal.erreur('[mémoire] lecture impossible, mémoire vide pour cette session :', e.message);
       return;
     }
-    let abimees = 0;
-    for (const ligne of texte.split('\n')) {
-      if (!ligne) continue;
-      lignesFichier += 1;
+    installer(analyser(texte));
+  }
+
+  // Préchargement à l'ouverture de SubForge (1.7) : lecture asynchrone, analyse par tranches de
+  // 5 000 lignes avec une pause entre chaque, pour ne jamais figer l'application. Si une traduction
+  // a besoin de la mémoire avant la fin, charger() la lit tout de suite et le préchargement s'efface.
+  let prechargement = null;
+  function precharger() {
+    if (entrees) return Promise.resolve(false);
+    if (prechargement) return prechargement;
+    prechargement = (async () => {
+      let texte;
       try {
-        const o = JSON.parse(ligne);
-        if (typeof o.k !== 'string' || typeof o.t !== 'string') throw new Error('entrée invalide');
-        entrees.delete(o.k);
-        entrees.set(o.k, o.t);
-      } catch {
-        abimees += 1; // compté et journalisé juste en dessous
+        texte = await fs.promises.readFile(fichier, 'utf8');
+      } catch (e) {
+        if (e.code !== 'ENOENT') journal.erreur('[mémoire] préchargement impossible :', e.message);
+        return false;
       }
-    }
-    if (abimees) journal.avertissement(`[mémoire] ${abimees} ligne(s) abîmée(s) ignorée(s) dans ${path.basename(fichier)}`);
-    while (entrees.size > MAX_ENTREES) entrees.delete(entrees.keys().next().value);
-    if (lignesFichier > entrees.size * 1.5 + 1000) compacter();
+      const etat = { map: new Map(), lignes: 0, abimees: 0, position: 0 };
+      while (etat.position < texte.length) {
+        if (entrees) return false; // déjà lue par une traduction pressée
+        analyser(texte, etat, 5000);
+        await new Promise((ok) => setImmediate(ok));
+      }
+      if (entrees) return false;
+      installer(etat);
+      return true;
+    })();
+    return prechargement;
   }
 
   function compacter() {
@@ -102,13 +147,13 @@ function creerMemoire({ fichier, journal = console }) {
     }
   }
 
+  // Sans forcer la lecture complète : pendant le préchargement, le nombre de répliques n'est pas encore connu.
   function etat() {
-    charger();
     let taille = 0;
     try { taille = fs.statSync(fichier).size; } catch (e) {
       if (e.code !== 'ENOENT') journal.avertissement('[mémoire] taille illisible :', e.message);
     }
-    return { entrees: entrees.size, taille };
+    return { entrees: entrees ? entrees.size : null, taille, chargement: !entrees };
   }
 
   function vider() {
@@ -117,7 +162,7 @@ function creerMemoire({ fichier, journal = console }) {
     fs.rmSync(fichier, { force: true });
   }
 
-  return { chercher, ajouter, etat, vider, cle };
+  return { chercher, ajouter, etat, vider, cle, precharger };
 }
 
 module.exports = { creerMemoire, MAX_ENTREES };

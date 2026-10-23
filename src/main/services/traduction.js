@@ -50,7 +50,7 @@ function reglages() {
   return {
     traduction: { source: 'auto', cible: 'fr', moteur: 'deepl', formatSortie: 'identique', dossierSortie: null, memoire: true, resultatFilm: 'film', synchro: true, relecture: true, registre: 'auto', contexte: true, ...(p.traduction || {}) },
     deepl: { formalite: 'defaut', ...(p.deepl || {}) },
-    ollama: { adresse: 'http://127.0.0.1:11434', modele: '', parallele: 2, ...(p.ollama || {}) },
+    ollama: { adresse: 'http://127.0.0.1:11434', modele: '', parallele: 2, garderCharge: true, ...(p.ollama || {}) },
     enligne: { utilisateur: '', ...(p.enligne || {}) },
   };
 }
@@ -207,7 +207,7 @@ async function traduireElement(el, options, signal) {
       surAvancement: (fait, total) => { progression.trad = { fait, total }; if (fait >= total) progression.tradFinie = true; publier(); },
       // Relecture par l'IA locale (T402), avec DeepL comme avec l'IA locale, dès qu'un modèle est choisi.
       relecture: options.relecture && options.modele ? {
-        relire: (lignes, sig) => moteurs.relireScene(lignes, { ...options, signal: sig || signal }),
+        relire: (lignes, sig, extra = {}) => moteurs.relireScene(lignes, { ...options, ...extra, signal: sig || signal }),
         surAvancement: (fait, total) => { progression.relu = { fait, total }; publier(); },
       } : null,
     });
@@ -358,6 +358,13 @@ function enregistrer({ racineApp }) {
 
   const donnees = app.getPath('userData');
   memoire = creerMemoire({ fichier: path.join(donnees, 'memoire-traduction.jsonl'), journal });
+  // Mémoire de traduction lue en arrière-plan juste après l'ouverture (1.7).
+  setTimeout(() => {
+    const debut = Date.now();
+    memoire.precharger()
+      .then((fait) => { if (fait) journal.info(`[mémoire] préchargée en ${Date.now() - debut} ms (${memoire.etat().entrees} répliques)`); })
+      .catch((e) => journal.erreur('[mémoire] préchargement :', e));
+  }, 1500);
   glossaire = creerGlossaire({ fichier: path.join(donnees, 'glossaire.json'), journal });
   expressions = creerExpressions({ fichier: path.join(donnees, 'expressions.json'), codesLangues: CODES, journal });
   // OCR : données de langue hors de app.asar, travailleur Tesseract dans app.asar.unpacked (fichiers réels).
@@ -405,6 +412,7 @@ function enregistrer({ racineApp }) {
       adresseOllama: { type: 'string', max: 300, optionnel: true },
       modeleOllama: { type: 'string', max: 200, optionnel: true },
       paralleleOllama: { type: 'enum', valeurs: [1, 2, 3, 4], optionnel: true },
+      garderChargeOllama: { type: 'boolean', optionnel: true },
       memoire: { type: 'boolean', optionnel: true },
       resultatFilm: { type: 'enum', valeurs: ['film', 'film-et-fichier', 'fichier'], optionnel: true },
       synchro: { type: 'boolean', optionnel: true },
@@ -428,6 +436,12 @@ function enregistrer({ racineApp }) {
     }
     if (o.modeleOllama !== undefined) r.ollama.modele = o.modeleOllama;
     if (o.paralleleOllama !== undefined) r.ollama.parallele = o.paralleleOllama;
+    if (o.garderChargeOllama !== undefined) r.ollama.garderCharge = o.garderChargeOllama;
+    // Modèle changé (ou plus gardé chargé) : celui que SubForge gardait en mémoire est libéré.
+    if (o.modeleOllama !== undefined || o.adresseOllama !== undefined || o.garderChargeOllama === false) {
+      const garder = o.garderChargeOllama === false ? null : r.ollama.modele;
+      moteurs.decharger({ sauf: garder }).catch((e) => journal.avertissement('[ollama] déchargement :', e.message));
+    }
     parametres.modifier(r);
     return reglages();
   });
@@ -479,6 +493,7 @@ function enregistrer({ racineApp }) {
       adresse: r.ollama.adresse,
       modele: r.ollama.modele,
       parallele: [1, 2, 3, 4].includes(r.ollama.parallele) ? r.ollama.parallele : 2,
+      garderCharge: r.ollama.garderCharge !== false,
     };
     if (options.source !== 'auto' && options.source === options.cible) throw new Error('La langue source et la langue cible sont identiques.');
     if (options.moteur === 'deepl' && !parametres.secretExiste(SECRET_DEEPL)) throw new Error('Aucune clé DeepL : ajoutez-la dans l\'écran Moteurs, ou choisissez l\'IA locale.');
@@ -725,6 +740,24 @@ function enregistrer({ racineApp }) {
     return { exemple: String(t).slice(0, 300) };
   });
 
+  // Préchargement du modèle (1.7) : demandé par l'écran Traduire quand des fichiers attendent et
+  // que l'IA locale servira (traduction ou relecture). Une seule fois tant que le modèle reste chargé.
+  canal('moteurs:prechauffer', [], async () => {
+    const r = reglages();
+    const sert = r.traduction.moteur === 'ollama' || r.traduction.relecture !== false;
+    if (!r.ollama.modele || !sert || r.ollama.garderCharge === false) return { charge: false };
+    if (moteurs.modeleCharge() === r.ollama.modele) return { charge: true, deja: true };
+    try {
+      const debut = Date.now();
+      await moteurs.prechauffer({ adresse: r.ollama.adresse, modele: r.ollama.modele, garderCharge: true });
+      journal.info(`[ollama] ${r.ollama.modele} chargé à l'avance (${Date.now() - debut} ms)`);
+      return { charge: true };
+    } catch (e) {
+      journal.avertissement(`[ollama] préchargement impossible : ${e.message}`);
+      return { charge: false, erreur: e.message };
+    }
+  });
+
   // Mesure sur ce PC (T602) : 40 répliques d'exemple avec 1 puis 2 demandes simultanées.
   let mesure = null;
   canal('moteurs:mesurerOllama', [], async (event) => {
@@ -735,7 +768,7 @@ function enregistrer({ racineApp }) {
     mesure = new AbortController();
     const etape = (texte) => { if (!event.sender.isDestroyed()) event.sender.send('moteurs:mesure', texte); };
     try {
-      const o = { moteur: 'ollama', adresse: r.ollama.adresse, modele: r.ollama.modele, source: 'en', cible: 'fr', signal: mesure.signal };
+      const o = { moteur: 'ollama', adresse: r.ollama.adresse, modele: r.ollama.modele, source: 'en', cible: 'fr', garderCharge: r.ollama.garderCharge !== false, signal: mesure.signal };
       etape('Chargement du modèle…');
       await moteurs.traduireOllama(['Hello.'], o);
       const temps = {};
@@ -771,4 +804,9 @@ const PHRASES_MESURE = [
   'We should have stayed home.', 'Where is the money?', 'Good night, sweetheart.', 'See you tomorrow.',
 ];
 
-module.exports = { enregistrer };
+// Fermeture de SubForge : le modèle gardé chargé est libéré (carte graphique rendue aux autres logiciels).
+function fermer() {
+  return moteurs ? moteurs.decharger() : Promise.resolve(false);
+}
+
+module.exports = { enregistrer, fermer };

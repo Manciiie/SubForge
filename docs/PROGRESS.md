@@ -4,10 +4,10 @@
 > Garder court : 5 dernières sessions en détail, les plus anciennes résumées en une ligne.
 
 ## 📍 État actuel
-- **Version livrée** : 1.6.0 (2026-10-23)
-- **Dépôt** : `Manciiie/SubForge` — dernier envoi : version 1.6.0 (2026-10-23)
+- **Version livrée** : 1.7.0 (2026-10-23)
+- **Dépôt** : `Manciiie/SubForge` — dernier envoi : version 1.7.0 (2026-10-23)
 - **Testé sur Windows réel** : non (PC non joignable) ; `ffmpeg.exe` 7.1 vérifié sous wine
-- **Version en cours** : 1.6.0
+- **Version en cours** : 1.7.0
 - **Prochaine tâche** : — mises à jour automatiques toujours inactives (dépôt -releases + jeton à créer)
 - **Ce qui marche** : tout le périmètre 1.0 + glossaire, mémoire, saison, OCR Blu-ray (version compilée comprise), recherche en ligne (faux serveur), ffmpeg 7
 - **Fragile / non vérifié** : vrais DeepL / Ollama / OpenSubtitles jamais appelés depuis la session ; OCR testé sur un .sup fabriqué (police DejaVu), pas sur un vrai Blu-ray ; mises à jour automatiques inactives (pas de jeton)
@@ -28,6 +28,12 @@ Gravité : 🔴 crash / perte de données · 🟠 fonction cassée · 🟡 gêna
 ---
 
 ## 📓 Journal des sessions
+
+### 2026-10-23 — Version 1.7.0
+- **Demande** : optimisations 5, 6, 8 (mémoire de travail de l'IA, modèle gardé chargé, mémoire préchargée).
+- **Fait** : T701, T702, T703 (D-013).
+- **Vérifié** : 115 tests, 14 scénarios e2e (dont `v17.js` : libération du modèle à la vraie fermeture), scan 0 bloquant. Mémoire de 200 000 répliques (19,7 Mo) : 390 ms figées avant → 27 ms au pire, premier fichier 0 ms.
+- **Pas vérifié** : gain réel de mémoire vidéo et de vitesse sur la RTX 4060 avec un vrai modèle.
 
 ### 2026-10-23 — Version 1.6.0
 - **Demande** : optimisations 4, 5, 6 (synchronisation en parallèle, demandes simultanées, relecture pendant la traduction).

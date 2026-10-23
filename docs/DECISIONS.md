@@ -67,6 +67,16 @@
   `scripts/preparer-ffmpeg.js`, extraction du binaire sans dépendance.
 - **Conséquences** : +23 Mo dans l'installeur ; le script D-004 change de source, pas d'usage.
 
+## D-013 — Mémoire de travail de l'IA : une taille par fichier, deux valeurs seulement
+- **Date** : 2026-10-23
+- **Choix** : `num_ctx` = 4 096 ou 8 192, choisi une fois par fichier d'après la plus grosse demande
+  prévue, identique pour la traduction, la relecture et le préchargement ; `keep_alive: -1` tant que
+  SubForge est ouvert (case à décocher), libération par `keep_alive: 0` à la fermeture.
+- **Pourquoi** : Ollama recharge le modèle quand `num_ctx` change ; une taille par demande coûterait
+  un rechargement (10 à 60 s) à chaque fois. Deux valeurs fixes limitent les rechargements à un par
+  changement de fichier « long », au plus.
+- **Conséquences** : fermeture de SubForge rallongée de 2,5 s au plus (libération du modèle).
+
 ## D-012 — Contexte du film : TMDB
 - **Date** : 2026-10-23
 - **Choix** : API v3 de TMDB (recherche film/série, `credits` / `aggregate_credits`, épisode),

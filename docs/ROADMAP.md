@@ -3,7 +3,7 @@
 > Une version = un lot de modules ou d'améliorations, chacun avec sa fiche dans `tasks/`.
 > La liste numérotée d'améliorations proposée à chaque livraison devient la version suivante.
 
-**Version en cours** : 1.6.0
+**Version en cours** : 1.7.0
 
 ---
 
@@ -82,6 +82,16 @@
 
 ---
 
+## 1.7.0 — Optimisations de l'IA locale et du démarrage `[x]`
+**Résultat** : demandées le 2026-10-23 (points 5, 6 et 8 de la seconde liste d'optimisations).
+| ID | Tâche | Statut |
+|---|---|---|
+| v1.7-T701 | Mémoire de travail de l'IA ajustée (une taille par fichier) | [x] |
+| v1.7-T702 | Garder le modèle chargé tant que SubForge est ouvert | [x] |
+| v1.7-T703 | Mémoire de traduction préchargée sans figer l'application | [x] |
+
+---
+
 ## Proposé pour la suite (pas encore validé)
 Reprendre ici la liste numérotée envoyée avec la dernière livraison.
 2. Éditeur de répliques : corriger une traduction (ou un texte lu par OCR) à la main avant d'enregistrer
@@ -97,6 +107,7 @@ Reprendre ici la liste numérotée envoyée avec la dernière livraison.
 |---|---|---|
 | 1.0.0 | 2026-10-07 | SRT/ASS/VTT, pistes MKV/MP4, DeepL + Ollama, file, Annuler, aperçu (jamais livrée) |
 | 1.2.0 | 2026-10-11 | Piste traduite ajoutée au film (MKV), IA locale sans manipulation |
+| 1.7.0 | 2026-10-23 | Mémoire de travail de l'IA ajustée, modèle gardé chargé, mémoire préchargée |
 | 1.6.0 | 2026-10-23 | Synchronisation et relecture pendant la traduction, demandes simultanées à l'IA locale |
 | 1.5.0 | 2026-10-23 | Contexte du film (TMDB) |
 | 1.4.0 | 2026-10-14 | Relecture IA, synchronisation sur le son, tu/vous constant |
