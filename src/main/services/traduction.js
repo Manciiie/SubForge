@@ -50,7 +50,7 @@ function reglages() {
   return {
     traduction: { source: 'auto', cible: 'fr', moteur: 'deepl', formatSortie: 'identique', dossierSortie: null, memoire: true, resultatFilm: 'film', synchro: true, relecture: true, relectureCiblee: false, registre: 'auto', contexte: true, ...(p.traduction || {}) },
     deepl: { formalite: 'defaut', ...(p.deepl || {}) },
-    ollama: { adresse: 'http://127.0.0.1:11434', modele: '', parallele: 2, garderCharge: true, ...(p.ollama || {}) },
+    ollama: { adresse: 'http://127.0.0.1:11434', modele: '', parallele: 2, garderCharge: true, lotsAdaptes: true, ...(p.ollama || {}) },
     enligne: { utilisateur: '', ...(p.enligne || {}) },
   };
 }
@@ -310,12 +310,13 @@ function creerTravail(el, optionsBase, signal) {
       // « Film seul » : le sous-titre traduit ne passe que par un dossier temporaire, puis va dans le film.
       const cibleAcote = formats.nomSortie(el.chemin, langues.suffixe(options.cible), ext, dossier);
       let cible = cibleAcote;
-      if (mode === 'film') {
+      const filmSeul = mode === 'film' || mode === 'remplacer'; // pas de sous-titre séparé à côté
+      if (filmSeul) {
         dossierPiste = fs.mkdtempSync(path.join(os.tmpdir(), 'subforge-piste-'));
         cible = path.join(dossierPiste, path.basename(cibleAcote));
       }
       formats.ecrireFichier(cible, docSortie);
-      if (mode !== 'film') sortiesProduites.add(cible);
+      if (!filmSeul) sortiesProduites.add(cible);
 
       // Aperçu : les 400 premières répliques, plus toutes celles corrigées ou signalées par la relecture.
       const paires = [];
@@ -340,7 +341,7 @@ function creerTravail(el, optionsBase, signal) {
           formats.ecrireFichier(piste, formats.versSrt(doc));
         }
         integration = await integrerAuFilm(filmCible, piste, options, signal, (part) => rapporter('integration', { fait: Math.round(part * 100), total: 100, message: 'Ajout de la piste au film…' }));
-        if (mode === 'film') {
+        if (filmSeul) {
           if (integration.fichier) {
             sortie = integration.fichier;
             integration.seul = true;
@@ -398,7 +399,10 @@ async function calculerSynchro(minutages, film, signal, surPct) {
 // Film.FR.mkv à côté du film (ou dans le dossier de sortie). Renvoie { fichier, nom } ou { erreur }.
 async function integrerAuFilm(film, sousTitre, options, signal, surAvancement) {
   const l = langues.langue(options.cible);
-  const dossier = options.dossierSortie || path.dirname(film);
+  const remplacer = options.resultatFilm === 'remplacer';
+  // Remplacement (1.9) : la nouvelle version s'écrit à côté de l'original, quel que soit le dossier de sortie.
+  const dossier = remplacer ? path.dirname(film) : (options.dossierSortie || path.dirname(film));
+  let enCours = null;
   try {
     const taille = fs.statSync(film).size;
     const libre = (() => { const s = fs.statfsSync(dossier); return Number(s.bavail) * Number(s.bsize); })();
@@ -406,19 +410,63 @@ async function integrerAuFilm(film, sousTitre, options, signal, surAvancement) {
       const go = (n) => `${(n / 1e9).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} Go`;
       throw new Error(`pas assez de place sur le disque (il faut ${go(taille)}, il reste ${go(libre)})`);
     }
-    const sortie = formats.nomSortie(film, langues.suffixe(options.cible).toUpperCase(), '.mkv', dossier);
+    const copieNommee = () => formats.nomSortie(film, langues.suffixe(options.cible).toUpperCase(), '.mkv', dossier);
+    const base = path.basename(film, path.extname(film));
+    const sortie = remplacer ? path.join(dossier, `${base}.subforge-en-cours.mkv`) : copieNommee();
+    if (remplacer) fs.rmSync(sortie, { force: true }); // reste d'un essai interrompu : à nous
+    enCours = remplacer ? sortie : null;
     surAvancement(0);
     await video.integrerPiste(binaireFfmpeg, film, sousTitre, {
       sortie, langueIso3: l?.iso3?.[0] || 'und', titre: l?.nom || options.cible, signal, surAvancement,
     });
-    sortiesProduites.add(sortie);
-    journal.info(`[intégration] ${path.basename(film)} → ${path.basename(sortie)}`);
-    return { fichier: sortie, nom: path.basename(sortie) };
+    if (!remplacer) {
+      sortiesProduites.add(sortie);
+      journal.info(`[intégration] ${path.basename(film)} → ${path.basename(sortie)}`);
+      return { fichier: sortie, nom: path.basename(sortie) };
+    }
+
+    // Remplacement : vérifier la nouvelle version, envoyer l'original à la corbeille, prendre sa place.
+    const v = await video.verifierCopie(binaireFfmpeg, film, sortie, { signal });
+    if (!v.ok) throw new Error(`nouvelle version incomplète (${v.raison}) : le film d'origine est gardé`);
+    const finale = path.join(dossier, `${base}.mkv`);
+    const garderLesDeux = (raison) => {
+      const copie = copieNommee();
+      fs.renameSync(sortie, copie);
+      enCours = null;
+      sortiesProduites.add(copie);
+      journal.avertissement(`[intégration] ${path.basename(film)} : original gardé (${raison}) → ${path.basename(copie)}`);
+      return { fichier: copie, nom: path.basename(copie), avertissement: `film d'origine gardé (${raison}) : la version avec la piste est à côté` };
+    };
+    if (finale !== film && fs.existsSync(finale)) return garderLesDeux(`« ${path.basename(finale)} » existe déjà`);
+    try {
+      await mettreALaCorbeille(film);
+    } catch (e) {
+      return garderLesDeux(`corbeille impossible : ${e.message}`);
+    }
+    fs.renameSync(sortie, finale);
+    enCours = null;
+    sortiesProduites.add(finale);
+    journal.info(`[intégration] ${path.basename(film)} remplacé par la version avec la piste (original à la corbeille) → ${path.basename(finale)}`);
+    return { fichier: finale, nom: path.basename(finale), remplace: true, ancien: path.basename(film) };
   } catch (e) {
+    if (enCours) {
+      try { fs.rmSync(enCours, { force: true }); } catch (err) { journal.erreur('[intégration] fichier en cours non supprimé :', err); }
+    }
     if (e.name === 'AbortError' || signal.aborted) throw e;
     journal.erreur(`[intégration] ${path.basename(film)} :`, e);
     return { erreur: e.message };
   }
+}
+
+// Corbeille de Windows (récupérable). Dossier de test à la place, seulement hors version installée.
+function mettreALaCorbeille(chemin) {
+  const test = !app.isPackaged && process.env.SUBFORGE_CORBEILLE_TEST;
+  if (test) {
+    fs.mkdirSync(test, { recursive: true });
+    fs.renameSync(chemin, path.join(test, path.basename(chemin)));
+    return Promise.resolve();
+  }
+  return shell.trashItem(chemin);
 }
 
 // --- Canaux -------------------------------------------------------------------------
@@ -486,8 +534,9 @@ function enregistrer({ racineApp }) {
       modeleOllama: { type: 'string', max: 200, optionnel: true },
       paralleleOllama: { type: 'enum', valeurs: [1, 2, 3, 4], optionnel: true },
       garderChargeOllama: { type: 'boolean', optionnel: true },
+      lotsAdaptesOllama: { type: 'boolean', optionnel: true },
       memoire: { type: 'boolean', optionnel: true },
-      resultatFilm: { type: 'enum', valeurs: ['film', 'film-et-fichier', 'fichier'], optionnel: true },
+      resultatFilm: { type: 'enum', valeurs: ['film', 'film-et-fichier', 'fichier', 'remplacer'], optionnel: true },
       synchro: { type: 'boolean', optionnel: true },
       relecture: { type: 'boolean', optionnel: true },
       registre: { type: 'enum', valeurs: ['auto', 'tu', 'vous'], optionnel: true },
@@ -511,6 +560,7 @@ function enregistrer({ racineApp }) {
     if (o.modeleOllama !== undefined) r.ollama.modele = o.modeleOllama;
     if (o.paralleleOllama !== undefined) r.ollama.parallele = o.paralleleOllama;
     if (o.garderChargeOllama !== undefined) r.ollama.garderCharge = o.garderChargeOllama;
+    if (o.lotsAdaptesOllama !== undefined) r.ollama.lotsAdaptes = o.lotsAdaptesOllama;
     // Modèle changé (ou plus gardé chargé) : celui que SubForge gardait en mémoire est libéré.
     if (o.modeleOllama !== undefined || o.adresseOllama !== undefined || o.garderChargeOllama === false) {
       const garder = o.garderChargeOllama === false ? null : r.ollama.modele;
@@ -556,7 +606,7 @@ function enregistrer({ racineApp }) {
       source: r.traduction.source,
       cible: r.traduction.cible,
       formatSortie: r.traduction.formatSortie,
-      resultatFilm: ['film', 'film-et-fichier', 'fichier'].includes(r.traduction.resultatFilm) ? r.traduction.resultatFilm : 'film',
+      resultatFilm: ['film', 'film-et-fichier', 'fichier', 'remplacer'].includes(r.traduction.resultatFilm) ? r.traduction.resultatFilm : 'film',
       synchro: r.traduction.synchro !== false,
       relecture: r.traduction.relecture !== false,
       registre: ['auto', 'tu', 'vous'].includes(r.traduction.registre) ? r.traduction.registre : 'auto',
@@ -569,6 +619,7 @@ function enregistrer({ racineApp }) {
       modele: r.ollama.modele,
       parallele: [1, 2, 3, 4].includes(r.ollama.parallele) ? r.ollama.parallele : 2,
       garderCharge: r.ollama.garderCharge !== false,
+      lotsAdaptes: r.ollama.lotsAdaptes !== false,
     };
     if (options.source !== 'auto' && options.source === options.cible) throw new Error('La langue source et la langue cible sont identiques.');
     if (options.moteur === 'deepl' && !parametres.secretExiste(SECRET_DEEPL)) throw new Error('Aucune clé DeepL : ajoutez-la dans l\'écran Moteurs, ou choisissez l\'IA locale.');
@@ -843,18 +894,21 @@ function enregistrer({ racineApp }) {
       const o = { moteur: 'ollama', adresse: r.ollama.adresse, modele: r.ollama.modele, source: 'en', cible: 'fr', garderCharge: r.ollama.garderCharge !== false, signal: mesure.signal };
       etape('Chargement du modèle…');
       await moteurs.traduireOllama(['Hello.'], o);
-      const temps = {};
-      for (const n of [1, 2]) {
-        etape(`Mesure avec ${n} demande${n > 1 ? 's' : ''} à la fois…`);
+      // 4 réglages comparés sur 60 répliques : 1 ou 2 demandes à la fois, lots fixes (20) ou adaptés (1.9).
+      const phrases = PHRASES_MESURE.concat(PHRASES_MESURE.slice(0, 20).map((x) => `${x} Right?`));
+      const essais = [];
+      for (const [n, adaptes] of [[1, false], [2, false], [1, true], [2, true]]) {
+        etape(`Mesure : ${n} demande${n > 1 ? 's' : ''} à la fois, lots ${adaptes ? 'adaptés' : 'de 20'}… (${essais.length + 1}/4)`);
         const debut = Date.now();
-        await moteurs.traduireTout(PHRASES_MESURE.map((p) => `${p} (${n})`), { ...o, parallele: n, limite: creerLimite(n) });
-        temps[n] = Date.now() - debut;
+        await moteurs.traduireTout(phrases.map((x) => `${x} (${essais.length})`), { ...o, parallele: n, limite: creerLimite(n), lotsAdaptes: adaptes });
+        essais.push({ parallele: n, lotsAdaptes: adaptes, ms: Date.now() - debut });
       }
-      const conseil = temps[2] < temps[1] * 0.85 ? 2 : 1;
-      r.ollama.parallele = conseil;
+      const meilleur = essais.reduce((a, b) => (b.ms < a.ms * 0.95 ? b : a));
+      r.ollama.parallele = meilleur.parallele;
+      r.ollama.lotsAdaptes = meilleur.lotsAdaptes;
       parametres.modifier({ ollama: r.ollama });
-      journal.info(`[mesure] ${r.ollama.modele} : 1 demande ${temps[1]} ms, 2 demandes ${temps[2]} ms → ${conseil}`);
-      return { t1: temps[1], t2: temps[2], conseil };
+      journal.info(`[mesure] ${r.ollama.modele} : ${essais.map((e) => `${e.parallele}×${e.lotsAdaptes ? 'adaptés' : '20'} ${e.ms} ms`).join(', ')} → ${meilleur.parallele}×${meilleur.lotsAdaptes ? 'adaptés' : '20'}`);
+      return { essais, conseil: meilleur.parallele, lotsAdaptes: meilleur.lotsAdaptes };
     } finally {
       mesure = null;
     }

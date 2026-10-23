@@ -37,6 +37,10 @@ Date : 2026-10-10
   jeton v4 en en-tête `Authorization`, clé v3 en paramètre HTTPS (seule forme acceptée par TMDB, jamais
   journalisée) ; redirections refusées ; réponses ≤ 2 Mo ; textes reçus nettoyés (caractères de
   contrôle) et coupés avant d'être donnés aux moteurs ; adresse de test seulement hors version installée.
+- **Remplacement du film d'origine (1.9, option)** : jamais d'effacement définitif ; l'original va à la
+  corbeille de Windows (`shell.trashItem`), seulement après écriture complète et vérification de la
+  nouvelle version (durée, pistes) ; rien n'est écrasé si le nom final existe déjà ; confirmation
+  explicite au choix de l'option ; dossier de « corbeille » de test seulement hors version installée.
 - **OCR** : données de langue livrées (aucun téléchargement au premier lancement), images limitées
   à 4096 px, piste .sup limitée à 200 Mo, segments abîmés comptés et annoncés.
 - **Dossiers** : liens symboliques et jonctions jamais suivis, profondeur 6, 1 000 fichiers au plus.

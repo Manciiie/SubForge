@@ -22,9 +22,9 @@ module.exports = async (p) => {
   await p.ecran('moteurs');
   p.verifier((await p.eval('document.getElementById("ollama-parallele").value')) === '2', 'demandes simultanées : 2 par défaut');
   await p.clic('#btn-ollama-mesurer');
-  for (let i = 0; i < 100 && !/40 répliques/.test(await p.texte('#ollama-mesure')); i++) await p.pause(150);
+  for (let i = 0; i < 150 && !/60 répliques/.test(await p.texte('#ollama-mesure')); i++) await p.pause(150);
   const mesure = await p.texte('#ollama-mesure');
-  const conseil = /réglé sur (\d)/.exec(mesure)?.[1];
+  const conseil = /Réglé sur (\d)/.exec(mesure)?.[1];
   p.verifier(Boolean(conseil) && (await p.eval('document.getElementById("ollama-parallele").value')) === conseil, `mesure faite et appliquée (${mesure})`);
   await p.eval('document.getElementById("ollama-parallele").scrollIntoView({ block: "center" })');
   await p.pause(200);

@@ -66,9 +66,11 @@ function analyserFlux(texteFfmpeg) {
     if (!m) continue;
     indiceSousTitre += 1;
     let titre = '';
+    let subforge = false; // piste ajoutée par SubForge (étiquette SUBFORGE, invisible dans les lecteurs)
     for (let j = i + 1; j < lignes.length && /^\s{4,}/.test(lignes[j]) && !/Stream #/.test(lignes[j]); j++) {
       const t = /^\s*title\s*:\s*(.*)$/i.exec(lignes[j]);
-      if (t) { titre = t[1].trim().slice(0, 200); break; }
+      if (t && !titre) titre = t[1].trim().slice(0, 200);
+      if (/^\s*subforge\s*:/i.test(lignes[j])) subforge = true;
     }
     const codec = m[3].toLowerCase();
     const l = depuisIso3(m[2]);
@@ -84,6 +86,7 @@ function analyserFlux(texteFfmpeg) {
       parDefaut: /\(default\)/.test(m[4]),
       forces: /\(forced\)/.test(m[4]) || /forc/i.test(titre),
       malentendants: /\(hearing impaired\)/.test(m[4]) || /\bsdh\b|malentendant/i.test(titre),
+      subforge,
     });
   }
   return pistes;
@@ -146,7 +149,7 @@ async function integrerPiste(binaire, film, sousTitre, { sortie, langueIso3 = 'u
     '-map', '0', '-map', '-0:d?', '-map', '1:s:0',
     '-c', 'copy', ...conversions,
     '-disposition:s', '0', `-disposition:s:${n}`, 'default',
-    `-metadata:s:s:${n}`, `language=${langueIso3}`, `-metadata:s:s:${n}`, `title=${titre}`,
+    `-metadata:s:s:${n}`, `language=${langueIso3}`, `-metadata:s:s:${n}`, `title=${titre}`, `-metadata:s:s:${n}`, 'SUBFORGE=1',
     '-f', 'matroska', temporaire,
   ];
   let tampon = '';
@@ -181,4 +184,20 @@ function toutArreter() {
   processus.clear();
 }
 
-module.exports = { integrerPiste, lireDuree, estPgs, EXTENSIONS_VIDEO, cheminFfmpeg, estVideo, analyserFlux, listerPistes, extrairePiste, toutArreter, executer };
+// Vérifie une copie avant de remplacer l'original (1.9) : même durée (à 1,5 s près) et une piste de
+// plus (les pistes de données, non copiées en MKV, mises à part). Renvoie { ok, raison }.
+async function verifierCopie(binaire, original, copie, { signal } = {}) {
+  const decrire = async (f) => {
+    const r = await executer(binaire, ['-hide_banner', '-nostdin', '-i', f], { delai: 60000, signal });
+    const flux = r.erreurs.split(/\r?\n/).filter((l) => /^\s*Stream #\d+:\d+/.test(l));
+    return { duree: lireDuree(r.erreurs), flux: flux.filter((l) => !/:\s*Data:/.test(l)).length };
+  };
+  const a = await decrire(original);
+  const b = await decrire(copie);
+  if (!b.flux) return { ok: false, raison: 'la copie est illisible' };
+  if (b.flux !== a.flux + 1) return { ok: false, raison: `la copie a ${b.flux} pistes au lieu de ${a.flux + 1}` };
+  if (a.duree && (!b.duree || Math.abs(a.duree - b.duree) > 1.5)) return { ok: false, raison: `durée différente (${b.duree ?? '?'} s au lieu de ${a.duree} s)` };
+  return { ok: true };
+}
+
+module.exports = { verifierCopie, integrerPiste, lireDuree, estPgs, EXTENSIONS_VIDEO, cheminFfmpeg, estVideo, analyserFlux, listerPistes, extrairePiste, toutArreter, executer };

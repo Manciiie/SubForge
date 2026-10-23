@@ -35,7 +35,8 @@ module.exports = async (p) => {
   // --- 2. Même taille partout --------------------------------------------------------------------
   await p.clic('#btn-traduire');
   for (let i = 0; i < 200 && (await p.eval('document.querySelectorAll(".carte-fichier[data-etat=termine]").length')) < 2; i++) await p.pause(100);
-  p.verifier(serveur.options.length >= 4 && serveur.options.every((o) => o.num_ctx === 4096 && o.keep_alive === -1), `traduction et relecture : taille 4 096, modèle gardé (${serveur.options.length} demandes)`);
+  // Lots adaptés (1.9) : 1 demande pour les 30 répliques, le 2e fichier (identique) vient de la mémoire.
+  p.verifier(serveur.options.length >= 3 && serveur.options.every((o) => o.num_ctx === 4096 && o.keep_alive === -1), `traduction et relecture : taille 4 096, modèle gardé (${serveur.options.length} demandes)`);
   p.verifier(serveur.relectures.length >= 2, 'relecture faite');
 
   // --- 3. Libération ------------------------------------------------------------------------------

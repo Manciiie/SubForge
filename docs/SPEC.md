@@ -37,6 +37,7 @@ fichier on ne sait où. Je veux : glisser le film ou le sous-titre, choisir la l
 | Relecture IA | Seconde lecture par l'IA locale, scène par scène : sens, genre, noms, tu/vous | 1.4.0 | `tasks/v1.4-T402.md` |
 | Synchronisation | Sous-titre externe recalé sur le son de son film (décalage + vitesse) | 1.4.0 | `tasks/v1.4-T403.md` |
 | Contexte du film | Résumé + personnages et genre (TMDB) donnés au moteur et à la relecture | 1.5.0 | `tasks/v1.5-T501.md` |
+| Film d'origine | Option : la version avec la piste remplace l'original (corbeille) ; films déjà traduits reconnus | 1.9.0 | `tasks/v1.9-T902.md` |
 | En ligne (saison) | Recherche + téléchargement automatiques et sûrs pour toutes les vidéos sans sous-titres | 1.1.0 | `tasks/v1.1-T107.md` |
 
 ### Comportements attendus
@@ -64,7 +65,8 @@ fichier on ne sait où. Je veux : glisser le film ou le sous-titre, choisir la l
 - Annuler arrête la traduction en cours sans laisser de fichier à moitié écrit.
 
 ## 4. Hors périmètre
-- Ré-encoder la vidéo, incruster les sous-titres dans l'image, modifier le film d'origine (la 1.2 crée une copie MKV).
+- Ré-encoder la vidéo, incruster les sous-titres dans l'image. Le film d'origine n'est jamais modifié sur place :
+  en option (1.9), une version avec la piste le remplace après vérification, l'original allant à la corbeille.
 - OCR des sous-titres en image de DVD (VobSub) et de TNT (DVB) — PGS (Blu-ray) depuis la 1.1.
 - Transcription de l'audio (c'est VoxForge).
 - Synchronisation non linéaire (coupures, scènes en plus) — le décalage simple et la vitesse sont gérés depuis la 1.4.

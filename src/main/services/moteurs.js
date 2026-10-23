@@ -312,7 +312,8 @@ function creerMoteurs({ fetch, lireCleDeepl, urlDeeplTest = null, journal = cons
     });
   }
 
-  // Lots de 20 ; ce qui manque dans la réponse est redemandé en lots plus petits, puis un par un.
+  // Un lot (20 répliques, ou jusqu'à 40 en lots adaptés) ; ce qui manque dans la réponse est redemandé
+  // en lots plus petits, puis un par un.
   async function traduireOllama(segments, { adresse, modele, source, cible, registre, contexteFilm, contexte = [], aides = null, limite = null, numCtx, garderCharge, signal }) {
     if (!modele) throw new ErreurMoteur('Aucun modèle d\'IA locale choisi : choisissez-en un dans l\'écran Moteurs.');
     const resultats = new Array(segments.length).fill(null);
@@ -354,7 +355,7 @@ function creerMoteurs({ fetch, lireCleDeepl, urlDeeplTest = null, journal = cons
         }
       }
     }
-    await traiter(segments.map((_, i) => i), 20);
+    await traiter(segments.map((_, i) => i), Math.max(1, segments.length));
     return resultats;
   }
 
@@ -405,18 +406,55 @@ function creerMoteurs({ fetch, lireCleDeepl, urlDeeplTest = null, journal = cons
     return { corrections, doutes };
   }
 
+  // ------------------------------------------------------------------ Lots adaptés (1.9)
+  // Répliques courtes : jusqu'à 40 par demande (moins de demandes, consignes moins répétées) ; longues :
+  // moins, pour tenir dans la mémoire de travail standard (4 096) réponse comprise. Renvoie des
+  // intervalles [début, fin[. Sans lots adaptés : 20 par demande comme avant.
+  const LOT_FIXE = 20;
+  const LOT_MAX = 40;
+  function planifierLots(segments, { aides = [], adaptes = true, ...options } = {}) {
+    const lots = [];
+    if (!adaptes) {
+      for (let i = 0; i < segments.length; i += LOT_FIXE) lots.push([i, Math.min(segments.length, i + LOT_FIXE)]);
+      return lots;
+    }
+    const vers = langue(options.cible)?.anglais || options.cible;
+    const base = jetons(consigne(options.source, options.cible, options.registre, options.contexteFilm)) + jetons(`Translate these 40 subtitle line(s) into ${vers}:\n\nAnswer with the JSON object of the ${vers} translations only.`) + 60;
+    const budget = CTX_STANDARD * 0.85 - base;
+    const cout = (i) => {
+      const t = segments[i];
+      const aide = aides[i]?.length ? jetons(texteAides(aides[i], vers)) + 12 : 0;
+      return jetons(`${i}. ${JSON.stringify(t)}\n`) + aide + Math.ceil(jetons(t) * 1.6) + 8;
+    };
+    let debut = 0;
+    while (debut < segments.length) {
+      // Contexte : les 3 répliques précédentes.
+      let total = segments.slice(Math.max(0, debut - 3), debut).reduce((n, t) => n + jetons(t) + 4, 0) + cout(debut);
+      let fin = debut + 1;
+      while (fin < segments.length && fin - debut < LOT_MAX && total + cout(fin) <= budget) { total += cout(fin); fin += 1; }
+      // Vérification avec la mesure exacte (celle de tailleContexte) : le lot rétrécit s'il déborde.
+      while (fin - debut > 1 && besoinLot(segments.slice(debut, fin), aides.slice(debut, fin), options) > CTX_STANDARD * 0.85) fin -= 1;
+      lots.push([debut, fin]);
+      debut = fin;
+    }
+    return lots;
+  }
+
   // ------------------------------------------------------------------ Mémoire de travail et chargement (1.7)
   // Taille pour un fichier : la plus grosse demande prévue (lots de traduction et scènes de relecture,
   // réponse comprise) ; 4 096 si elle tient largement, sinon 8 192.
+  // Besoin estimé d'une demande de traduction (consigne + lot + contexte + réponse) : la même mesure
+  // sert à découper les lots et à choisir la taille de la mémoire de travail.
+  function besoinLot(lot, aidesLot, { source, cible, registre = 'auto', contexteFilm = '' } = {}) {
+    const entree = jetons(demande(lot, lot.slice(0, 3), cible, aidesLot || []));
+    const sortie = Math.ceil(lot.reduce((n, t) => n + jetons(t), 0) * 1.6) + 8 * lot.length;
+    return jetons(consigne(source, cible, registre, contexteFilm)) + entree + sortie;
+  }
+
   function tailleContexte({ lots = [], aidesLots = [], scenes = [], options = {} }) {
     const { source, cible, registre = 'auto', contexteFilm = '' } = options;
     let besoin = 0;
-    const systeme = jetons(consigne(source, cible, registre, contexteFilm));
-    lots.forEach((lot, k) => {
-      const entree = jetons(demande(lot, lot.slice(0, 3), cible, aidesLots[k] || []));
-      const sortie = Math.ceil(lot.reduce((n, t) => n + jetons(t), 0) * 1.6) + 8 * lot.length;
-      besoin = Math.max(besoin, systeme + entree + sortie);
-    });
+    lots.forEach((lot, k) => { besoin = Math.max(besoin, besoinLot(lot, aidesLots[k], options)); });
     for (const sc of scenes) {
       const lignes = sc.map((l) => ({ original: l.original, traduction: `${l.original}${l.original.slice(0, Math.ceil(l.original.length * 0.4))}` }));
       const p = promptRelecture(lignes, { source, cible, registre, contexteFilm });
@@ -480,16 +518,14 @@ function creerMoteurs({ fetch, lireCleDeepl, urlDeeplTest = null, journal = cons
     if (options.moteur === 'ollama') {
       // Lots de 20, jusqu'à N en même temps (T602). Un lot dont les précédents ne sont pas encore traduits
       // reçoit comme contexte les répliques d'origine qui le précèdent.
-      const pas = 20;
-      const debuts = [];
-      for (let i = 0; i < segments.length; i += pas) debuts.push(i);
+      const lots = options.lots || planifierLots(segments, { ...options, aides: options.aides, adaptes: options.lotsAdaptes !== false });
       let faits = 0;
-      await enParallele(debuts, Math.max(1, Math.min(4, options.parallele || 1)), async (i) => {
+      await enParallele(lots, Math.max(1, Math.min(4, options.parallele || 1)), async ([i, fin]) => {
         if (options.signal?.aborted) throw erreurAnnulation();
         // Array.from : les cases encore vides du tableau sont de vrais « undefined » (every() les sauterait).
         const precedents = Array.from(sortie.slice(Math.max(0, i - 3), i));
         const contexte = precedents.every((t) => typeof t === 'string') ? precedents : segments.slice(Math.max(0, i - 3), i);
-        const t = await traduireOllama(segments.slice(i, i + pas), { ...options, contexte, aides: options.aides?.slice(i, i + pas) });
+        const t = await traduireOllama(segments.slice(i, fin), { ...options, contexte, aides: options.aides?.slice(i, fin) });
         t.forEach((v, j) => { sortie[i + j] = v; });
         faits += t.length;
         surAvancement(faits, segments.length);
@@ -500,7 +536,7 @@ function creerMoteurs({ fetch, lireCleDeepl, urlDeeplTest = null, journal = cons
     throw new ErreurMoteur('Moteur de traduction inconnu.');
   }
 
-  return { usageDeepl, traduireDeepl, modelesOllama, traduireOllama, traduireTout, relireScene, tailleContexte, prechauffer, decharger, modeleCharge };
+  return { usageDeepl, traduireDeepl, modelesOllama, traduireOllama, traduireTout, relireScene, tailleContexte, planifierLots, prechauffer, decharger, modeleCharge };
 }
 
 module.exports = { CTX_STANDARD, CTX_GRAND, jetons, creerMoteurs, ErreurMoteur, adresseOllamaValide, normaliserAdresse, versXml, depuisXml, nonTraduit, nombreMots, formesAdresse };

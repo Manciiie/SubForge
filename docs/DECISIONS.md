@@ -67,6 +67,17 @@
   `scripts/preparer-ffmpeg.js`, extraction du binaire sans dépendance.
 - **Conséquences** : +23 Mo dans l'installeur ; le script D-004 change de source, pas d'usage.
 
+## D-014 — Remplacer le film d'origine : corbeille, jamais d'effacement
+- **Date** : 2026-10-23
+- **Choix** : option (décochée, confirmée) ; nouvelle version écrite à côté et vérifiée, puis original
+  à la corbeille de Windows et renommage. Pistes ajoutées marquées par une étiquette `SUBFORGE=1`
+  (invisible dans les lecteurs) pour reconnaître un film déjà traduit.
+- **Pourquoi** : gagner la place du double sans risque de perte (récupérable tant que la corbeille
+  n'est pas vidée). Le titre « Français » ne suffit pas à reconnaître nos pistes (beaucoup de films
+  en ont une d'origine).
+- **Écartés** : écriture sur place (perte du film si coupure) ; effacement définitif.
+- **Conséquences** : la place n'est libérée qu'en vidant la corbeille ; un MP4/AVI devient un MKV.
+
 ## D-013 — Mémoire de travail de l'IA : une taille par fichier, deux valeurs seulement
 - **Date** : 2026-10-23
 - **Choix** : `num_ctx` = 4 096 ou 8 192, choisi une fois par fichier d'après la plus grosse demande

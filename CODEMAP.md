@@ -3,67 +3,67 @@
 > Généré par `codemap.py` v3 : **ne pas modifier à la main**. Régénérer après chaque modification du code.
 > Format : `nom` suivi du numéro de ligne → lire seulement les lignes utiles (Read avec offset).
 
-**85 fichiers · 12241 lignes** · 84 js · 1 html
+**86 fichiers · 12536 lignes** · 85 js · 1 html
 
 ## Liens entre fichiers
 
 - IPC `app:infos` : traité `src/main/ipc.js:45`, autorisé `src/main/preload.js:10`
 - IPC `app:ouvrirJournaux` : traité `src/main/ipc.js:80`, autorisé `src/main/preload.js:12`
 - IPC `app:ouvrirLien` : traité `src/main/ipc.js:75`, autorisé `src/main/preload.js:11`
-- IPC `contexte:chercher` : traité `src/main/services/traduction.js:690`, autorisé `src/main/preload.js:50`
-- IPC `contexte:choisir` : traité `src/main/services/traduction.js:691`, autorisé `src/main/preload.js:51`
-- IPC `contexte:enregistrer` : traité `src/main/services/traduction.js:672`, autorisé `src/main/preload.js:47`
-- IPC `contexte:etat` : traité `src/main/services/traduction.js:671`, autorisé `src/main/preload.js:46`
-- IPC `contexte:pour` : traité `src/main/services/traduction.js:683`, autorisé `src/main/preload.js:49`
-- IPC `contexte:tester` : traité `src/main/services/traduction.js:678`, autorisé `src/main/preload.js:48`
+- IPC `contexte:chercher` : traité `src/main/services/traduction.js:741`, autorisé `src/main/preload.js:50`
+- IPC `contexte:choisir` : traité `src/main/services/traduction.js:742`, autorisé `src/main/preload.js:51`
+- IPC `contexte:enregistrer` : traité `src/main/services/traduction.js:723`, autorisé `src/main/preload.js:47`
+- IPC `contexte:etat` : traité `src/main/services/traduction.js:722`, autorisé `src/main/preload.js:46`
+- IPC `contexte:pour` : traité `src/main/services/traduction.js:734`, autorisé `src/main/preload.js:49`
+- IPC `contexte:tester` : traité `src/main/services/traduction.js:729`, autorisé `src/main/preload.js:48`
 - IPC `diagnostic:copierRapport` : traité `src/main/ipc.js:83`, autorisé `src/main/preload.js:13`
-- IPC `enligne:automatique` : traité `src/main/services/traduction.js:775`, autorisé `src/main/preload.js:66`
-- IPC `enligne:chercher` : traité `src/main/services/traduction.js:736`, autorisé `src/main/preload.js:64`
-- IPC `enligne:enregistrer` : traité `src/main/services/traduction.js:707`, autorisé `src/main/preload.js:62`
-- IPC `enligne:etat` : traité `src/main/services/traduction.js:700`, autorisé `src/main/preload.js:61`
-- IPC `enligne:telecharger` : traité `src/main/services/traduction.js:758`, autorisé `src/main/preload.js:65`
-- IPC `enligne:tester` : traité `src/main/services/traduction.js:730`, autorisé `src/main/preload.js:63`
-- IPC `expressions:enregistrer` : traité `src/main/services/traduction.js:616`, autorisé `src/main/preload.js:53`
-- IPC `expressions:lister` : traité `src/main/services/traduction.js:615`, autorisé `src/main/preload.js:52`
-- IPC `expressions:regler` : traité `src/main/services/traduction.js:628`, autorisé `src/main/preload.js:55`
-- IPC `expressions:supprimer` : traité `src/main/services/traduction.js:627`, autorisé `src/main/preload.js:54`
-- IPC `expressions:tester` : traité `src/main/services/traduction.js:636`, autorisé `src/main/preload.js:56`
+- IPC `enligne:automatique` : traité `src/main/services/traduction.js:826`, autorisé `src/main/preload.js:66`
+- IPC `enligne:chercher` : traité `src/main/services/traduction.js:787`, autorisé `src/main/preload.js:64`
+- IPC `enligne:enregistrer` : traité `src/main/services/traduction.js:758`, autorisé `src/main/preload.js:62`
+- IPC `enligne:etat` : traité `src/main/services/traduction.js:751`, autorisé `src/main/preload.js:61`
+- IPC `enligne:telecharger` : traité `src/main/services/traduction.js:809`, autorisé `src/main/preload.js:65`
+- IPC `enligne:tester` : traité `src/main/services/traduction.js:781`, autorisé `src/main/preload.js:63`
+- IPC `expressions:enregistrer` : traité `src/main/services/traduction.js:667`, autorisé `src/main/preload.js:53`
+- IPC `expressions:lister` : traité `src/main/services/traduction.js:666`, autorisé `src/main/preload.js:52`
+- IPC `expressions:regler` : traité `src/main/services/traduction.js:679`, autorisé `src/main/preload.js:55`
+- IPC `expressions:supprimer` : traité `src/main/services/traduction.js:678`, autorisé `src/main/preload.js:54`
+- IPC `expressions:tester` : traité `src/main/services/traduction.js:687`, autorisé `src/main/preload.js:56`
 - IPC `fenetre:action` : traité `src/main/ipc.js:121`, autorisé `src/main/preload.js:19`
 - IPC `fichiers:choisir` : traité `src/main/ipc.js:103`, autorisé `src/main/preload.js:18`
-- IPC `glossaire:enregistrer` : traité `src/main/services/traduction.js:644`, autorisé `src/main/preload.js:58`
-- IPC `glossaire:importer` : traité `src/main/services/traduction.js:655`, autorisé `src/main/preload.js:60`
-- IPC `glossaire:lister` : traité `src/main/services/traduction.js:643`, autorisé `src/main/preload.js:57`
-- IPC `glossaire:supprimer` : traité `src/main/services/traduction.js:654`, autorisé `src/main/preload.js:59`
+- IPC `glossaire:enregistrer` : traité `src/main/services/traduction.js:695`, autorisé `src/main/preload.js:58`
+- IPC `glossaire:importer` : traité `src/main/services/traduction.js:706`, autorisé `src/main/preload.js:60`
+- IPC `glossaire:lister` : traité `src/main/services/traduction.js:694`, autorisé `src/main/preload.js:57`
+- IPC `glossaire:supprimer` : traité `src/main/services/traduction.js:705`, autorisé `src/main/preload.js:59`
 - IPC `maj:etat` : traité `src/main/mises-a-jour.js:134`, autorisé `src/main/preload.js:20`
 - IPC `maj:ignorer` : traité `src/main/mises-a-jour.js:153`, autorisé `src/main/preload.js:24`
 - IPC `maj:installer` : traité `src/main/mises-a-jour.js:145`, autorisé `src/main/preload.js:23`
 - IPC `maj:telecharger` : traité `src/main/mises-a-jour.js:138`, autorisé `src/main/preload.js:22`
 - IPC `maj:verifier` : traité `src/main/mises-a-jour.js:136`, autorisé `src/main/preload.js:21`
-- IPC `memoire:etat` : traité `src/main/services/traduction.js:606`, autorisé `src/main/preload.js:44`
-- IPC `memoire:vider` : traité `src/main/services/traduction.js:607`, autorisé `src/main/preload.js:45`
-- IPC `moteurs:annulerMesure` : traité `src/main/services/traduction.js:862`, autorisé `src/main/preload.js:43`
-- IPC `moteurs:enregistrerCleDeepl` : traité `src/main/services/traduction.js:791`, autorisé `src/main/preload.js:36`
-- IPC `moteurs:etat` : traité `src/main/services/traduction.js:789`, autorisé `src/main/preload.js:35`
-- IPC `moteurs:mesurerOllama` : traité `src/main/services/traduction.js:835`, autorisé `src/main/preload.js:41`
-- IPC `moteurs:modelesOllama` : traité `src/main/services/traduction.js:806`, autorisé `src/main/preload.js:39`
-- IPC `moteurs:prechauffer` : traité `src/main/services/traduction.js:817`, autorisé `src/main/preload.js:42`
-- IPC `moteurs:supprimerCleDeepl` : traité `src/main/services/traduction.js:802`, autorisé `src/main/preload.js:37`
-- IPC `moteurs:testerDeepl` : traité `src/main/services/traduction.js:804`, autorisé `src/main/preload.js:38`
-- IPC `moteurs:testerOllama` : traité `src/main/services/traduction.js:808`, autorisé `src/main/preload.js:40`
+- IPC `memoire:etat` : traité `src/main/services/traduction.js:657`, autorisé `src/main/preload.js:44`
+- IPC `memoire:vider` : traité `src/main/services/traduction.js:658`, autorisé `src/main/preload.js:45`
+- IPC `moteurs:annulerMesure` : traité `src/main/services/traduction.js:916`, autorisé `src/main/preload.js:43`
+- IPC `moteurs:enregistrerCleDeepl` : traité `src/main/services/traduction.js:842`, autorisé `src/main/preload.js:36`
+- IPC `moteurs:etat` : traité `src/main/services/traduction.js:840`, autorisé `src/main/preload.js:35`
+- IPC `moteurs:mesurerOllama` : traité `src/main/services/traduction.js:886`, autorisé `src/main/preload.js:41`
+- IPC `moteurs:modelesOllama` : traité `src/main/services/traduction.js:857`, autorisé `src/main/preload.js:39`
+- IPC `moteurs:prechauffer` : traité `src/main/services/traduction.js:868`, autorisé `src/main/preload.js:42`
+- IPC `moteurs:supprimerCleDeepl` : traité `src/main/services/traduction.js:853`, autorisé `src/main/preload.js:37`
+- IPC `moteurs:testerDeepl` : traité `src/main/services/traduction.js:855`, autorisé `src/main/preload.js:38`
+- IPC `moteurs:testerOllama` : traité `src/main/services/traduction.js:859`, autorisé `src/main/preload.js:40`
 - IPC `parametres:lire` : traité `src/main/ipc.js:53`, autorisé `src/main/preload.js:14`
 - IPC `parametres:modifier` : traité `src/main/ipc.js:55`, autorisé `src/main/preload.js:15`
 - IPC `secret:enregistrer` : traité `src/main/ipc.js:70`, autorisé `src/main/preload.js:16`
 - IPC `secret:existe` : traité `src/main/ipc.js:73`, autorisé `src/main/preload.js:17`
-- IPC `traduction:analyser` : traité `src/main/services/traduction.js:539`, autorisé `src/main/preload.js:30`
-- IPC `traduction:annuler` : traité `src/main/services/traduction.js:589`, autorisé `src/main/preload.js:32`
-- IPC `traduction:apercu` : traité `src/main/services/traduction.js:596`, autorisé `src/main/preload.js:33`
-- IPC `traduction:choisirDossierSortie` : traité `src/main/services/traduction.js:523`, autorisé `src/main/preload.js:28`
-- IPC `traduction:explorer` : traité `src/main/services/traduction.js:531`, autorisé `src/main/preload.js:29`
-- IPC `traduction:lancer` : traité `src/main/services/traduction.js:548`, autorisé `src/main/preload.js:31`
-- IPC `traduction:langues` : traité `src/main/services/traduction.js:471`, autorisé `src/main/preload.js:25`
-- IPC `traduction:modifierReglages` : traité `src/main/services/traduction.js:475`, autorisé `src/main/preload.js:27`
-- IPC `traduction:montrer` : traité `src/main/services/traduction.js:599`, autorisé `src/main/preload.js:34`
-- IPC `traduction:reglages` : traité `src/main/services/traduction.js:473`, autorisé `src/main/preload.js:26`
+- IPC `traduction:analyser` : traité `src/main/services/traduction.js:589`, autorisé `src/main/preload.js:30`
+- IPC `traduction:annuler` : traité `src/main/services/traduction.js:640`, autorisé `src/main/preload.js:32`
+- IPC `traduction:apercu` : traité `src/main/services/traduction.js:647`, autorisé `src/main/preload.js:33`
+- IPC `traduction:choisirDossierSortie` : traité `src/main/services/traduction.js:573`, autorisé `src/main/preload.js:28`
+- IPC `traduction:explorer` : traité `src/main/services/traduction.js:581`, autorisé `src/main/preload.js:29`
+- IPC `traduction:lancer` : traité `src/main/services/traduction.js:598`, autorisé `src/main/preload.js:31`
+- IPC `traduction:langues` : traité `src/main/services/traduction.js:519`, autorisé `src/main/preload.js:25`
+- IPC `traduction:modifierReglages` : traité `src/main/services/traduction.js:523`, autorisé `src/main/preload.js:27`
+- IPC `traduction:montrer` : traité `src/main/services/traduction.js:650`, autorisé `src/main/preload.js:34`
+- IPC `traduction:reglages` : traité `src/main/services/traduction.js:521`, autorisé `src/main/preload.js:26`
 
 ## Fichiers
 
@@ -229,11 +229,11 @@
 - exporte : `creerMemoire` 168, `MAX_ENTREES` 168
 - paquets : `crypto`, `fs`, `path`
 
-### src/main/services/moteurs.js — processus principal · 506 l.
+### src/main/services/moteurs.js — processus principal · 542 l.
 - classes : `ErreurMoteur` 9
-- fonctions : `pause(ms, signal)` 18, `jetons(t)` 27, `erreurAnnulation()` 33, `signalAvecDelai(signal, ms)` 35, `lireJson(reponse)` 40, `normaliser(t)` 52, `nombreMots(t)` 53, `nonTraduit(original, traduction)` 54, `formesAdresse(cible)` 64, `consigneRegistre(registre, cible)` 66, `texteAides(aides, vers)` 76, `mauvaiseEcriture(original, traduction, cible)` 85, `versXml(texte)` 89, `echapper(t)` 98, `depuisXml(t)` 99, `adresseOllamaValide(url)` 104, `normaliserAdresse(url)` 115, `creerMoteurs({ fetch, lireCleDeepl, urlDeeplTest = null, journal = con…)` 121, `baseDeepl(cle)` 123, `appelDeepl(chemin, { methode = 'GET', corps = null, signal } = {})` 128, `usageDeepl()` 165, `traduireDeepl(segments, { source, cible, formalite = 'defaut', registre…)` 174, `appelOllama(adresse, chemin, { corps = null, signal, delai = 15000 }…)` 209, `modelesOllama(adresse)` 235, `consigne(source, cible, registre = 'auto', contexteFilm = '')` 244, `demande(segments, contexte, cible, aides = [])` 261, `extraireObjet(contenu)` 273, `lotOllama(segments, { adresse, modele, source, cible, registre, con…)` 285, `traduireOllama(segments, { adresse, modele, source, cible, registre, con…)` 316, `traiter(indices, taille, essai = 0)` 321, `demander()` 328, `promptRelecture(lignes, { source, cible, registre = 'auto', contexteFilm…)` 366, `relireScene(lignes, { adresse, modele, source, cible, registre = 'aut…)` 382, `numero(v)` 398, `texteCourt(v, max)` 399, `tailleContexte({ lots = [], aidesLots = [], scenes = [], options = {} })` 411, `noterCharge(adresse, modele, numCtx, garderCharge)` 431, `prechauffer({ adresse, modele, garderCharge = true })` 435, `decharger({ sauf = null } = {})` 445, `modeleCharge()` 457, `traduireTout(segments, options, surAvancement = ()` 461
+- fonctions : `pause(ms, signal)` 18, `jetons(t)` 27, `erreurAnnulation()` 33, `signalAvecDelai(signal, ms)` 35, `lireJson(reponse)` 40, `normaliser(t)` 52, `nombreMots(t)` 53, `nonTraduit(original, traduction)` 54, `formesAdresse(cible)` 64, `consigneRegistre(registre, cible)` 66, `texteAides(aides, vers)` 76, `mauvaiseEcriture(original, traduction, cible)` 85, `versXml(texte)` 89, `echapper(t)` 98, `depuisXml(t)` 99, `adresseOllamaValide(url)` 104, `normaliserAdresse(url)` 115, `creerMoteurs({ fetch, lireCleDeepl, urlDeeplTest = null, journal = con…)` 121, `baseDeepl(cle)` 123, `appelDeepl(chemin, { methode = 'GET', corps = null, signal } = {})` 128, `usageDeepl()` 165, `traduireDeepl(segments, { source, cible, formalite = 'defaut', registre…)` 174, `appelOllama(adresse, chemin, { corps = null, signal, delai = 15000 }…)` 209, `modelesOllama(adresse)` 235, `consigne(source, cible, registre = 'auto', contexteFilm = '')` 244, `demande(segments, contexte, cible, aides = [])` 261, `extraireObjet(contenu)` 273, `lotOllama(segments, { adresse, modele, source, cible, registre, con…)` 285, `traduireOllama(segments, { adresse, modele, source, cible, registre, con…)` 317, `traiter(indices, taille, essai = 0)` 322, `demander()` 329, `promptRelecture(lignes, { source, cible, registre = 'auto', contexteFilm…)` 367, `relireScene(lignes, { adresse, modele, source, cible, registre = 'aut…)` 383, `numero(v)` 399, `texteCourt(v, max)` 400, `planifierLots(segments, { aides = [], adaptes = true, ...options } = {})` 415, `cout(i)` 424, `besoinLot(lot, aidesLot, { source, cible, registre = 'auto', contex…)` 448, `tailleContexte({ lots = [], aidesLots = [], scenes = [], options = {} })` 454, `noterCharge(adresse, modele, numCtx, garderCharge)` 469, `prechauffer({ adresse, modele, garderCharge = true })` 473, `decharger({ sauf = null } = {})` 483, `modeleCharge()` 495, `traduireTout(segments, options, surAvancement = ()` 499
 - méthodes : `constructor(message, { definitive = true } = {})` 10
-- exporte : `CTX_STANDARD` 506, `CTX_GRAND` 506, `jetons` 506, `creerMoteurs` 506, `ErreurMoteur` 506, `adresseOllamaValide` 506, `normaliserAdresse` 506, `versXml` 506, `depuisXml` 506, `nonTraduit` 506, `nombreMots` 506, `formesAdresse` 506
+- exporte : `CTX_STANDARD` 542, `CTX_GRAND` 542, `jetons` 542, `creerMoteurs` 542, `ErreurMoteur` 542, `adresseOllamaValide` 542, `normaliserAdresse` 542, `versXml` 542, `depuisXml` 542, `nonTraduit` 542, `nombreMots` 542, `formesAdresse` 542
 - importe : `./langues`, `./limite`
 
 ### src/main/services/ocr.js — processus principal · 102 l.
@@ -248,10 +248,10 @@
 - méthodes : `constructor(m)` 12
 - exporte : `compter` 224, `lireSup` 224, `decoderRle` 224, `versPgm` 224, `ErreurPgs` 224, `TAILLE_MAX` 224
 
-### src/main/services/pipeline.js — processus principal · 358 l.
-- fonctions : `erreurAnnulation()` 16, `verifierTraduit(originaux, traductions, options)` 22, `traduireDocument(doc, { moteurs, memoire = null, glossairePrepare = null…)` 38, `traductionSegment(i)` 98, `marquerPret(u)` 133, `scenes(doc, positions, preparations)` 208, `marqueursDe(t)` 226, `correctionValable(original, actuelle, correction, valeurs)` 230, `scenesARisque(liste, { segments, textes, indexUnique, aides, options })` 249, `sansMarqueurs(t)` 250, `demarrerRelecture({ liste, aRelire = null, segments, textes, indexUnique, t…)` 273, `surAnnulation()` 287, `lancer(k)` 293
-- méthodes : `segmentPret(i)` 315, `lancerPretes()` 321, `abandonner()` 322, `terminer({ traductions, valeursGlossaire, notes })` 327
-- exporte : `traduireDocument` 358, `scenes` 358, `correctionValable` 358, `scenesARisque` 358
+### src/main/services/pipeline.js — processus principal · 364 l.
+- fonctions : `erreurAnnulation()` 16, `verifierTraduit(originaux, traductions, options)` 22, `traduireDocument(doc, { moteurs, memoire = null, glossairePrepare = null…)` 38, `traductionSegment(i)` 98, `marquerPret(u)` 138, `scenes(doc, positions, preparations)` 214, `marqueursDe(t)` 232, `correctionValable(original, actuelle, correction, valeurs)` 236, `scenesARisque(liste, { segments, textes, indexUnique, aides, options })` 255, `sansMarqueurs(t)` 256, `demarrerRelecture({ liste, aRelire = null, segments, textes, indexUnique, t…)` 279, `surAnnulation()` 293, `lancer(k)` 299
+- méthodes : `segmentPret(i)` 321, `lancerPretes()` 327, `abandonner()` 328, `terminer({ traductions, valeursGlossaire, notes })` 333
+- exporte : `traduireDocument` 364, `scenes` 364, `correctionValable` 364, `scenesARisque` 364
 - importe : `./formats`, `./glossaire`, `./langues`, `./moteurs`, `./expressions`, `./limite`
 
 ### src/main/services/synchro.js — processus principal · 196 l.
@@ -259,21 +259,21 @@
 - exporte : `analyserSon` 196, `parole` 196, `trouverDecalage` 196, `transformation` 196, `libelleVitesse` 196, `fft` 196, `TRAME_MS` 196, `REPLIQUES_MIN` 196
 - importe : `./video`
 
-### src/main/services/traduction.js — processus principal · 884 l.
-- IPC : canaux traités : `traduction:langues` 471, `traduction:reglages` 473, `traduction:modifierReglages` 475, `traduction:choisirDossierSortie` 523, `traduction:explorer` 531, `traduction:analyser` 539, `traduction:lancer` 548, `traduction:annuler` 589, `traduction:apercu` 596, `traduction:montrer` 599, `memoire:etat` 606, `memoire:vider` 607, `expressions:lister` 615, `expressions:enregistrer` 616, `expressions:supprimer` 627, `expressions:regler` 628, `expressions:tester` 636, `glossaire:lister` 643, `glossaire:enregistrer` 644, `glossaire:supprimer` 654, `glossaire:importer` 655, `contexte:etat` 671, `contexte:enregistrer` 672, `contexte:tester` 678, `contexte:pour` 683, `contexte:chercher` 690, `contexte:choisir` 691, `enligne:etat` 700, `enligne:enregistrer` 707, `enligne:tester` 730, `enligne:chercher` 736, `enligne:telecharger` 758, `enligne:automatique` 775, `moteurs:etat` 789, `moteurs:enregistrerCleDeepl` 791, `moteurs:supprimerCleDeepl` 802, `moteurs:testerDeepl` 804, `moteurs:modelesOllama` 806, `moteurs:testerOllama` 808, `moteurs:prechauffer` 817, `moteurs:mesurerOllama` 835, `moteurs:annulerMesure` 862
-- fonctions : `reglages()` 48, `envoyer(evenement)` 58, `langueDuNom(chemin)` 65, `sourceOuAnglais()` 71, `analyserUn(chemin)` 76, `creerTravail(el, optionsBase, signal)` 113, `rapporter(etat, extra = {})` 114, `relaisAnnulation()` 120, `synchroAffichee()` 137, `publier()` 138, `echouer(e)` 151, `nettoyer()` 165, `preparer()` 177, `traduire()` 257, `finaliser()` 284, `finSynchro(pct)` 294, `enchainer(elements, options, signal)` 368, `calculerSynchro(minutages, film, signal, surPct)` 374, `integrerAuFilm(film, sousTitre, options, signal, surAvancement)` 399, `libre(()` 404, `go(n)` 406, `enregistrer({ racineApp })` 426, `resumeContexte(c)` 680, `videoExistante(chemin)` 732, `ecrireTelecharge(film, contenu, ext, l)` 744, `etape(texte)` 841, `fermer()` 880
-- exporte : `enregistrer` 884, `fermer` 884
+### src/main/services/traduction.js — processus principal · 938 l.
+- IPC : canaux traités : `traduction:langues` 519, `traduction:reglages` 521, `traduction:modifierReglages` 523, `traduction:choisirDossierSortie` 573, `traduction:explorer` 581, `traduction:analyser` 589, `traduction:lancer` 598, `traduction:annuler` 640, `traduction:apercu` 647, `traduction:montrer` 650, `memoire:etat` 657, `memoire:vider` 658, `expressions:lister` 666, `expressions:enregistrer` 667, `expressions:supprimer` 678, `expressions:regler` 679, `expressions:tester` 687, `glossaire:lister` 694, `glossaire:enregistrer` 695, `glossaire:supprimer` 705, `glossaire:importer` 706, `contexte:etat` 722, `contexte:enregistrer` 723, `contexte:tester` 729, `contexte:pour` 734, `contexte:chercher` 741, `contexte:choisir` 742, `enligne:etat` 751, `enligne:enregistrer` 758, `enligne:tester` 781, `enligne:chercher` 787, `enligne:telecharger` 809, `enligne:automatique` 826, `moteurs:etat` 840, `moteurs:enregistrerCleDeepl` 842, `moteurs:supprimerCleDeepl` 853, `moteurs:testerDeepl` 855, `moteurs:modelesOllama` 857, `moteurs:testerOllama` 859, `moteurs:prechauffer` 868, `moteurs:mesurerOllama` 886, `moteurs:annulerMesure` 916
+- fonctions : `reglages()` 48, `envoyer(evenement)` 58, `langueDuNom(chemin)` 65, `sourceOuAnglais()` 71, `analyserUn(chemin)` 76, `creerTravail(el, optionsBase, signal)` 113, `rapporter(etat, extra = {})` 114, `relaisAnnulation()` 120, `synchroAffichee()` 137, `publier()` 138, `echouer(e)` 151, `nettoyer()` 165, `preparer()` 177, `traduire()` 257, `finaliser()` 284, `finSynchro(pct)` 294, `enchainer(elements, options, signal)` 369, `calculerSynchro(minutages, film, signal, surPct)` 375, `integrerAuFilm(film, sousTitre, options, signal, surAvancement)` 400, `libre(()` 408, `go(n)` 410, `copieNommee()` 413, `garderLesDeux(raison)` 432, `mettreALaCorbeille(chemin)` 462, `enregistrer({ racineApp })` 474, `resumeContexte(c)` 731, `videoExistante(chemin)` 783, `ecrireTelecharge(film, contenu, ext, l)` 795, `etape(texte)` 892, `fermer()` 934
+- exporte : `enregistrer` 938, `fermer` 938
 - importe : `../ipc`, `../securite`, `../parametres`, `../journal`, `./formats`, `./video`, `./langues`, `./moteurs`, `./memoire`, `./glossaire`, `./expressions`, `./pipeline`, `./dossiers`, `./pgs`, `./ocr`, `./synchro`, `./limite`, `./contexte`, `./enligne`
 - paquets : `electron`, `fs`, `os`, `path`
 
-### src/main/services/video.js — processus principal · 184 l.
-- fonctions : `cheminFfmpeg({ empaquete, resourcesPath, racineApp })` 21, `estVideo(chemin)` 27, `executer(binaire, args, { delai = 60000, signal, sortieMax = 4 * 1…)` 31, `terminer(fonction)` 42, `surAnnulation()` 43, `analyserFlux(texteFfmpeg)` 60, `listerPistes(binaire, chemin, { signal } = {})` 92, `estPgs(piste)` 103, `extrairePiste(binaire, chemin, piste, { signal } = {})` 105, `lireDuree(texteFfmpeg)` 127, `integrerPiste(binaire, film, sousTitre, { sortie, langueIso3 = 'und', t…)` 135, `toutArreter()` 179
-- exporte : `integrerPiste` 184, `lireDuree` 184, `estPgs` 184, `EXTENSIONS_VIDEO` 184, `cheminFfmpeg` 184, `estVideo` 184, `analyserFlux` 184, `listerPistes` 184, `extrairePiste` 184, `toutArreter` 184, `executer` 184
+### src/main/services/video.js — processus principal · 203 l.
+- fonctions : `cheminFfmpeg({ empaquete, resourcesPath, racineApp })` 21, `estVideo(chemin)` 27, `executer(binaire, args, { delai = 60000, signal, sortieMax = 4 * 1…)` 31, `terminer(fonction)` 42, `surAnnulation()` 43, `analyserFlux(texteFfmpeg)` 60, `listerPistes(binaire, chemin, { signal } = {})` 95, `estPgs(piste)` 106, `extrairePiste(binaire, chemin, piste, { signal } = {})` 108, `lireDuree(texteFfmpeg)` 130, `integrerPiste(binaire, film, sousTitre, { sortie, langueIso3 = 'und', t…)` 138, `toutArreter()` 182, `verifierCopie(binaire, original, copie, { signal } = {})` 189, `decrire(f)` 190
+- exporte : `verifierCopie` 203, `integrerPiste` 203, `lireDuree` 203, `estPgs` 203, `EXTENSIONS_VIDEO` 203, `cheminFfmpeg` 203, `estVideo` 203, `analyserFlux` 203, `listerPistes` 203, `extrairePiste` 203, `toutArreter` 203, `executer` 203
 - importe : `../securite`, `./langues`
 - paquets : `child_process`, `fs`, `os`, `path`
 
-### src/renderer/index.html — interface · 494 l.
-- écrans / sections : `traduire` 24, `glossaire` 25, `expressions` 26, `moteurs` 27, `parametres` 29, `a-propos` 30, `ecran-traduire` 35, `ecran-glossaire` 127, `ecran-expressions` 167, `ecran-moteurs` 229, `ecran-parametres` 370, `ecran-a-propos` 410
+### src/renderer/index.html — interface · 498 l.
+- écrans / sections : `traduire` 24, `glossaire` 25, `expressions` 26, `moteurs` 27, `parametres` 29, `a-propos` 30, `ecran-traduire` 35, `ecran-glossaire` 128, `ecran-expressions` 168, `ecran-moteurs` 230, `ecran-parametres` 374, `ecran-a-propos` 414
 - scripts : `js/ui.js`, `js/app.js`, `js/traduire.js`, `js/moteurs.js`, `js/glossaire.js`, `js/expressions.js`, `js/contexte.js`, `js/enligne.js`, `js/maj.js`
 - styles : `styles/theme.css`, `styles/app.css`
 
@@ -301,13 +301,13 @@
 - API Electron utilisée : `forge.majs.telecharger` 99, `forge.majs.installer` 100, `forge.majs.ignorer` 103, `forge.majs.verifier` 108, `forge.majs.surChangement` 110, `forge.majs.etat` 111
 - fonctions : `mo(o)` 12, `dateFr(d)` 13, `ouvrir()` 17, `fermer()` 18, `boutons({ telecharger = false, installer = false, plusTard = true…)` 20, `afficher(e)` 28
 
-### src/renderer/js/moteurs.js — interface · 188 l.
-- API Electron utilisée : `forge.ouvrirLien` 66, `forge.ouvrirLien` 129, `forge.memoire.etat` 158, `forge.memoire.vider` 178
-- fonctions : `nombre(n)` 11, `rafraichir()` 13, `afficherQuota(u)` 29, `chargerModeles({ silencieux = false } = {})` 70, `basculerSiUtile()` 100, `s(ms)` 142, `majMemoire()` 156
+### src/renderer/js/moteurs.js — interface · 194 l.
+- API Electron utilisée : `forge.ouvrirLien` 67, `forge.ouvrirLien` 130, `forge.memoire.etat` 164, `forge.memoire.vider` 184
+- fonctions : `nombre(n)` 11, `rafraichir()` 13, `afficherQuota(u)` 30, `chargerModeles({ silencieux = false } = {})` 71, `basculerSiUtile()` 101, `s(ms)` 144, `majMemoire()` 162
 
-### src/renderer/js/traduire.js — interface · 589 l.
-- API Electron utilisée : `forge.moteurs.etat` 85, `forge.moteurs.prechauffer` 182, `forge.contexte.pour` 195, `forge.fichiers.cheminDe` 233, `forge.fichiers.choisir` 239, `forge.fichiers.choisir` 244, `forge.enLigne.etat` 443, `forge.enLigne.automatique` 468
-- fonctions : `appliquerReglages(r)` 34, `modifier(o)` 54, `majRegistre()` 67, `majAvertissement()` 80, `choisirPiste(pistes)` 105, `parmi(l)` 108, `appliquerInfo(e, info)` 112, `ajouter(chemins)` 130, `prechaufferModele()` 180, `chargerContexte(e)` 191, `ligneContexte(e)` 202, `changer(libelle)` 205, `description(e)` 257, `libellePiste(p)` 269, `dessiner(e)` 278, `sec(ms)` 340, `aRetraduire(e)` 403, `chercherEnLigne(e)` 408, `majFile()` 420, `afficherApercu(e)` 551
+### src/renderer/js/traduire.js — interface · 612 l.
+- API Electron utilisée : `forge.moteurs.etat` 95, `forge.moteurs.prechauffer` 199, `forge.contexte.pour` 212, `forge.fichiers.cheminDe` 250, `forge.fichiers.choisir` 256, `forge.fichiers.choisir` 261, `forge.enLigne.etat` 466, `forge.enLigne.automatique` 491
+- fonctions : `appliquerReglages(r)` 34, `modifier(o)` 54, `majRegistre()` 77, `majAvertissement()` 90, `choisirPiste(pistes)` 115, `parmi(l)` 118, `appliquerInfo(e, info)` 122, `ajouter(chemins)` 147, `prechaufferModele()` 197, `chargerContexte(e)` 208, `ligneContexte(e)` 219, `changer(libelle)` 222, `description(e)` 274, `libellePiste(p)` 286, `dessiner(e)` 295, `sec(ms)` 358, `aRetraduire(e)` 426, `chercherEnLigne(e)` 431, `majFile()` 443, `afficherApercu(e)` 574
 
 ### src/renderer/js/ui.js — interface · 43 l.
 - fonctions : `el(tag, attributs = {}, enfants = [])` 6, `notifier(message, type = 'info', duree = 4000)` 18, `erreur(e)` 25, `appliquerTheme(theme, accent)` 30, `afficherEcran(nom)` 37
@@ -392,11 +392,16 @@
 - importe : `./outils`
 - paquets : `fs`, `path`, `child_process`
 
-### tests/e2e/v17.js — tests · 59 l.
+### tests/e2e/v17.js — tests · 60 l.
 - importe : `./outils`
 - paquets : `fs`, `path`
 
 ### tests/e2e/v18.js — tests · 58 l.
+- importe : `./outils`
+- paquets : `fs`, `path`, `child_process`
+
+### tests/e2e/v19.js — tests · 99 l.
+- fonctions : `fabriquer(nom)` 44, `desc(()` 57
 - importe : `./outils`
 - paquets : `fs`, `path`, `child_process`
 
@@ -425,7 +430,7 @@
 - importe : `../src/main/services/glossaire`, `../src/main/services/memoire`, `../src/main/services/pipeline`, `../src/main/services/formats`
 - paquets : `node:test`, `node:assert/strict`, `fs`, `os`, `path`
 
-### tests/ia-locale-memoire.test.js — tests · 96 l.
+### tests/ia-locale-memoire.test.js — tests · 116 l.
 - importe : `../src/main/services/memoire`, `../src/main/services/moteurs`, `../src/main/services/pipeline`, `../src/main/services/formats`, `./e2e/outils`
 - paquets : `node:test`, `node:assert/strict`, `fs`, `os`, `path`
 
@@ -443,9 +448,9 @@
 - fonctions : `segment(type, pts, donnees)` 5, `rle(indices, largeur, hauteur)` 15, `quantifier(rgba, largeur, hauteur)` 37, `encoderSup(repliques, { video = [1920, 1080] } = {})` 49
 - exporte : `encoderSup` 80, `rle` 80
 
-### tests/parallele.test.js — tests · 138 l.
-- fonctions : `attendre(ms)` 14, `ollamaLent()` 29, `srt(n, ecartMs = 1000)` 78
-- méthodes : `traduireTout(segments, o)` 85, `relire(lignes)` 96, `traduireTout(segments, o)` 112
+### tests/parallele.test.js — tests · 139 l.
+- fonctions : `attendre(ms)` 14, `ollamaLent()` 29, `srt(n, ecartMs = 1000)` 79
+- méthodes : `traduireTout(segments, o)` 86, `relire(lignes)` 97, `traduireTout(segments, o)` 113
 - importe : `../src/main/services/limite`, `../src/main/services/moteurs`, `../src/main/services/pipeline`, `../src/main/services/formats`, `./e2e/outils`
 - paquets : `node:test`, `node:assert/strict`, `http`
 
@@ -481,6 +486,6 @@
 - importe : `../src/main/services/synchro`, `../src/main/services/formats`
 - paquets : `node:test`, `node:assert/strict`, `fs`, `os`, `path`, `child_process`
 
-### tests/video.test.js — tests · 146 l.
+### tests/video.test.js — tests · 172 l.
 - importe : `../src/main/services/video`
-- paquets : `node:test`, `node:assert/strict`, `fs`, `os`, `path`, `x.mkv`
+- paquets : `node:test`, `node:assert/strict`, `fs`, `os`, `path`, `child_process`, `x.mkv`

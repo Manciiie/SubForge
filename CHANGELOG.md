@@ -1,5 +1,16 @@
 # Journal des modifications
 
+## 1.9.0 — 2026-10-23
+### Optimisations
+- IA locale : lots adaptés à la longueur des répliques — jusqu'à 40 répliques courtes par demande au
+  lieu de 20, moins pour les longues (case dans Moteurs, cochée par défaut). « Mesurer sur ce PC »
+  compare maintenant 1 ou 2 demandes à la fois avec des lots de 20 ou adaptés, et garde le plus rapide.
+- Nouveau choix dans « Résultat (vidéos) » : « Film d'origine avec la piste ». La version avec la
+  piste traduite remplace l'original, qui part à la corbeille de Windows (récupérable) — plus de
+  film en double. La nouvelle version est vérifiée avant ; rien n'est jamais écrasé.
+- Un film déjà traduit par SubForge est reconnu (« Déjà traduit ») et n'est retraduit que si vous
+  le demandez.
+
 ## 1.8.0 — 2026-10-23
 ### Optimisations
 - Saisons à la chaîne : pendant qu'un épisode se traduit, le suivant se prépare (extraction de la

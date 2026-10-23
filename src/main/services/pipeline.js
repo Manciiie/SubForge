@@ -111,13 +111,18 @@ async function traduireDocument(doc, { moteurs, memoire = null, glossairePrepare
   // Mémoire de travail de l'IA locale (1.7) : une seule taille pour tout le fichier (traduction et
   // relecture), sinon Ollama rechargerait le modèle à chaque changement.
   let numCtx = null;
+  let plan = null;
   if (moteurs.tailleContexte && (options.moteur === 'ollama' || relecture)) {
     const lots = [];
     const aidesLots = [];
     if (options.moteur === 'ollama') {
-      for (let i = 0; i < aEnvoyer.length; i += 20) {
-        lots.push(aEnvoyer.slice(i, i + 20).map((u) => uniques[u]));
-        aidesLots.push(aEnvoyer.slice(i, i + 20).map((u) => aides[u]));
+      // Lots prévus (1.9 : adaptés à la longueur des répliques) : les mêmes servent à la traduction.
+      plan = moteurs.planifierLots
+        ? moteurs.planifierLots(aEnvoyer.map((u) => uniques[u]), { ...options, aides: aEnvoyer.map((u) => aides[u]), adaptes: options.lotsAdaptes !== false })
+        : null;
+      for (const [d, f] of plan || []) {
+        lots.push(aEnvoyer.slice(d, f).map((u) => uniques[u]));
+        aidesLots.push(aEnvoyer.slice(d, f).map((u) => aides[u]));
       }
     }
     numCtx = moteurs.tailleContexte({ lots, aidesLots, scenes: listeScenes.map((sc) => sc.map(({ segment }) => ({ original: segments[segment] }))), options });
@@ -149,7 +154,7 @@ async function traduireDocument(doc, { moteurs, memoire = null, glossairePrepare
       const envoyes = aEnvoyer.map((i) => uniques[i]);
       caracteresEnvoyes = envoyes.reduce((n, t) => n + t.replace(RE_MARQUEURS, '').length, 0);
       const resultats = await moteurs.traduireTout(envoyes, {
-        ...options, aides: aEnvoyer.map((i) => aides[i]), limite, numCtx, signal,
+        ...options, aides: aEnvoyer.map((i) => aides[i]), limite, numCtx, lots: plan || undefined, signal,
         // Lot traduit : ses répliques sont prêtes pour la relecture.
         surLot: (debut, lot) => lot.forEach((t, j) => { const u = aEnvoyer[debut + j]; traduitsUniques[u] = t; marquerPret(u); }),
       }, (fait) => surAvancement(repris + fait, total));
@@ -196,6 +201,7 @@ async function traduireDocument(doc, { moteurs, memoire = null, glossairePrepare
     expressions: expressionsVues,
     relecture: bilanRelecture,
     numCtx,
+    lots: plan ? plan.length : null,
     notes,
   };
 }

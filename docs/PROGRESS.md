@@ -4,10 +4,10 @@
 > Garder court : 5 dernières sessions en détail, les plus anciennes résumées en une ligne.
 
 ## 📍 État actuel
-- **Version livrée** : 1.8.0 (2026-10-23)
-- **Dépôt** : `Manciiie/SubForge` — dernier envoi : version 1.8.0 (2026-10-23)
+- **Version livrée** : 1.9.0 (2026-10-23)
+- **Dépôt** : `Manciiie/SubForge` — dernier envoi : version 1.9.0 (2026-10-23)
 - **Testé sur Windows réel** : non (PC non joignable) ; `ffmpeg.exe` 7.1 vérifié sous wine
-- **Version en cours** : 1.8.0
+- **Version en cours** : 1.9.0
 - **Prochaine tâche** : — mises à jour automatiques toujours inactives (dépôt -releases + jeton à créer)
 - **Ce qui marche** : tout le périmètre 1.0 + glossaire, mémoire, saison, OCR Blu-ray (version compilée comprise), recherche en ligne (faux serveur), ffmpeg 7
 - **Fragile / non vérifié** : vrais DeepL / Ollama / OpenSubtitles jamais appelés depuis la session ; OCR testé sur un .sup fabriqué (police DejaVu), pas sur un vrai Blu-ray ; mises à jour automatiques inactives (pas de jeton)
@@ -28,6 +28,12 @@ Gravité : 🔴 crash / perte de données · 🟠 fonction cassée · 🟡 gêna
 ---
 
 ## 📓 Journal des sessions
+
+### 2026-10-23 — Version 1.9.0
+- **Demande** : optimisations 5 et 6 (lots adaptés, piste dans le film d'origine).
+- **Fait** : T901, T902 (D-014). Défaut trouvé par les tests et corrigé : découpage et choix de la taille n'utilisaient pas la même mesure.
+- **Vérifié** : 121 tests, 16 scénarios e2e (dont `v19.js` avec corbeille de test), scan 0 bloquant.
+- **Pas vérifié** : corbeille réelle de Windows (`shell.trashItem`, film ouvert dans un lecteur, disque réseau), gain réel des lots adaptés sur un vrai modèle.
 
 ### 2026-10-23 — Version 1.8.0
 - **Demande** : optimisations 4 et 6 (saisons à la chaîne, relecture ciblée).

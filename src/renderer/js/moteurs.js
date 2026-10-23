@@ -22,6 +22,7 @@ window.__modules.push((async () => {
     $('ollama-modele').value = etat.ollama.modele || '';
     $('ollama-parallele').value = String(etat.ollama.parallele || 2);
     $('ollama-garder').checked = etat.ollama.garderCharge !== false;
+    $('ollama-lots').checked = etat.ollama.lotsAdaptes !== false;
     await window.SubForge.rafraichirOptions?.();
     return etat;
   }
@@ -129,6 +130,7 @@ window.__modules.push((async () => {
   $('btn-ollama-site').addEventListener('click', () => window.forge.ouvrirLien('https://ollama.com/download'));
 
   // --- Demandes simultanées (1.6) ---
+  $('ollama-lots').addEventListener('change', () => T.modifierReglages({ lotsAdaptesOllama: $('ollama-lots').checked }).catch(erreur));
   $('ollama-garder').addEventListener('change', () => T.modifierReglages({ garderChargeOllama: $('ollama-garder').checked }).catch(erreur));
   $('ollama-parallele').addEventListener('change', () => T.modifierReglages({ paralleleOllama: Number($('ollama-parallele').value) }).catch(erreur));
   M.surMesure((texte) => { $('ollama-mesure').textContent = texte; });
@@ -136,12 +138,16 @@ window.__modules.push((async () => {
     const b = $('btn-ollama-mesurer');
     b.disabled = true;
     $('btn-ollama-annuler-mesure').hidden = false;
-    $('ollama-mesure').textContent = 'Mesure en cours (une à trois minutes)…';
+    $('ollama-mesure').textContent = 'Mesure en cours (deux à cinq minutes)…';
     try {
       const r = await M.mesurerOllama();
       const s = (ms) => `${(ms / 1000).toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} s`;
-      $('ollama-mesure').textContent = `40 répliques : ${s(r.t1)} avec 1 demande, ${s(r.t2)} avec 2 demandes à la fois → réglé sur ${r.conseil}${r.conseil === 2 ? ` (${Math.round((1 - r.t2 / r.t1) * 100)} % plus rapide)` : ' (pas plus rapide en parallèle sur ce PC)'}.`;
+      const lent = Math.max(...r.essais.map((e) => e.ms));
+      const meilleur = r.essais.find((e) => e.parallele === r.conseil && e.lotsAdaptes === r.lotsAdaptes);
+      $('ollama-mesure').textContent = `60 répliques : ${r.essais.map((e) => `${e.parallele} demande${e.parallele > 1 ? 's' : ''} + lots ${e.lotsAdaptes ? 'adaptés' : 'de 20'} ${s(e.ms)}`).join(' · ')}. `
+        + `Réglé sur ${r.conseil} demande${r.conseil > 1 ? 's' : ''} et lots ${r.lotsAdaptes ? 'adaptés' : 'de 20'}${meilleur && lent > meilleur.ms ? ` (${Math.round((1 - meilleur.ms / lent) * 100)} % plus rapide que le plus lent)` : ''}.`;
       $('ollama-parallele').value = String(r.conseil);
+      $('ollama-lots').checked = r.lotsAdaptes;
     } catch (e) {
       const m = (e?.message || String(e)).replace(/^Error invoking remote method '[^']+': (\w*Error: )?/, '');
       $('ollama-mesure').textContent = /annulée/i.test(m) ? 'Mesure annulée.' : m;

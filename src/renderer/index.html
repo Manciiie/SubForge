@@ -65,6 +65,7 @@
               <option value="film">Film avec la piste traduite (.mkv)</option>
               <option value="film-et-fichier">Film avec la piste + fichier de sous-titres</option>
               <option value="fichier">Fichier de sous-titres seul</option>
+              <option value="remplacer">Film d'origine avec la piste (l'original va à la corbeille)</option>
             </select>
           </label>
           <label class="option" title="Garde le même tutoiement ou vouvoiement entre les personnages. Langues concernées : français, allemand, espagnol, italien, portugais, néerlandais, polonais, russe.">Tu ou vous
@@ -354,6 +355,9 @@
             </span>
           </div>
           <p class="discret" id="ollama-mesure" aria-live="polite"></p>
+          <div class="ligne-param">
+            <label class="ligne-case" title="Répliques courtes : jusqu'à 40 par demande au lieu de 20 (moins de demandes, plus rapide) ; répliques longues : moins, pour tenir dans la mémoire de travail."><input type="checkbox" id="ollama-lots"> Lots adaptés à la longueur des répliques</label>
+          </div>
           <div class="ligne-param">
             <label class="ligne-case" title="Le modèle est chargé dès que des fichiers attendent, et reste en mémoire vidéo jusqu'à la fermeture de SubForge (sinon Ollama le décharge après 10 minutes sans demande)."><input type="checkbox" id="ollama-garder"> Garder le modèle chargé tant que SubForge est ouvert</label>
           </div>

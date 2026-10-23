@@ -55,10 +55,20 @@ window.__modules.push((async () => {
     try { appliquerReglages(await T.modifierReglages(o)); } catch (e) { erreur(e); appliquerReglages(reglages); }
   }
   selSource.addEventListener('change', () => modifier({ source: selSource.value }));
-  selCible.addEventListener('change', () => modifier({ cible: selCible.value }));
+  selCible.addEventListener('change', async () => {
+    await modifier({ cible: selCible.value });
+    for (const e of elements.values()) if (e.info?.type === 'video' && ['pret', 'deja'].includes(e.etat)) { appliquerInfo(e, e.info); dessiner(e); }
+    majFile();
+  });
   selMoteur.addEventListener('change', () => modifier({ moteur: selMoteur.value }));
   selFormat.addEventListener('change', () => modifier({ formatSortie: selFormat.value }));
-  $('opt-resultat').addEventListener('change', () => modifier({ resultatFilm: $('opt-resultat').value }));
+  $('opt-resultat').addEventListener('change', () => {
+    if ($('opt-resultat').value === 'remplacer' && !window.confirm('Remplacer les films d\'origine ?\n\nSubForge écrit d\'abord la nouvelle version (avec la piste traduite), vérifie qu\'elle est complète, puis envoie l\'original à la corbeille de Windows. Vous pourrez le récupérer tant que la corbeille n\'est pas vidée ; la place est libérée en la vidant.\n\nUn MP4 ou un AVI devient un MKV du même nom.')) {
+      $('opt-resultat').value = reglages.traduction.resultatFilm || 'film';
+      return;
+    }
+    modifier({ resultatFilm: $('opt-resultat').value });
+  });
   $('opt-registre').addEventListener('change', () => modifier({ registre: $('opt-registre').value }));
   $('opt-relecture').addEventListener('change', () => modifier({ relecture: $('opt-relecture').checked }));
   $('opt-relecture-ciblee').addEventListener('change', () => modifier({ relectureCiblee: $('opt-relecture-ciblee').checked }));
@@ -103,7 +113,7 @@ window.__modules.push((async () => {
   // Piste par défaut : texte dans la langue source, sinon texte complet (pas « forcés »),
   // sinon piste image lisible par OCR (Blu-ray), sinon rien.
   function choisirPiste(pistes) {
-    const textes = pistes.filter((p) => p.format);
+    const textes = pistes.filter((p) => p.format && !p.subforge); // jamais une piste déjà traduite par SubForge
     const images = pistes.filter((p) => !p.format && p.ocr);
     const parmi = (l) => l.find((p) => p.langue === selSource.value && !p.forces) || l.find((p) => !p.forces) || l[0];
     return (textes.length ? parmi(textes) : null) || (images.length ? parmi(images) : null) || null;
@@ -117,6 +127,13 @@ window.__modules.push((async () => {
       const choix = choisirPiste(info.pistes);
       e.piste = choix ? choix.indice : null;
       e.etat = choix ? 'pret' : 'sans-piste';
+      // Film déjà traduit par SubForge dans cette langue (piste marquée) : pas retraduit sans le demander.
+      const deja = info.pistes.find((p) => p.subforge && p.langue === reglages.traduction.cible);
+      if (choix && deja && !e.forcer) {
+        e.etat = 'deja';
+        e.message = `Ce film contient déjà la piste « ${deja.titre || deja.nomLangue} » ajoutée par SubForge.`;
+        return;
+      }
       if (!choix) {
         e.message = info.pistes.length
           ? 'Seulement des sous-titres en image que SubForge ne sait pas lire (DVD / langue sans OCR). Cherchez-les en ligne.'
@@ -251,7 +268,7 @@ window.__modules.push((async () => {
   // --- Cartes -----------------------------------------------------------------------
   const LIBELLES = {
     analyse: 'Analyse…', recherche: 'Recherche en ligne…', integration: 'Ajout au film…', synchro: 'Synchronisation…', relecture: 'Relecture IA…', pret: 'Prêt', 'sans-piste': 'Pas de sous-titres', ocr: 'Lecture des images…', attente: 'En attente', extraction: 'Extraction de la piste…',
-    traduction: 'Traduction…', ecriture: 'Enregistrement…', termine: 'Traduit', erreur: 'Erreur', annule: 'Annulé',
+    traduction: 'Traduction…', ecriture: 'Enregistrement…', termine: 'Traduit', erreur: 'Erreur', annule: 'Annulé', deja: 'Déjà traduit',
   };
 
   function description(e) {
@@ -317,6 +334,7 @@ window.__modules.push((async () => {
       if (['traduction', 'relecture', 'ecriture'].includes(e.etat) && e.synchroPct !== null && e.synchroPct !== undefined) corps.push(el('span', { classe: 'discret', texte: `Synchronisation en parallèle : ${e.synchroPct} %` }));
     }
     if (e.message && ['erreur', 'annule', 'sans-piste'].includes(e.etat)) corps.push(el('p', { classe: 'carte-fichier__message', texte: e.message }));
+    if (e.message && e.etat === 'deja') corps.push(el('span', { classe: 'discret', texte: e.message }));
     // Saison à la chaîne (1.8) : fichier déjà préparé pendant la traduction du précédent.
     if (e.etat === 'attente' && enCours && e.message) {
       corps.push(el('span', { classe: 'discret', texte: e.message }));
@@ -370,7 +388,9 @@ window.__modules.push((async () => {
           el('button', { classe: 'btn btn--petit', texte: 'Voir le film', onclick: () => T.montrer(b.integration.fichier).catch(erreur) }),
         ]));
       }
-      if (b.integration?.seul) corps.push(el('span', { classe: 'discret', texte: 'Film avec la piste traduite : choisissez-la dans votre lecteur (menu Sous-titres).' }));
+      if (b.integration?.remplace) corps.push(el('span', { classe: 'discret', texte: `Piste ajoutée au film d'origine${b.integration.ancien !== b.integration.nom ? ` (devenu ${b.integration.nom})` : ''} ; l'ancienne version est dans la corbeille.` }));
+      else if (b.integration?.seul) corps.push(el('span', { classe: 'discret', texte: 'Film avec la piste traduite : choisissez-la dans votre lecteur (menu Sous-titres).' }));
+      if (b.integration?.avertissement) corps.push(el('p', { classe: 'carte-fichier__message carte-fichier__message--alerte', texte: `Remplacement non fait : ${b.integration.avertissement}.` }));
       if (b.integration?.erreur) {
         corps.push(el('p', { classe: 'carte-fichier__message carte-fichier__message--alerte', texte: `Ajout au film impossible : ${b.integration.erreur}. La traduction est enregistrée à part${b.integration.secours ? ` (${b.integration.secours})` : ''}.` }));
       }
@@ -385,6 +405,9 @@ window.__modules.push((async () => {
       ]));
     } else if (!enCours && !rechercheAuto) {
       const actions = [el('span', { classe: 'espace' })];
+      if (e.etat === 'deja') {
+        actions.push(el('button', { classe: 'btn btn--petit', texte: 'Retraduire quand même', onclick: () => { e.forcer = true; e.etat = 'pret'; e.message = null; dessiner(e); majFile(); } }));
+      }
       if (e.info?.type === 'video') {
         actions.push(el('button', {
           classe: `btn btn--petit${e.etat === 'sans-piste' ? ' btn--principal' : ''}`,

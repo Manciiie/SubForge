@@ -6,6 +6,7 @@ const assert = require('node:assert/strict');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { execFileSync } = require('child_process');
 const video = require('../src/main/services/video');
 
 const FFMPEG = video.cheminFfmpeg({ empaquete: false, racineApp: path.join(__dirname, '..') });
@@ -142,5 +143,30 @@ test('intégration : MP4 avec texte mov_text → copie MKV lisible ; annulation 
   c.abort();
   await assert.rejects(video.integrerPiste(FFMPEG, mp4, srt, { sortie: path.join(d, 'X.mkv'), signal: c.signal }), /annulée/);
   assert.deepEqual(fs.readdirSync(d).filter((f) => f.endsWith('.part')), []);
+  fs.rmSync(d, { recursive: true, force: true });
+});
+
+test('1.9 : piste ajoutée marquée SUBFORGE (relue à l\'analyse) ; copie vérifiée avant de remplacer l\'original', async () => {
+  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'subforge-rempl-'));
+  const srt = path.join(d, 'a.srt');
+  fs.writeFileSync(srt, '1\n00:00:00,500 --> 00:00:01,500\nHello\n');
+  const film = path.join(d, 'Film.mp4');
+  execFileSync(FFMPEG, ['-loglevel', 'error', '-y', '-f', 'lavfi', '-i', 'color=c=black:s=160x90:d=4', '-f', 'lavfi', '-i', 'sine=d=4',
+    '-i', srt, '-map', '0', '-map', '1', '-map', '2', '-c:v', 'mpeg4', '-c:a', 'aac', '-c:s', 'mov_text', '-metadata:s:s:0', 'language=eng', film]);
+  const copie = path.join(d, 'Film.subforge-en-cours.mkv');
+  await video.integrerPiste(FFMPEG, film, srt, { sortie: copie, langueIso3: 'fre', titre: 'Français' });
+  const pistes = await video.listerPistes(FFMPEG, copie);
+  assert.deepEqual(pistes.map((p) => [p.langue, p.subforge]), [['en', false], ['fr', true]]);
+  assert.equal(pistes[1].titre, 'Français');
+  assert.deepEqual(await video.verifierCopie(FFMPEG, film, copie), { ok: true });
+  // Copie tronquée ou sans la piste en plus : refusée.
+  const courte = path.join(d, 'courte.mkv');
+  execFileSync(FFMPEG, ['-loglevel', 'error', '-y', '-i', copie, '-map', '0', '-c', 'copy', '-t', '1', courte]);
+  assert.match((await video.verifierCopie(FFMPEG, film, courte)).raison, /durée différente/);
+  const sansPiste = path.join(d, 'sans.mkv');
+  execFileSync(FFMPEG, ['-loglevel', 'error', '-y', '-i', film, '-map', '0', '-c', 'copy', '-c:s', 'srt', sansPiste]);
+  assert.match((await video.verifierCopie(FFMPEG, film, sansPiste)).raison, /3 pistes au lieu de 4/);
+  fs.writeFileSync(path.join(d, 'vide.mkv'), 'x');
+  assert.equal((await video.verifierCopie(FFMPEG, film, path.join(d, 'vide.mkv'))).ok, false);
   fs.rmSync(d, { recursive: true, force: true });
 });

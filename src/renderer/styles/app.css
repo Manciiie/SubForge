@@ -282,3 +282,7 @@ input[type="color"] { width: 44px; height: 28px; border: 0; background: none; cu
 
 /* Relecture ciblée (1.8) : sous-option de la relecture */
 .ligne-case--retrait { margin-left: 22px; font-size: 13px; color: var(--texte-discret); }
+
+/* 1.9 : film déjà traduit par SubForge ; états parallèles */
+.pastille--deja { background: color-mix(in srgb, var(--succes) 12%, transparent); color: var(--texte-discret); }
+.pastille--synchro, .pastille--relecture, .pastille--attente { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--texte); }

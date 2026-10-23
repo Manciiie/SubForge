@@ -56,8 +56,9 @@ test('taille de la mémoire de travail : 4 096 pour un film ordinaire, 8 192 pou
   assert.equal(m.tailleContexte({ options }), CTX_STANDARD, 'rien à envoyer');
 });
 
-test('même taille pour la traduction et la relecture d\'un fichier ; modèle gardé chargé (keep_alive -1)', async () => {
+test('même taille pour la traduction et la relecture d\'un fichier ; modèle gardé chargé (keep_alive -1)', async (t) => {
   const s = await fauxOllama();
+  t.after(() => s.close());
   const adresse = `http://127.0.0.1:${s.address().port}`;
   const m = creerMoteurs({ fetch, lireCleDeepl: () => null, journal: silencieux });
   const doc = formats.analyser(Array.from({ length: 30 }, (_, i) => `${i + 1}\n${formats.depuisMs(i * 2000)} --> ${formats.depuisMs(i * 2000 + 1500)}\nLine ${i}\n`).join('\n'), 'srt');
@@ -67,14 +68,13 @@ test('même taille pour la traduction et la relecture d\'un fichier ; modèle ga
     relecture: { relire: (lignes, sig, extra) => m.relireScene(lignes, { ...options, ...extra, signal: sig }) },
   });
   assert.equal(b.numCtx, CTX_STANDARD);
-  assert.ok(s.options.length >= 3, 'traduction + relecture');
+  assert.ok(s.options.length >= 2, 'traduction + relecture');
   assert.ok(s.options.every((o) => o.num_ctx === CTX_STANDARD && o.keep_alive === -1), JSON.stringify(s.options));
   assert.equal(m.modeleCharge(), 'faux-modele:1b');
   // Sans « garder chargé » : Ollama décharge après 10 minutes comme avant.
   s.options.length = 0;
   await m.traduireTout(['Hello there'], { ...options, garderCharge: false });
   assert.equal(s.options[0].keep_alive, '10m');
-  s.close();
 });
 
 test('préchauffage (prompt vide, même taille) et libération à la fermeture ou au changement de modèle', async () => {
@@ -93,4 +93,24 @@ test('préchauffage (prompt vide, même taille) et libération à la fermeture o
   s.close();
   await new Promise((ok) => setTimeout(ok, 50));
   assert.equal(await m.decharger(), false);
+});
+
+test('lots adaptés : 40 répliques courtes par demande, moins pour les longues, tout traduit dans l\'ordre', async (t) => {
+  const s = await fauxOllama();
+  t.after(() => s.close());
+  const adresse = `http://127.0.0.1:${s.address().port}`;
+  const m = creerMoteurs({ fetch, lireCleDeepl: () => null, journal: silencieux });
+  const o = { source: 'en', cible: 'fr', registre: 'auto' };
+  const courtes = Array.from({ length: 100 }, (_, i) => `Where are you going tonight? ${i}`);
+  const longues = Array.from({ length: 100 }, (_, i) => `${'A very long line of dialogue that goes on and on, with many words in it. '.repeat(2)}${i}`);
+  assert.deepEqual(m.planifierLots(courtes, o).map(([a, b]) => b - a), [40, 40, 20]);
+  const tailles = m.planifierLots(longues, o).map(([a, b]) => b - a);
+  assert.ok(tailles.slice(0, -1).every((n) => n < 40 && n >= 10), `répliques longues : lots plus petits (${tailles})`); // le dernier lot prend le reste
+  assert.deepEqual(m.planifierLots(courtes, { ...o, adaptes: false }).map(([a, b]) => b - a), [20, 20, 20, 20, 20]);
+  // Chaque lot prévu tient dans la mémoire de travail standard (réponse comprise).
+  for (const [a, b] of m.planifierLots(longues, o)) assert.equal(m.tailleContexte({ lots: [longues.slice(a, b)], options: o }), CTX_STANDARD);
+  // Traduction réelle : 3 demandes au lieu de 5, résultat identique et dans l'ordre.
+  const r = await m.traduireTout(courtes, { moteur: 'ollama', adresse, modele: 'faux-modele:1b', ...o, parallele: 2 });
+  assert.equal(s.demandes.length, 3);
+  assert.ok(r.every((x, i) => x === `[fr] ${courtes[i]}`));
 });

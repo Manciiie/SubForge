@@ -53,7 +53,8 @@ test('IA locale : 2 demandes simultanées ≈ 2 fois plus rapide, ordre gardé, 
   t.after(() => s.close());
   const m = creerMoteurs({ fetch, lireCleDeepl: () => null, journal: silencieux });
   const segments = Array.from({ length: 160 }, (_, i) => `Line number ${i}`); // 8 lots de 20
-  const o = { moteur: 'ollama', adresse: url, modele: 'm', cible: 'fr' };
+  // Lots fixes de 20 : ce test mesure le parallélisme seul (les lots adaptés ont leur propre test).
+  const o = { moteur: 'ollama', adresse: url, modele: 'm', cible: 'fr', lotsAdaptes: false };
   let debut = Date.now();
   const r1 = await m.traduireTout(segments, { ...o, parallele: 1, limite: creerLimite(1) });
   const t1 = Date.now() - debut;
