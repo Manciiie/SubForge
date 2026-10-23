@@ -4,10 +4,10 @@
 > Garder court : 5 dernières sessions en détail, les plus anciennes résumées en une ligne.
 
 ## 📍 État actuel
-- **Version livrée** : 1.4.0 (2026-10-14)
-- **Dépôt** : `Manciiie/SubForge` — dernier envoi : version 1.4.0 (2026-10-14)
+- **Version livrée** : 1.5.0 (2026-10-23)
+- **Dépôt** : `Manciiie/SubForge` — dernier envoi : version 1.5.0 (2026-10-23)
 - **Testé sur Windows réel** : non (PC non joignable) ; `ffmpeg.exe` 7.1 vérifié sous wine
-- **Version en cours** : 1.4.0
+- **Version en cours** : 1.5.0
 - **Prochaine tâche** : — mises à jour automatiques toujours inactives (dépôt -releases + jeton à créer)
 - **Ce qui marche** : tout le périmètre 1.0 + glossaire, mémoire, saison, OCR Blu-ray (version compilée comprise), recherche en ligne (faux serveur), ffmpeg 7
 - **Fragile / non vérifié** : vrais DeepL / Ollama / OpenSubtitles jamais appelés depuis la session ; OCR testé sur un .sup fabriqué (police DejaVu), pas sur un vrai Blu-ray ; mises à jour automatiques inactives (pas de jeton)
@@ -28,6 +28,12 @@ Gravité : 🔴 crash / perte de données · 🟠 fonction cassée · 🟡 gêna
 ---
 
 ## 📓 Journal des sessions
+
+### 2026-10-23 — Version 1.5.0
+- **Demande** : contexte du film (point 2 de la liste).
+- **Fait** : T501 — `contexte.js` (TMDB : reconnaissance, détails, cache, choix par dossier), contexte dans consigne Ollama / relecture / `context` DeepL, carte + fenêtre « Quel film ? », réglages Moteurs. D-012. Test de sécurité des secrets étendu au jeton TMDB.
+- **Vérifié** : 106 tests, 11 scénarios e2e (dont `v15.js` avec faux TMDB), captures, scan 0 bloquant.
+- **Pas vérifié** : vrai TMDB (injoignable d'ici), Windows réel.
 
 ### 2026-10-14 — Version 1.4.0
 - **Demande** : relecture par l'IA, synchronisation automatique, tutoiement/vouvoiement constant.

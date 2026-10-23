@@ -292,6 +292,32 @@
         </div>
 
         <div class="carte">
+          <h2>Contexte du film (TMDB)</h2>
+          <p class="discret">SubForge reconnaît le film ou l'épisode d'après le nom du fichier et récupère sur TMDB son résumé et ses personnages (avec leur genre) : le moteur et la relecture accordent alors correctement (« elle est partie »), gardent les noms et choisissent mieux tu/vous. Seuls le titre et l'année lus dans le nom du fichier sont envoyés. Il faut un compte TMDB gratuit.</p>
+          <div class="ligne-param" id="tmdb-presente" hidden>
+            <span>Jeton enregistré <span class="code">••••••••</span> <span class="discret">(chiffré par Windows)</span></span>
+            <span class="actions">
+              <button class="btn" id="btn-tmdb-remplacer">Remplacer</button>
+              <button class="btn" id="btn-tmdb-supprimer">Supprimer</button>
+            </span>
+          </div>
+          <div class="ligne-param" id="tmdb-saisie">
+            <input type="password" id="tmdb-jeton" placeholder="Collez le « Jeton d'accès en lecture à l'API » (ou la clé d'API)" autocomplete="off" spellcheck="false">
+            <button class="btn btn--principal" id="btn-tmdb-enregistrer">Enregistrer</button>
+          </div>
+          <div class="ligne-param">
+            <label class="ligne-case"><input type="checkbox" id="tmdb-actif"> Utiliser le contexte du film pour traduire et relire</label>
+          </div>
+          <div class="ligne-param">
+            <span id="tmdb-statut" class="discret"></span>
+            <span class="actions">
+              <button class="btn btn--lien" id="btn-tmdb-site">Créer un jeton gratuit</button>
+              <button class="btn" id="btn-tmdb-tester">Tester</button>
+            </span>
+          </div>
+        </div>
+
+        <div class="carte">
           <h2>Mémoire de traduction</h2>
           <p class="discret">Chaque réplique traduite est gardée sur ce PC : retraduire un fichier, ou une réplique déjà vue (génériques, « Oui. », « Merci. »), ne coûte plus rien à DeepL.</p>
           <label class="ligne-param">Utiliser la mémoire de traduction
@@ -402,6 +428,24 @@
     </div>
   </div>
 
+  <div class="voile" id="ctx-fenetre" hidden>
+    <div class="boite boite--large" role="dialog" aria-modal="true" aria-labelledby="ctx-titre">
+      <h2 id="ctx-titre">Quel film ?</h2>
+      <p id="ctx-sous-titre" class="discret"></p>
+      <div class="ligne-param">
+        <input type="text" id="ctx-recherche" maxlength="200" placeholder="Titre du film ou de la série" spellcheck="false">
+        <button class="btn" id="btn-ctx-chercher">Rechercher</button>
+      </div>
+      <p id="ctx-etat" class="discret" aria-live="polite"></p>
+      <div id="ctx-resultats" class="os-resultats"></div>
+      <div class="boite__actions">
+        <button class="btn btn--lien" id="btn-ctx-aucun">Traduire sans contexte</button>
+        <span class="espace"></span>
+        <button class="btn" id="btn-ctx-fermer">Fermer</button>
+      </div>
+    </div>
+  </div>
+
   <div class="voile" id="maj-fenetre" hidden>
     <div class="boite" role="dialog" aria-modal="true" aria-labelledby="maj-titre">
       <h2 id="maj-titre">Mise à jour disponible</h2>
@@ -428,6 +472,7 @@
   <script src="js/moteurs.js"></script>
   <script src="js/glossaire.js"></script>
   <script src="js/expressions.js"></script>
+  <script src="js/contexte.js"></script>
   <script src="js/enligne.js"></script>
   <script src="js/maj.js"></script>
 </body>

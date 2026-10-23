@@ -33,6 +33,10 @@ Date : 2026-10-10
   journalisés ; la clé n'est envoyée qu'à l'API, jamais au lien de téléchargement ; lien accepté
   seulement en HTTPS chez opensubtitles.com/.org ; fichier reçu limité à 20 Mo, refusé s'il est
   vide, compressé ou dans un zip, relu comme vrai sous-titre puis réécrit en UTF-8, sans écraser.
+- **TMDB (contexte du film)** : jeton au coffre DPAPI, jamais renvoyé à l'interface ni journalisé ;
+  jeton v4 en en-tête `Authorization`, clé v3 en paramètre HTTPS (seule forme acceptée par TMDB, jamais
+  journalisée) ; redirections refusées ; réponses ≤ 2 Mo ; textes reçus nettoyés (caractères de
+  contrôle) et coupés avant d'être donnés aux moteurs ; adresse de test seulement hors version installée.
 - **OCR** : données de langue livrées (aucun téléchargement au premier lancement), images limitées
   à 4096 px, piste .sup limitée à 200 Mo, segments abîmés comptés et annoncés.
 - **Dossiers** : liens symboliques et jonctions jamais suivis, profondeur 6, 1 000 fichiers au plus.
@@ -48,5 +52,6 @@ Date : 2026-10-10
 - `http://127.0.0.1:11434` (Ollama) : adresse locale par définition, HTTP accepté uniquement en local.
 - ffmpeg 7.1 tiré de la wheel PyPI `imageio-ffmpeg` (empreinte figée) faute de source npm récente
   fiable et de GitHub joignable au moment du build (D-007).
+- Le contexte du film envoie à TMDB le titre et l'année lus dans le nom du fichier (dit dans Moteurs).
 - La recherche OpenSubtitles envoie l'empreinte du fichier et le titre lu dans son nom (dit dans Moteurs).
 - Le texte des sous-titres part chez DeepL quand ce moteur est choisi (dit dans l'interface).

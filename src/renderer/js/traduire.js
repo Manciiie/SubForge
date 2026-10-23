@@ -165,9 +165,51 @@ window.__modules.push((async () => {
         if (!e) return;
         appliquerInfo(e, info);
         dessiner(e);
+        chargerContexte(e);
       });
       majFile();
     }
+  }
+
+  // Contexte du film (TMDB), chargé en arrière-plan, un fichier après l'autre (les épisodes suivants
+  // d'une série viennent du cache).
+  let fileContexte = Promise.resolve();
+  function chargerContexte(e) {
+    if (e.info?.type === 'erreur') return;
+    fileContexte = fileContexte.then(async () => {
+      if (!elements.has(e.id)) return;
+      try { e.contexte = await window.forge.contexte.pour(e.chemin); } catch (err) { e.contexte = { etat: 'erreur', message: err.message }; }
+      if (elements.has(e.id)) dessiner(e);
+    });
+    return fileContexte;
+  }
+  window.SubForge.rafraichirContextes = () => { for (const e of elements.values()) chargerContexte(e); };
+
+  function ligneContexte(e) {
+    const c = e.contexte;
+    if (!c || c.etat === 'desactive' || e.etat === 'analyse') return null;
+    const changer = (libelle) => {
+      const b = el('button', {
+        classe: 'btn btn--petit btn--lien', texte: libelle,
+        onclick: () => window.SubForge.choisirFilm({ chemin: e.chemin, nom: e.nom, recherche: c.recherche || c.titre || '' }),
+      });
+      b.disabled = enCours;
+      return b;
+    };
+    if (c.etat === 'trouve') {
+      const genre = { female: 'femme', male: 'homme', 'non-binary': 'non binaire' };
+      const quoi = c.type === 'serie'
+        ? `Série : ${c.titre}${c.annee ? ` (${c.annee})` : ''}${c.episode ? ` · S${String(c.episode.saison).padStart(2, '0')}E${String(c.episode.episode).padStart(2, '0')}${c.episode.titre ? ` « ${c.episode.titre} »` : ''}` : ''}`
+        : `Film : ${c.titre}${c.annee ? ` (${c.annee})` : ''}`;
+      const liste = c.personnages.map((p) => `${p.personnage}${p.genre ? ` (${genre[p.genre] || p.genre})` : ''}`).join('\n');
+      return el('div', { classe: 'ligne-contexte' }, [
+        el('span', { classe: 'discret', texte: `${quoi} · ${c.personnages.length} personnage${c.personnages.length > 1 ? 's' : ''}`, title: liste || 'Aucun personnage connu' }),
+        changer('Changer…'),
+      ]);
+    }
+    if (c.etat === 'inconnu') return el('div', { classe: 'ligne-contexte' }, [el('span', { classe: 'discret', texte: 'Film non reconnu sur TMDB.' }), changer('Choisir le film…')]);
+    if (c.etat === 'aucun') return el('div', { classe: 'ligne-contexte' }, [el('span', { classe: 'discret', texte: 'Sans contexte de film.' }), changer('Choisir le film…')]);
+    return el('div', { classe: 'ligne-contexte' }, [el('span', { classe: 'discret', texte: `Contexte du film indisponible : ${c.message}` })]);
   }
 
   ['dragenter', 'dragover'].forEach((t) => zone.addEventListener(t, (e) => { e.preventDefault(); zone.classList.add('survol'); }));
@@ -231,6 +273,8 @@ window.__modules.push((async () => {
       el('span', { classe: `pastille pastille--${e.etat}`, texte: LIBELLES[e.etat] || e.etat }),
     ]);
     const corps = [entete];
+    const contexte = ligneContexte(e);
+    if (contexte) corps.push(contexte);
 
     if (e.info?.type === 'video' && e.info.pistes.length) {
       const sel = el('select', { classe: 'select-piste', 'aria-label': 'Piste de sous-titres à traduire' });
@@ -268,6 +312,7 @@ window.__modules.push((async () => {
       if (b.caracteresEconomises && reglages.traduction.moteur === 'deepl') morceaux.push(`${b.caracteresEconomises.toLocaleString('fr-FR')} caractères DeepL économisés`);
       if (b.envoyes) morceaux.push(`${b.envoyes.toLocaleString('fr-FR')} phrase${b.envoyes > 1 ? 's' : ''} envoyée${b.envoyes > 1 ? 's' : ''} au moteur`);
       if (morceaux.length) corps.push(el('span', { classe: 'discret', texte: morceaux.join(' · ') }));
+      if (b.contexte?.erreur) corps.push(el('p', { classe: 'carte-fichier__message carte-fichier__message--alerte', texte: `Traduit sans le contexte du film (${b.contexte.erreur}).` }));
       if (b.synchro) {
         const sy = b.synchro;
         const sec = (ms) => `${ms > 0 ? '+' : '−'}${(Math.abs(ms) / 1000).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} s`;

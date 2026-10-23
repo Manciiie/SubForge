@@ -36,6 +36,7 @@ fichier on ne sait où. Je veux : glisser le film ou le sous-titre, choisir la l
 | Tu ou vous | Tutoiement / vouvoiement constant (auto, tu, vous) | 1.4.0 | `tasks/v1.4-T401.md` |
 | Relecture IA | Seconde lecture par l'IA locale, scène par scène : sens, genre, noms, tu/vous | 1.4.0 | `tasks/v1.4-T402.md` |
 | Synchronisation | Sous-titre externe recalé sur le son de son film (décalage + vitesse) | 1.4.0 | `tasks/v1.4-T403.md` |
+| Contexte du film | Résumé + personnages et genre (TMDB) donnés au moteur et à la relecture | 1.5.0 | `tasks/v1.5-T501.md` |
 | En ligne (saison) | Recherche + téléchargement automatiques et sûrs pour toutes les vidéos sans sous-titres | 1.1.0 | `tasks/v1.1-T107.md` |
 
 ### Comportements attendus
@@ -73,7 +74,8 @@ fichier on ne sait où. Je veux : glisser le film ou le sous-titre, choisir la l
   (seul ffmpeg les lit, en flux). Écriture atomique (fichier temporaire puis renommage).
 - **Actions sur le système** : lance `ffmpeg`/`ffprobe` livrés avec l'app (`spawn` sans shell,
   délai max, tués à l'annulation et à la fermeture). Aucune suppression de fichier utilisateur.
-- **Réseau** : OpenSubtitles (`api.opensubtitles.com`, HTTPS, clé d'API + compte facultatif au
+- **Réseau** : TMDB (`api.themoviedb.org`, HTTPS, jeton au coffre ; titre et année lus dans le nom du
+  fichier envoyés) ; OpenSubtitles (`api.opensubtitles.com`, HTTPS, clé d'API + compte facultatif au
   coffre ; l'empreinte du fichier et le titre lu dans son nom sont envoyés) ; DeepL (`api-free.deepl.com` / `api.deepl.com`, HTTPS, clé dans le coffre DPAPI,
   jamais renvoyée à l'interface) ; Ollama local (`http://127.0.0.1:11434` par défaut, HTTP accepté
   uniquement en local/réseau privé). Le texte des sous-titres part chez DeepL : l'écran le dit.

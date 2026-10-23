@@ -135,3 +135,25 @@ test('tu / vous imposé : DeepL formality, consigne de l\'IA locale, clé de mé
   assert.equal(recus.length, 2, '« tu » imposé : pas repris d\'une traduction faite sans');
   fs.rmSync(d, { recursive: true, force: true });
 });
+
+test('contexte du film : dans la consigne de l\'IA locale, la relecture et le contexte DeepL', async () => {
+  const demandes = [];
+  const { s, url } = await serveur((req, res, corps) => {
+    demandes.push(corps);
+    if (req.url.startsWith('/v2/')) return json(res, { translations: corps.text.map((t) => ({ text: `FR:${t}` })) });
+    if (/proofreader/.test(corps.messages[0].content)) return json(res, { message: { content: '{"corrections":[],"doubts":[]}' } });
+    const sortie = {};
+    for (const [k, v] of Object.entries(lignesDemandees(corps.messages[1].content))) sortie[k] = `[fr] ${v}`;
+    return json(res, { message: { content: JSON.stringify(sortie) } });
+  });
+  const m = creerMoteurs({ fetch, lireCleDeepl: () => 'cle-de-test-suffisamment-longue', urlDeeplTest: url, journal: silencieux });
+  const contexteFilm = 'Film "X" (2018). Characters: Ja-yoon (female).';
+  await m.traduireTout(['She left.'], { moteur: 'ollama', adresse: url, modele: 'm', cible: 'fr', contexteFilm });
+  assert.match(demandes[0].messages[0].content, /About the film .*Ja-yoon \(female\)/);
+  await m.relireScene([{ n: 0, original: 'She left.', traduction: 'Il est parti.' }], { adresse: url, modele: 'm', cible: 'fr', contexteFilm });
+  assert.match(demandes[1].messages[0].content, /use the characters' genders for agreement\): Film "X"/);
+  await m.traduireTout(['She left.'], { moteur: 'deepl', cible: 'fr', contexteFilm });
+  assert.match(demandes[2].context, /^Film "X" \(2018\)\. Characters: Ja-yoon \(female\)\./);
+  assert.deepEqual(demandes[2].text, ['She left.']);
+  s.close();
+});

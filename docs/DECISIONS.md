@@ -67,6 +67,17 @@
   `scripts/preparer-ffmpeg.js`, extraction du binaire sans dépendance.
 - **Conséquences** : +23 Mo dans l'installeur ; le script D-004 change de source, pas d'usage.
 
+## D-012 — Contexte du film : TMDB
+- **Date** : 2026-10-23
+- **Choix** : API v3 de TMDB (recherche film/série, `credits` / `aggregate_credits`, épisode),
+  jeton personnel gratuit au coffre ; contexte en anglais ≤ 1 500 caractères donné à l'IA locale
+  (consigne), à la relecture et à DeepL (`context`, ≤ 600 caractères). Cache local 30 jours.
+- **Pourquoi** : seule base gratuite qui donne le genre des personnages (champ `gender`).
+- **Écartés** : OpenSubtitles (pas de distribution) ; Wikidata (requêtes SPARQL lourdes, couverture
+  inégale pour les séries) ; IMDb (pas d'API gratuite).
+- **Conséquences** : un compte TMDB est nécessaire ; la clé de mémoire n'inclut pas le contexte (la
+  relecture corrige les accords d'une traduction reprise de la mémoire).
+
 ## D-010 — Synchronisation : corrélation énergie / sous-titres, sans dépendance
 - **Date** : 2026-10-14
 - **Choix** : son décodé par le ffmpeg livré (8 kHz, bande voix), parole = énergie au-dessus de la

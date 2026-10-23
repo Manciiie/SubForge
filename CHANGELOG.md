@@ -1,5 +1,16 @@
 # Journal des modifications
 
+## 1.5.0 — 2026-10-23
+### Nouveauté
+- Contexte du film : SubForge reconnaît le film ou l'épisode d'après le nom du fichier et récupère
+  sur TMDB son résumé et ses personnages, avec leur genre. Le moteur (DeepL ou IA locale) et la
+  relecture IA s'en servent pour les accords (« elle est partie »), les noms et le tu/vous.
+  - Écran Moteurs : jeton TMDB gratuit (chiffré par Windows), test, case pour l'activer.
+  - Carte du fichier : « Film : titre (année) · N personnages » (la liste au survol), avec
+    « Changer… » ; film non reconnu → « Choisir le film… » ouvre une recherche TMDB. Le choix vaut
+    pour tous les épisodes du même titre dans le dossier ; « Traduire sans contexte » possible.
+  - Seuls le titre et l'année lus dans le nom du fichier sont envoyés à TMDB.
+
 ## 1.4.0 — 2026-10-14
 ### Nouveautés
 - Relecture par l'IA : après la traduction, l'IA locale relit le film scène par scène et corrige

@@ -22,17 +22,20 @@ const dossiers = require('./dossiers');
 const pgs = require('./pgs');
 const { creerOcr, versSrt: ocrVersSrt } = require('./ocr');
 const synchro = require('./synchro');
+const { creerContexte, texteContexte, formeJeton } = require('./contexte');
 const { creerEnLigne, CODES_OS } = require('./enligne');
 
 const SECRET_DEEPL = 'cle_deepl';
 const SECRET_OS_CLE = 'cle_opensubtitles';
 const SECRET_OS_MDP = 'mdp_opensubtitles';
+const SECRET_TMDB = 'jeton_tmdb';
 const CODES = langues.codes();
 
 let moteurs = null;
 let memoire = null;
 let ocr = null;
 let enLigne = null;
+let contexteFilms = null;
 const telechargementsEnCours = new Set();
 let glossaire = null;
 let expressions = null;
@@ -44,7 +47,7 @@ const sortiesProduites = new Set();
 function reglages() {
   const p = parametres.lire();
   return {
-    traduction: { source: 'auto', cible: 'fr', moteur: 'deepl', formatSortie: 'identique', dossierSortie: null, memoire: true, resultatFilm: 'film', synchro: true, relecture: true, registre: 'auto', ...(p.traduction || {}) },
+    traduction: { source: 'auto', cible: 'fr', moteur: 'deepl', formatSortie: 'identique', dossierSortie: null, memoire: true, resultatFilm: 'film', synchro: true, relecture: true, registre: 'auto', contexte: true, ...(p.traduction || {}) },
     deepl: { formalite: 'defaut', ...(p.deepl || {}) },
     ollama: { adresse: 'http://127.0.0.1:11434', modele: '', ...(p.ollama || {}) },
     enligne: { utilisateur: '', ...(p.enligne || {}) },
@@ -159,6 +162,22 @@ async function traduireElement(el, options, signal) {
 
     const original = doc.repliques.map((r) => formats.texteVisible(r.texte));
 
+    // Contexte du film (T501) : titre, résumé, personnages et genre, pour le moteur et la relecture.
+    let bilanContexte = null;
+    if (options.contexte) {
+      try {
+        const c = await contexteFilms.pour(el.chemin, { signal });
+        if (c.etat === 'trouve') {
+          options = { ...options, contexteFilm: texteContexte(c.contexte) };
+          bilanContexte = { titre: c.contexte.titre, annee: c.contexte.annee, personnages: c.contexte.personnages.length, episode: c.contexte.episode };
+        }
+      } catch (e) {
+        if (e.name === 'AbortError' || signal.aborted) throw e;
+        journal.avertissement(`[contexte] ${path.basename(el.chemin)} : ${e.message}`);
+        bilanContexte = { erreur: e.message };
+      }
+    }
+
     rapporter('traduction', { fait: 0, total: 0, message: 'Traduction…' });
     const bilan = await traduireDocument(doc, {
       moteurs, memoire, glossairePrepare: glossaire.pour(options.cible), expressionsPreparees: expressions.pour({ source: options.source, cible: options.cible }), options, signal,
@@ -226,7 +245,7 @@ async function traduireElement(el, options, signal) {
       }
     }
     resultats.set(el.id, { paires, sortie, total: doc.repliques.length });
-    rapporter('termine', { sortie, nomSortie: path.basename(sortie), repliques: doc.repliques.length, bilan: { ...bilan, ocr: bilanOcr, integration, synchro: bilanSynchro } });
+    rapporter('termine', { sortie, nomSortie: path.basename(sortie), repliques: doc.repliques.length, bilan: { ...bilan, ocr: bilanOcr, integration, synchro: bilanSynchro, contexte: bilanContexte } });
   } catch (e) {
     if (e.name === 'AbortError' || signal.aborted) {
       rapporter('annule', { message: 'Annulé.' });
@@ -314,6 +333,15 @@ function enregistrer({ racineApp }) {
   ocr = creerOcr({ dossierLangues, cheminTravailleur, journal });
   // Adresse OpenSubtitles de test (faux serveur) : jamais prise en compte dans la version installée.
   const urlOsTest = !app.isPackaged && process.env.SUBFORGE_OS_URL_TEST ? process.env.SUBFORGE_OS_URL_TEST : null;
+  // Adresse TMDB de test (faux serveur) : jamais prise en compte dans la version installée.
+  const urlTmdbTest = !app.isPackaged && process.env.SUBFORGE_TMDB_URL_TEST ? process.env.SUBFORGE_TMDB_URL_TEST : null;
+  contexteFilms = creerContexte({
+    fetch: (u, o) => net.fetch(u, o),
+    lireJeton: () => parametres.lireSecret(SECRET_TMDB),
+    fichierCache: path.join(donnees, 'contexte-films.json'),
+    urlTest: urlTmdbTest,
+    journal,
+  });
   enLigne = creerEnLigne({
     fetch: (u, o) => net.fetch(u, o),
     lireSecrets: () => ({ cle: parametres.lireSecret(SECRET_OS_CLE), motDePasse: parametres.lireSecret(SECRET_OS_MDP) }),
@@ -346,10 +374,11 @@ function enregistrer({ racineApp }) {
       synchro: { type: 'boolean', optionnel: true },
       relecture: { type: 'boolean', optionnel: true },
       registre: { type: 'enum', valeurs: ['auto', 'tu', 'vous'], optionnel: true },
+      contexte: { type: 'boolean', optionnel: true },
     },
   }], (_e, o) => {
     const r = reglages();
-    for (const c of ['source', 'cible', 'moteur', 'formatSortie', 'memoire', 'resultatFilm', 'synchro', 'relecture', 'registre']) if (o[c] !== undefined) r.traduction[c] = o[c];
+    for (const c of ['source', 'cible', 'moteur', 'formatSortie', 'memoire', 'resultatFilm', 'synchro', 'relecture', 'registre', 'contexte']) if (o[c] !== undefined) r.traduction[c] = o[c];
     if (o.viderDossierSortie) r.traduction.dossierSortie = null;
     if (o.dossierSortie !== undefined && o.dossierSortie !== null) {
       if (!path.isAbsolute(o.dossierSortie) || !fs.existsSync(o.dossierSortie)) throw new ErreurSecurite('Dossier de sortie introuvable.');
@@ -406,6 +435,7 @@ function enregistrer({ racineApp }) {
       synchro: r.traduction.synchro !== false,
       relecture: r.traduction.relecture !== false,
       registre: ['auto', 'tu', 'vous'].includes(r.traduction.registre) ? r.traduction.registre : 'auto',
+      contexte: r.traduction.contexte !== false && parametres.secretExiste(SECRET_TMDB),
       dossierSortie: r.traduction.dossierSortie && fs.existsSync(r.traduction.dossierSortie) ? r.traduction.dossierSortie : null,
       formalite: r.deepl.formalite,
       memoire: r.traduction.memoire,
@@ -510,6 +540,35 @@ function enregistrer({ racineApp }) {
     const bilan = glossaire.importer(texte, CODES);
     journal.info(`Glossaire importé depuis ${path.basename(f)} : ${bilan.ajoutes} ajoutés, ${bilan.ignores} ignorés`);
     return bilan;
+  });
+
+  // --- Contexte du film (TMDB) ---
+  canal('contexte:etat', [], () => ({ jeton: parametres.secretExiste(SECRET_TMDB), actif: reglages().traduction.contexte !== false }));
+  canal('contexte:enregistrer', [{ type: 'string', max: 1000 }], (_e, jeton) => {
+    const j = jeton.trim();
+    if (j && !formeJeton(j)) throw new Error('Ce jeton ne ressemble pas à un jeton TMDB : collez le « Jeton d\'accès en lecture à l\'API » (très long, commence par eyJ) ou la « Clé d\'API » (32 caractères).');
+    parametres.enregistrerSecret(SECRET_TMDB, j);
+    return true;
+  });
+  canal('contexte:tester', [], () => contexteFilms.tester());
+  // Résumé pour la carte : jamais le jeton, seulement ce que TMDB a renvoyé (nettoyé).
+  const resumeContexte = (c) => (c.etat === 'trouve'
+    ? { etat: 'trouve', titre: c.contexte.titre, annee: c.contexte.annee, type: c.contexte.type, episode: c.contexte.episode, personnages: c.contexte.personnages }
+    : c);
+  canal('contexte:pour', [{ type: 'chemin', max: 4096 }], async (_e, chemin) => {
+    if (!parametres.secretExiste(SECRET_TMDB) || reglages().traduction.contexte === false) return { etat: 'desactive' };
+    try { return resumeContexte(await contexteFilms.pour(chemin)); } catch (e) {
+      journal.avertissement(`[contexte] ${path.basename(chemin)} : ${e.message}`);
+      return { etat: 'erreur', message: e.message };
+    }
+  });
+  canal('contexte:chercher', [{ type: 'string', max: 300 }], (_e, texte) => contexteFilms.chercher(texte));
+  canal('contexte:choisir', [
+    { type: 'chemin', max: 4096 },
+    { type: 'objet', optionnel: true, champs: { type: { type: 'enum', valeurs: ['film', 'serie'] }, id: { type: 'number', min: 1, max: 1e10 } } },
+  ], async (_e, chemin, ref) => {
+    contexteFilms.choisir(chemin, ref || null);
+    return resumeContexte(await contexteFilms.pour(chemin));
   });
 
   // --- Sous-titres en ligne (OpenSubtitles) ---

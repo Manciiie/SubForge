@@ -273,3 +273,9 @@ input[type="color"] { width: 44px; height: 28px; border: 0; background: none; cu
 .apercu__ligne--doute { background: color-mix(in srgb, var(--alerte, #e0a030) 12%, transparent); }
 .apercu__note { display: block; margin-top: 3px; font-size: 12px; color: var(--texte-discret); }
 .apercu__note--doute { color: var(--alerte, #c98a1a); }
+
+/* Contexte du film (1.5) */
+.ligne-contexte { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ligne-contexte .discret[title] { cursor: help; text-decoration: underline dotted; text-underline-offset: 3px; }
+#ctx-recherche { flex: 1; color: var(--texte); }
+#tmdb-jeton { flex: 1; color: var(--texte); }

@@ -37,14 +37,24 @@ test('clé DeepL : chiffrée sur le disque, absente de parametres.json et des jo
   fs.rmSync(dossier, { recursive: true, force: true });
 });
 
-test('clés DeepL / OpenSubtitles et mot de passe : aucun canal ne les renvoie à l\'interface', () => {
+test('clés DeepL / OpenSubtitles / TMDB et mot de passe : aucun canal ne les renvoie à l\'interface', () => {
   const src = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'main', 'services', 'traduction.js'), 'utf8');
   const lignes = src.split('\n').filter((l) => /lireSecret\(/.test(l));
-  assert.equal(lignes.length, 2, 'lireSecret ne sert qu\'à fournir les secrets aux modules réseau');
+  assert.equal(lignes.length, 3, 'lireSecret ne sert qu\'à fournir les secrets aux modules réseau');
   assert.match(lignes[0], /lireCleDeepl: \(\) => parametres\.lireSecret\(SECRET_DEEPL\)/);
-  assert.match(lignes[1], /lireSecrets: \(\) => \(\{ cle: parametres\.lireSecret\(SECRET_OS_CLE\), motDePasse: parametres\.lireSecret\(SECRET_OS_MDP\) \}\)/);
+  assert.match(lignes[1], /lireJeton: \(\) => parametres\.lireSecret\(SECRET_TMDB\)/);
+  assert.match(lignes[2], /lireSecrets: \(\) => \(\{ cle: parametres\.lireSecret\(SECRET_OS_CLE\), motDePasse: parametres\.lireSecret\(SECRET_OS_MDP\) \}\)/);
   const moteurs = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'main', 'services', 'moteurs.js'), 'utf8');
   assert.ok(!/\?[a-z_]*auth_key=/i.test(moteurs), 'clé passée dans une URL');
+});
+
+test('TMDB : adresse de test ignorée une fois installé, jeton jamais journalisé, pas de redirection suivie', () => {
+  const src = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'main', 'services', 'traduction.js'), 'utf8');
+  assert.match(src, /!app\.isPackaged && process\.env\.SUBFORGE_TMDB_URL_TEST/);
+  const ctx = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'main', 'services', 'contexte.js'), 'utf8');
+  assert.match(ctx, /redirect: 'error'/);
+  assert.ok(!/journal\.[a-z?.]+\([^)]*(url|jeton)/i.test(ctx), 'adresse ou jeton dans le journal');
+  assert.match(ctx, /const API = 'https:\/\/api\.themoviedb\.org\/3'/);
 });
 
 test('URL DeepL de test ignorée dans la version installée', () => {
