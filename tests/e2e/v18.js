@@ -22,9 +22,10 @@ module.exports = async (p) => {
   fs.mkdirSync(d);
   // 3 scènes par épisode (10 s d'écart) : « Yes. » et « Look at the sky. » sans risque, « Where are you? » à relire.
   // « LENT » : le faux Ollama met 0,7 s par demande.
-  const srt = path.join(p.dossierTemp, 'ep.srt');
-  fs.writeFileSync(srt, '1\n00:00:00,500 --> 00:00:01,500\nLENT Yes.\n\n2\n00:00:12,000 --> 00:00:13,000\nLENT Where are you?\n\n3\n00:00:25,000 --> 00:00:26,000\nLENT Look at the sky.\n');
+  // Texte différent par épisode : sinon la mémoire de traduction sert les épisodes 2 et 3 instantanément.
   for (const n of [1, 2, 3]) {
+    const srt = path.join(p.dossierTemp, `ep${n}.srt`);
+    fs.writeFileSync(srt, `1\n00:00:00,500 --> 00:00:01,500\nLENT Yes ${n}.\n\n2\n00:00:12,000 --> 00:00:13,000\nLENT Where are you ${n}?\n\n3\n00:00:25,000 --> 00:00:26,000\nLENT Look at the sky ${n}.\n`);
     execFileSync(ffmpeg(), ['-loglevel', 'error', '-y', '-f', 'lavfi', '-i', 'color=c=black:s=160x90:d=30:r=5', '-i', srt,
       '-map', '0', '-map', '1', '-c:v', 'mpeg4', '-c:s', 'srt', '-metadata:s:s:0', 'language=eng', path.join(d, `Serie.S01E0${n}.mkv`)]);
   }
@@ -51,7 +52,7 @@ module.exports = async (p) => {
 
   // Relecture ciblée.
   const relues = serveur.relectures.map((r) => r.lignes.map((l) => l.original).join(' | '));
-  p.verifier(relues.length === 3 && relues.every((x) => x === 'LENT Where are you?'), `seule la scène à risque est relue (${relues.join(' ; ')})`);
+  p.verifier(relues.length === 3 && relues.every((x) => /^LENT Where are you \d\?$/.test(x)), `seule la scène à risque est relue (${relues.join(' ; ')})`);
   const carte = await p.texte('.carte-fichier');
   p.verifier(/1 scène relue, 2 sans risque sautées/.test(carte), `bilan de la relecture ciblée (${carte.slice(0, 260)})`);
   serveur.close();

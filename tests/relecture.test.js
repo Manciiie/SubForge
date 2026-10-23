@@ -73,7 +73,10 @@ function serveur(gerer) {
     const s = http.createServer((req, res) => {
       let corps = '';
       req.on('data', (c) => { corps += c; });
-      req.on('end', () => gerer(req, res, corps ? JSON.parse(corps) : null));
+      req.on('end', () => {
+        if (req.url === '/api/show') { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end('{"capabilities":["completion"]}'); return; } // capacités du modèle (1.10)
+        gerer(req, res, corps ? JSON.parse(corps) : null);
+      });
     });
     s.listen(0, '127.0.0.1', () => ok({ s, url: `http://127.0.0.1:${s.address().port}` }));
   });

@@ -4,13 +4,13 @@
 > Garder court : 5 dernières sessions en détail, les plus anciennes résumées en une ligne.
 
 ## 📍 État actuel
-- **Version livrée** : 1.9.0 (2026-10-23)
-- **Dépôt** : `Manciiie/SubForge` — dernier envoi : version 1.9.0 (2026-10-23)
+- **Version livrée** : 1.10.0 (2026-10-23)
+- **Dépôt** : `Manciiie/SubForge` — dernier envoi : version 1.10.0 (2026-10-23)
 - **Testé sur Windows réel** : non (PC non joignable) ; `ffmpeg.exe` 7.1 vérifié sous wine
-- **Version en cours** : 1.9.0
+- **Version en cours** : 1.10.0
 - **Prochaine tâche** : — mises à jour automatiques toujours inactives (dépôt -releases + jeton à créer)
 - **Ce qui marche** : tout le périmètre 1.0 + glossaire, mémoire, saison, OCR Blu-ray (version compilée comprise), recherche en ligne (faux serveur), ffmpeg 7
-- **Fragile / non vérifié** : vrais DeepL / Ollama / OpenSubtitles jamais appelés depuis la session ; OCR testé sur un .sup fabriqué (police DejaVu), pas sur un vrai Blu-ray ; mises à jour automatiques inactives (pas de jeton)
+- **Fragile / non vérifié** : vrais DeepL / Ollama / OpenSubtitles jamais appelés depuis la session ; OCR testé sur un .sup fabriqué (police DejaVu), pas sur un vrai Blu-ray ; mises à jour automatiques inactives (pas de jeton) ; conseiller 1.10 jamais lancé sur un vrai Windows (registre, setx, nvidia-smi)
 
 ## 🚧 Questions pour moi
 - Doublage IA (voix) : niveau 1, 2 ou 3 ? (proposé le 2026-10-11, recommandé : 2)
@@ -28,6 +28,14 @@ Gravité : 🔴 crash / perte de données · 🟠 fonction cassée · 🟡 gêna
 ---
 
 ## 📓 Journal des sessions
+
+### 2026-10-23 — Version 1.10.0
+- **Demande** : optimisations 4 et 5 (conseiller de modèle, réglages d'Ollama).
+- **Fait** : T1001 (`conseils-ia.js`, `think: false` pour les modèles qui réfléchissent), T1002 (`setx` /
+  `reg` utilisateur, retour arrière) — D-015. Scénario e2e `v18.js` corrigé : épisodes identiques servis
+  par la mémoire, l'étape observée durait trop peu (échouait aussi sur 1.9, pas une régression).
+- **Vérifié** : 126 tests, 17 scénarios e2e (dont `v110.js`), scan 0 bloquant.
+- **Pas vérifié** : vrai registre Windows / `setx`, vrai `nvidia-smi`, vrai /api/show et `think` d'Ollama, gain réel.
 
 ### 2026-10-23 — Version 1.9.0
 - **Demande** : optimisations 5 et 6 (lots adaptés, piste dans le film d'origine).

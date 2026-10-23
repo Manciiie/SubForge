@@ -5,6 +5,7 @@
 
 const { langue } = require('./langues');
 const { enParallele } = require('./limite');
+const { RE_REFLEXION } = require('./conseils-ia');
 
 class ErreurMoteur extends Error {
   constructor(message, { definitive = true } = {}) {
@@ -241,6 +242,39 @@ function creerMoteurs({ fetch, lireCleDeepl, urlDeeplTest = null, journal = cons
       .map((m) => ({ nom: m.name.slice(0, 200), taille: Number(m.size) || 0 }));
   }
 
+  // Modèles qui « réfléchissent » avant de répondre (1.10) : Ollama le dit dans /api/show
+  // (capabilities: ["thinking"]) ; sinon, d'après le nom. Résultat gardé par modèle.
+  const reflexions = new Map();
+  async function reflechit(adresse, modele) {
+    const cle = `${adresse}|${modele}`;
+    if (reflexions.has(cle)) return reflexions.get(cle);
+    let oui = RE_REFLEXION.test(String(modele));
+    try {
+      const d = await appelOllama(adresse, '/api/show', { corps: { model: modele }, delai: 5000 });
+      if (Array.isArray(d?.capabilities)) oui = d.capabilities.includes('thinking');
+    } catch { /* silence-ok: Ollama ancien ou modèle inconnu : on garde la déduction d'après le nom */ }
+    reflexions.set(cle, oui);
+    return oui;
+  }
+
+  // Modèles installés avec leurs détails, pour le conseiller (1.10).
+  async function detailsModeles(adresse) {
+    const d = await appelOllama(adresse, '/api/tags');
+    const modeles = (Array.isArray(d.models) ? d.models : [])
+      .filter((m) => typeof m?.name === 'string' && !/embed/i.test(m.name)).slice(0, 30);
+    const sortie = [];
+    for (const m of modeles) {
+      sortie.push({
+        nom: m.name.slice(0, 200), taille: Number(m.size) || 0,
+        famille: String(m.details?.family || '').slice(0, 40) || null,
+        parametres: String(m.details?.parameter_size || '').slice(0, 20) || null,
+        quantification: String(m.details?.quantization_level || '').slice(0, 20) || null,
+        reflexion: await reflechit(adresse, m.name),
+      });
+    }
+    return sortie;
+  }
+
   function consigne(source, cible, registre = 'auto', contexteFilm = '') {
     const de = source && source !== 'auto' ? langue(source)?.anglais : null;
     const vers = langue(cible)?.anglais || cible;
@@ -291,6 +325,7 @@ function creerMoteurs({ fetch, lireCleDeepl, urlDeeplTest = null, journal = cons
         stream: false,
         format: 'json',
         keep_alive: garderCharge === false ? '10m' : -1,
+        ...(await reflechit(adresse, modele) ? { think: false } : {}), // pas de réflexion pour traduire (1.10)
         options: { temperature: 0.2, num_ctx: numCtx || CTX_STANDARD },
         messages: [
           { role: 'system', content: consigne(source, cible, registre, contexteFilm) },
@@ -388,6 +423,7 @@ function creerMoteurs({ fetch, lireCleDeepl, urlDeeplTest = null, journal = cons
       delai: 300000,
       corps: {
         model: modele, stream: false, format: 'json', keep_alive: garderCharge === false ? '10m' : -1,
+        ...(await reflechit(adresse, modele) ? { think: false } : {}),
         options: { temperature: 0.1, num_ctx: numCtx || CTX_STANDARD },
         messages: [{ role: 'system', content: systeme }, { role: 'user', content: utilisateur }],
       },
@@ -536,7 +572,7 @@ function creerMoteurs({ fetch, lireCleDeepl, urlDeeplTest = null, journal = cons
     throw new ErreurMoteur('Moteur de traduction inconnu.');
   }
 
-  return { usageDeepl, traduireDeepl, modelesOllama, traduireOllama, traduireTout, relireScene, tailleContexte, planifierLots, prechauffer, decharger, modeleCharge };
+  return { usageDeepl, traduireDeepl, modelesOllama, detailsModeles, reflechit, traduireOllama, traduireTout, relireScene, tailleContexte, planifierLots, prechauffer, decharger, modeleCharge };
 }
 
 module.exports = { CTX_STANDARD, CTX_GRAND, jetons, creerMoteurs, ErreurMoteur, adresseOllamaValide, normaliserAdresse, versXml, depuisXml, nonTraduit, nombreMots, formesAdresse };

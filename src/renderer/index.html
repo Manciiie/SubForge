@@ -369,6 +369,36 @@
             </span>
           </div>
         </div>
+        <div class="carte" id="conseils">
+          <h2>Conseils pour votre carte graphique</h2>
+          <p class="discret">SubForge regarde votre carte et vos modèles d'IA locale, et indique le réglage le plus rapide à qualité équivalente. Rien n'est téléchargé ni modifié sans votre accord.</p>
+          <div class="ligne-param">
+            <span id="conseils-carte" class="discret">Carte graphique : pas encore analysée.</span>
+            <span class="actions">
+              <label id="conseils-vram-zone" hidden>Mémoire vidéo
+                <select id="conseils-vram"><option value="">—</option><option>4</option><option>6</option><option>8</option><option>10</option><option>12</option><option>16</option><option>24</option></select> Go
+              </label>
+              <button class="btn btn--principal" id="btn-conseils-analyser">Analyser</button>
+            </span>
+          </div>
+          <div id="conseils-resultat" hidden>
+            <h3 class="sous-titre-carte">Modèle conseillé</h3>
+            <div id="conseils-reco" class="conseil-reco"></div>
+            <h3 class="sous-titre-carte">Vos modèles</h3>
+            <div id="conseils-modeles" class="table-glossaire table-conseils" role="table"></div>
+            <h3 class="sous-titre-carte">Réglages d'Ollama</h3>
+            <p class="discret">Ces trois réglages d'Ollama réduisent la mémoire vidéo utilisée et permettent plusieurs demandes à la fois. Ils s'appliquent au prochain démarrage d'Ollama.</p>
+            <div id="conseils-reglages" class="table-glossaire table-conseils" role="table"></div>
+            <div class="ligne-param">
+              <span id="conseils-reglages-note" class="discret"></span>
+              <span class="actions">
+                <button class="btn" id="btn-conseils-retablir" hidden>Remettre comme avant</button>
+                <button class="btn btn--principal" id="btn-conseils-activer" hidden>Activer pour moi</button>
+              </span>
+            </div>
+            <pre class="code-bloc" id="conseils-instructions" hidden></pre>
+          </div>
+        </div>
       </section>
 
       <section class="ecran" id="ecran-parametres">
@@ -492,6 +522,7 @@
   <script src="js/glossaire.js"></script>
   <script src="js/expressions.js"></script>
   <script src="js/contexte.js"></script>
+  <script src="js/conseils.js"></script>
   <script src="js/enligne.js"></script>
   <script src="js/maj.js"></script>
 </body>

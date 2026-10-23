@@ -1,5 +1,17 @@
 # Journal des modifications
 
+## 1.10.0 — 2026-10-23
+### Optimisations
+- Moteurs → « Conseils pour votre carte graphique » : SubForge lit la carte (mémoire vidéo), donne un
+  avis sur chaque modèle installé (bon choix, trop gros pour la carte, version plus rapide disponible,
+  modèle qui « réfléchit ») et conseille le modèle le plus adapté, avec la commande `ollama pull` à
+  copier. Pour une carte de 8 Go : qwen2.5:7b.
+- Les modèles qui « réfléchissent » avant de répondre (qwen3, deepseek-r1…) traduisent et relisent
+  maintenant sans cette réflexion : beaucoup plus rapide, même résultat pour des sous-titres.
+- Réglages d'Ollama en un clic (Windows) : flash attention, mémoire de travail compressée (q8_0) et
+  nombre de demandes simultanées accordé à SubForge. « Remettre comme avant » annule. À appliquer en
+  redémarrant Ollama.
+
 ## 1.9.0 — 2026-10-23
 ### Optimisations
 - IA locale : lots adaptés à la longueur des répliques — jusqu'à 40 répliques courtes par demande au

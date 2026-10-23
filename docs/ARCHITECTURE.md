@@ -28,6 +28,7 @@ src/renderer/
   js/app.js        navigation, paramètres, à propos
   js/traduire.js   écran Traduire (file, options, progression, aperçu)
   js/moteurs.js    écran Moteurs (DeepL, Ollama, mémoire)
+  js/conseils.js   carte « Conseils pour votre carte graphique » (Moteurs)
   js/glossaire.js  écran Glossaire
   js/expressions.js  écran Expressions
   js/contexte.js  réglages TMDB (Moteurs) + fenêtre « Quel film ? »
@@ -53,6 +54,7 @@ docs/              mémoire du projet (non embarquée dans l'exe)
 | Traitement d'un document | `services/pipeline.js` (pur) | — | — | glossaire → dédoublonnage → mémoire → moteur → restitution |
 | Mémoire | `services/memoire.js` (pur) | `memoire:etat`, `memoire:vider` | Moteurs | JSONL, ajout en fin, compactage atomique, plafond 300 000 |
 | Parallélisme | `services/limite.js` (pur : limiteur, `enParallele`, `aLaChaine`) | `moteurs:mesurerOllama`, `moteurs:annulerMesure`, `moteurs:prechauffer` (+ événement `moteurs:mesure`) | Moteurs | au plus N demandes à Ollama ; échec → plus rien ne démarre |
+| Conseiller IA | `services/conseils-ia.js` (pur, commandes injectées) | `conseils:analyser`, `conseils:vram`, `conseils:activerReglages`, `conseils:retablirReglages`, `conseils:copier` | Moteurs | binaires absolus sans shell, valeurs fixes, variables utilisateur seulement |
 | Contexte du film | `services/contexte.js` (sans Electron) | `contexte:etat`, `contexte:enregistrer`, `contexte:tester`, `contexte:pour`, `contexte:chercher`, `contexte:choisir` | carte du fichier, fenêtre « Quel film ? », Moteurs | jeton au coffre, redirections refusées, textes nettoyés |
 | Synchronisation | `services/synchro.js` (calcul pur + `analyserSon` via ffmpeg) | (via `traduction:lancer`) | carte du fichier | ffmpeg sans shell, délai 45 min, tué à l'annulation ; calcul découpé (pauses) |
 | Expressions | `services/expressions.js` (pur) + `expressions-integrees.js` (données) | `expressions:lister`, `expressions:enregistrer`, `expressions:supprimer`, `expressions:regler`, `expressions:tester` | Expressions | `< > { }` refusés, regex construites depuis du texte échappé (joker et `|` seuls interprétés), fichier abîmé mis de côté |

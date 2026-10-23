@@ -2,7 +2,8 @@
 // Écran « Traduire » + écran « Moteurs » : canaux IPC et file de traduction.
 // Le travail (lecture, ffmpeg, réseau) se fait ici, dans le processus principal, jamais dans l'interface.
 
-const { app, net, shell, dialog, BrowserWindow } = require('electron');
+const { app, net, shell, dialog, BrowserWindow, clipboard } = require('electron');
+const { execFile } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -24,6 +25,8 @@ const { creerOcr, versSrt: ocrVersSrt } = require('./ocr');
 const synchro = require('./synchro');
 const { creerLimite, aLaChaine } = require('./limite');
 const { creerContexte, texteContexte, formeJeton } = require('./contexte');
+const conseils = require('./conseils-ia');
+const { argumentsCommande } = require('../securite');
 const { creerEnLigne, CODES_OS } = require('./enligne');
 
 const SECRET_DEEPL = 'cle_deepl';
@@ -861,6 +864,75 @@ function enregistrer({ racineApp }) {
     if (!r.ollama.modele) throw new Error('Choisissez d\'abord un modèle.');
     const [t] = await moteurs.traduireOllama(['Good morning, how are you?'], { adresse: r.ollama.adresse, modele: r.ollama.modele, source: 'en', cible: 'fr' });
     return { exemple: String(t).slice(0, 300) };
+  });
+
+  // --- Conseiller d'IA locale (1.10) ---
+  // Commandes système : binaire absolu, sans shell, 10 s au plus, jamais de texte venu de l'interface.
+  const executerSysteme = (binaire, args) => new Promise((ok) => {
+    if (!path.isAbsolute(binaire)) { ok({ code: -1, sortie: '', erreurs: 'chemin non absolu' }); return; }
+    execFile(binaire, argumentsCommande(args), { shell: false, windowsHide: true, timeout: 10000, maxBuffer: 256 * 1024 }, (err, sortie, erreurs) => {
+      ok({ code: err ? (typeof err.code === 'number' ? err.code : -1) : 0, sortie: String(sortie || ''), erreurs: String(erreurs || err?.message || '') });
+    });
+  });
+  const racineWindows = () => (process.env.SystemRoot && path.win32.isAbsolute(process.env.SystemRoot) ? process.env.SystemRoot : 'C:\\Windows');
+  async function nomCarte() {
+    try {
+      const info = await app.getGPUInfo('complete');
+      const actif = (info.gpuDevice || []).find((g) => g.active) || (info.gpuDevice || [])[0];
+      if (actif?.deviceString) return String(actif.deviceString);
+      const rendu = String(info.auxAttributes?.glRenderer || '');
+      return /(?:NVIDIA|AMD|Radeon|Intel)[^,()]*?(?=\s+Direct3D|\/PCIe|,|\)|$)/i.exec(rendu)?.[0]?.trim() || null;
+    } catch (e) {
+      journal.avertissement('[conseils] carte graphique non lue :', e.message);
+      return null;
+    }
+  }
+
+  canal('conseils:analyser', [], async () => {
+    const r = reglages();
+    const carte = await conseils.detecterCarte({
+      executer: executerSysteme, existe: (f) => fs.existsSync(f), infoGpu: await nomCarte(), vramManuelle: r.ollama.vramGo || null,
+    });
+    let modeles = [];
+    let erreurOllama = null;
+    try { modeles = await moteurs.detailsModeles(r.ollama.adresse); } catch (e) { erreurOllama = e.message; }
+    const avis = conseils.evaluer({ modeles, vramGo: carte.vramGo, parallele: r.ollama.parallele || 2 });
+    const etat = await conseils.lireReglages({ executer: executerSysteme, racineWindows: racineWindows(), parallele: r.ollama.parallele || 2 });
+    return {
+      carte, ...avis, erreurOllama, modeleChoisi: r.ollama.modele || null,
+      reglages: etat, plateforme: process.platform, instructions: conseils.instructions(r.ollama.parallele || 2),
+      anciennes: Boolean(r.ollama.anciennesVariables),
+    };
+  });
+  canal('conseils:vram', [{ type: 'number', min: 2, max: 96 }], (_e, go) => {
+    const r = reglages();
+    r.ollama.vramGo = Math.round(go);
+    parametres.modifier({ ollama: r.ollama });
+    return true;
+  });
+  canal('conseils:activerReglages', [], async () => {
+    const r = reglages();
+    const parallele = r.ollama.parallele || 2;
+    const etatActuel = await conseils.lireReglages({ executer: executerSysteme, racineWindows: racineWindows(), parallele });
+    const anciennes = await conseils.activerReglages({ executer: executerSysteme, racineWindows: racineWindows(), parallele, etatActuel });
+    if (!r.ollama.anciennesVariables) { r.ollama.anciennesVariables = anciennes; parametres.modifier({ ollama: r.ollama }); }
+    journal.info(`[conseils] réglages d'Ollama enregistrés pour l'utilisateur (avant : ${JSON.stringify(anciennes)})`);
+    return conseils.lireReglages({ executer: executerSysteme, racineWindows: racineWindows(), parallele });
+  });
+  canal('conseils:retablirReglages', [], async () => {
+    const r = reglages();
+    if (!r.ollama.anciennesVariables) throw new Error('Rien à rétablir : SubForge n\'a pas modifié ces réglages.');
+    await conseils.retablirReglages({ executer: executerSysteme, racineWindows: racineWindows(), anciennes: r.ollama.anciennesVariables });
+    delete r.ollama.anciennesVariables;
+    parametres.modifier({ ollama: r.ollama });
+    journal.info('[conseils] réglages d\'Ollama rétablis');
+    return conseils.lireReglages({ executer: executerSysteme, racineWindows: racineWindows(), parallele: r.ollama.parallele || 2 });
+  });
+  // Copie d'une commande proposée par SubForge (forme vérifiée : ollama pull / setx).
+  canal('conseils:copier', [{ type: 'string', max: 300 }], (_e, texte) => {
+    if (!/^(ollama pull [\w.:/-]{1,80}|setx OLLAMA_[A-Z_]{3,30} [\w.]{1,10})$/.test(texte)) throw new ErreurSecurite('Texte non copiable.');
+    clipboard.writeText(texte);
+    return true;
   });
 
   // Préchargement du modèle (1.7) : demandé par l'écran Traduire quand des fichiers attendent et

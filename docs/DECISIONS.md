@@ -67,6 +67,23 @@
   `scripts/preparer-ffmpeg.js`, extraction du binaire sans dépendance.
 - **Conséquences** : +23 Mo dans l'installeur ; le script D-004 change de source, pas d'usage.
 
+## D-015 — Conseiller d'IA locale et réglages d'Ollama par variables utilisateur
+- **Date** : 2026-10-23
+- **Choix** : carte lue par `nvidia-smi` (chemins fixes), sinon nom donné par Electron + table des cartes
+  courantes, sinon mémoire vidéo choisie à la main. Conseils figés dans le code (qwen2.5, aya-expanse,
+  mistral-small), aucun téléchargement par SubForge : la commande `ollama pull` est copiée.
+  Réflexion coupée (`think: false`) d'après `capabilities` de /api/show, sinon d'après la famille.
+  Réglages d'Ollama écrits par `setx` dans les variables **de l'utilisateur** (pas de droits
+  administrateur), anciennes valeurs gardées pour revenir en arrière.
+- **Pourquoi** : la carte de 8 Go est le facteur limitant ; un modèle q8/fp16 ou trop gros divise la
+  vitesse par 2 à 10 sans gain de qualité visible en traduction. Ollama lit ses réglages au démarrage
+  uniquement dans l'environnement : pas d'API pour les changer.
+- **Écartés** : télécharger le modèle depuis SubForge (Ollama le fait déjà, avec sa progression) ;
+  variables système (HKLM, droits administrateur) ; relancer Ollama automatiquement (risque de couper
+  un autre logiciel qui s'en sert).
+- **Conséquences** : Ollama doit être redémarré à la main ; une variable système existante est
+  masquée par la variable utilisateur (affiché).
+
 ## D-014 — Remplacer le film d'origine : corbeille, jamais d'effacement
 - **Date** : 2026-10-23
 - **Choix** : option (décochée, confirmée) ; nouvelle version écrite à côté et vérifiée, puis original

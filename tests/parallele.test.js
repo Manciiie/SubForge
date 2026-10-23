@@ -33,6 +33,7 @@ function ollamaLent() {
       let corps = '';
       req.on('data', (c) => { corps += c; });
       req.on('end', async () => {
+        if (req.url === '/api/show') { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end('{"capabilities":["completion"]}'); return; } // capacités du modèle (1.10)
         const msg = JSON.parse(corps);
         etat.enCours += 1; etat.max = Math.max(etat.max, etat.enCours);
         etat.demandes.push(msg.messages[1].content);

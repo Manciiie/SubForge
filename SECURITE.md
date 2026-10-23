@@ -41,6 +41,12 @@ Date : 2026-10-10
   corbeille de Windows (`shell.trashItem`), seulement après écriture complète et vérification de la
   nouvelle version (durée, pistes) ; rien n'est écrasé si le nom final existe déjà ; confirmation
   explicite au choix de l'option ; dossier de « corbeille » de test seulement hors version installée.
+- **Conseiller et réglages d'Ollama (1.10)** : `nvidia-smi`, `reg.exe` et `setx.exe` appelés par chemin
+  absolu (`%SystemRoot%\System32`, jamais le PATH), `execFile` sans shell, 10 s au plus ; seuls trois noms
+  de variables et des valeurs prises dans une liste fixe (`1`, `q8_0`, `1`–`4`) peuvent être écrits, dans
+  les variables de l'utilisateur seulement (aucun droit administrateur) ; « Remettre comme avant » ne
+  touche qu'aux variables que SubForge a modifiées ; le presse-papiers n'accepte que `ollama pull <nom>`
+  et `setx OLLAMA_… <valeur>` ; aucun téléchargement de modèle par SubForge.
 - **OCR** : données de langue livrées (aucun téléchargement au premier lancement), images limitées
   à 4096 px, piste .sup limitée à 200 Mo, segments abîmés comptés et annoncés.
 - **Dossiers** : liens symboliques et jonctions jamais suivis, profondeur 6, 1 000 fichiers au plus.

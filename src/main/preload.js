@@ -43,6 +43,11 @@ const CANAUX = [
   'moteurs:annulerMesure',
   'memoire:etat',
   'memoire:vider',
+  'conseils:analyser',
+  'conseils:vram',
+  'conseils:activerReglages',
+  'conseils:retablirReglages',
+  'conseils:copier',
   'contexte:etat',
   'contexte:enregistrer',
   'contexte:tester',
@@ -116,6 +121,13 @@ contextBridge.exposeInMainWorld('forge', {
   memoire: {
     etat: () => appeler('memoire:etat'),
     vider: () => appeler('memoire:vider'),
+  },
+  conseils: {
+    analyser: () => appeler('conseils:analyser'),
+    vram: (go) => appeler('conseils:vram', go),
+    activerReglages: () => appeler('conseils:activerReglages'),
+    retablirReglages: () => appeler('conseils:retablirReglages'),
+    copier: (texte) => appeler('conseils:copier', texte),
   },
   contexte: {
     etat: () => appeler('contexte:etat'),

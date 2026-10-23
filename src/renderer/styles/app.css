@@ -286,3 +286,12 @@ input[type="color"] { width: 44px; height: 28px; border: 0; background: none; cu
 /* 1.9 : film déjà traduit par SubForge ; états parallèles */
 .pastille--deja { background: color-mix(in srgb, var(--succes) 12%, transparent); color: var(--texte-discret); }
 .pastille--synchro, .pastille--relecture, .pastille--attente { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--texte); }
+
+/* Conseiller d'IA locale (1.10) */
+.sous-titre-carte { font-size: 14px; margin: 18px 0 8px; color: var(--texte); }
+.conseil-reco { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--bordure); border-radius: var(--rayon-petit); }
+.conseil-reco .code { user-select: text; }
+.table-conseils .table-glossaire__ligne { grid-template-columns: 1.1fr 70px 2fr 170px; }
+.verdict--bon { color: var(--succes); }
+.verdict--trop-gros, .verdict--juste { color: var(--alerte); }
+.code-bloc { background: var(--fond-panneau); border: 1px solid var(--bordure); border-radius: var(--rayon-petit); padding: 10px 12px; font-size: 12px; white-space: pre-wrap; user-select: text; color: var(--texte); }
